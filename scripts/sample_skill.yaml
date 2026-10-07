@@ -1,0 +1,25 @@
+# 示例技能配方：打开"设置"应用并停留
+# 复制到手机 <外部存储>/Android/data/io.agents.pokeclaw/files/skills/ 下即可，
+# 重启 app 自动加载注册。字段含义见 docs/SKILL_FORMAT.md
+id: open_settings_demo
+name: 打开设置
+description: 演示配方：打开系统设置并等待加载
+category: NAVIGATION
+user_facing: true
+estimated_steps_saved: 2
+triggers: []
+parameters: []
+steps:
+  - tool: open_app
+    description: 打开系统设置
+    optional: false
+    retries: 1
+    params:
+      app_name: "设置"
+  - tool: wait
+    description: 等待界面加载
+    optional: false
+    retries: 1
+    params:
+      duration_ms: "2000"
+fallback_goal: 打开系统设置应用

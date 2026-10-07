@@ -163,6 +163,9 @@ dependencies {
     // NanoHTTPD 嵌入式 HTTP 服务器（局域网配置服务）
     implementation(libs.nanohttpd)
 
+    // SnakeYAML — 用户自定义技能配方（YAML recipe）解析
+    implementation(libs.snakeyaml)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

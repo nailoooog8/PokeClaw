@@ -24,6 +24,14 @@ object SkillRegistry {
 
     fun findById(id: String): Skill? = skills[id]
 
+    fun unregister(id: String) {
+        skills.remove(id)
+    }
+
+    fun unregisterBySource(source: SkillSource) {
+        skills.values.filter { it.source == source }.forEach { skills.remove(it.id) }
+    }
+
     fun getAll(): List<Skill> = skills.values.toList()
 
     fun getByCategory(category: SkillCategory): List<Skill> =

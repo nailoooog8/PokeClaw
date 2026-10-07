@@ -13,6 +13,7 @@ import io.agents.pokeclaw.agent.llm.LlmClient
 import io.agents.pokeclaw.agent.llm.LlmClientFactory
 import io.agents.pokeclaw.agent.llm.LlmResponse
 import io.agents.pokeclaw.agent.llm.StreamingListener
+import io.agents.pokeclaw.agent.skill.ToolCallRecorder
 import io.agents.pokeclaw.service.ClawAccessibilityService
 import io.agents.pokeclaw.tool.ToolRegistry
 import io.agents.pokeclaw.tool.impl.GetScreenInfoTool
@@ -436,6 +437,8 @@ class DefaultAgentService : AgentService {
     // ==================== Main Execution Loop ====================
 
     private fun runAgentLoop(userPrompt: String, callback: AgentCallback) {
+        // Arm the "save as skill" capture for this task (cleared on next task)
+        ToolCallRecorder.begin(userPrompt)
         // Pre-flight check
         preCheck()?.let {
             callback.onError(0, RuntimeException(it), 0)
@@ -659,6 +662,7 @@ class DefaultAgentService : AgentService {
                         continue
                     }
                     XLog.i(TAG, "runAgentLoop: text-only response, completing")
+                    ToolCallRecorder.markSuccess()
                     callback.onComplete(iterations, responseText, totalTokens, actualModelName)
                     return
                 }
@@ -737,6 +741,7 @@ class DefaultAgentService : AgentService {
 
                 // finish tool → task complete
                 if (toolName == "finish" && result.isSuccess) {
+                    ToolCallRecorder.markSuccess()
                     val finishData = result.data
                     callback.onComplete(iterations, finishData ?: ClawApplication.instance.getString(R.string.agent_task_completed), totalTokens, actualModelName)
                     return

@@ -98,7 +98,10 @@ object ToolRegistry {
     fun executeTool(name: String, params: Map<String, Any>): ToolResult {
         val tool = tools[name] ?: return ToolResult.error("Unknown tool: $name")
         return try {
-            tool.executeWithWaitAfter(params)
+            val result = tool.executeWithWaitAfter(params)
+            // Feed the "save as skill" capture pipeline (no-op unless armed by the agent loop)
+            io.agents.pokeclaw.agent.skill.ToolCallRecorder.record(name, params, result)
+            result
         } catch (e: Exception) {
             io.agents.pokeclaw.utils.XLog.e("ToolRegistry", "Tool '$name' execution failed with params=$params", e)
             ToolResult.error("Tool execution failed: ${e.message}")

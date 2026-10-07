@@ -24,8 +24,12 @@ data class Skill(
     val fallbackGoal: String = "",
     /** If true, this skill appears in the Task UI for users to initiate.
      *  If false, it's only used internally by the LLM agent (e.g. dismiss_popup, go_back). */
-    val userFacing: Boolean = false
+    val userFacing: Boolean = false,
+    /** Where this skill came from — built-in Kotlin definitions or user YAML recipes. */
+    val source: SkillSource = SkillSource.BUILTIN
 )
+
+enum class SkillSource { BUILTIN, USER }
 
 enum class SkillCategory(val label: String, val icon: String) {
     INPUT("Input", "\uD83D\uDD0D"),        // 🔍

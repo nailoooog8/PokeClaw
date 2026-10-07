@@ -475,6 +475,16 @@ class SettingsActivity : BaseActivity() {
             setTrailingText(refreshMcpServerCount())
         }
 
+        // User skill recipes (YAML) — capture / edit / delete
+        toolsGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_agenda,
+            title = "自定义技能",
+            onClick = { startActivity(Intent(this, UserSkillsActivity::class.java)) },
+            showDivider = false
+        ).apply {
+            setLeadingIconColor(getColor(R.color.colorTextPrimary))
+        }
+
         // Remote Control
         val remoteGroup = findViewById<MenuGroup>(R.id.remoteGroup)
         remoteGroup.setTitle("Remote Control")

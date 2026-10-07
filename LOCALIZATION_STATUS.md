@@ -1,6 +1,6 @@
 # 汉化补丁状态（交接文档）
 
-> 2026-10-07 更新。装机+权限+MCP e2e+MCP 管理 UI 已全部完成（见下），剩余：Skills 二期。
+> 2026-10-07 更新。装机+权限+MCP e2e+MCP 管理 UI+**Skills 二期**（YAML recipe+捕获+管理 UI，已装机验证）全部完成（见下）。剩余：13 处低频汉化、MCP 管理页可选增强。
 > 扫描脚本 `PokeClaw/.tmp_scan_ui.py` 可重跑（列出所有硬编码 UI 英文串的文件+行号+内容）。
 > MCP 测试服务器已入库：`PokeClaw/scripts/mcp_test_server.py`（python 直接跑，端口 8765，工具 echo/server_uptime）。
 
@@ -28,7 +28,17 @@
    - `ui/chat/ComposeChatActivity.kt`（1 处："Image upload coming soon"）
 2. ~~MCP tools/call 实调验证~~ ✅ 2026-10-07 完成（agent 循环实调 echo 成功）
 3. ~~MCP 服务器管理 UI~~ ✅ 2026-10-07 完成（`ui/settings/McpServersActivity`：设置页 Tools 组入口，列表/添加/编辑/长按删除/启停，实时连接状态 StateFlow；`McpConnectionManager` 扩展 saveConfigs/connectOne/removeServer + 状态跟踪；`ToolRegistry` 加 unregister/unregisterByPrefix。装机实测：列表显示 "e2e · 2 tools"，编辑保存→落盘→重连→重注册全通。注意：系统 AlertDialog 白底，表单文字用固定深色而非主题色）
-4. Skills 层二期（YAML recipe，见 MCP_INTEGRATION_PLAN.md 第 5 步）
+4. ~~Skills 层二期（YAML recipe）~~ ✅ 2026-10-07 完成（见文末"Skills 二期"）
+
+## Skills 二期（2026-10-07 本轮完成，已装机验证）
+
+- **YAML recipe 技能**：`agent/skill/UserSkillLoader.kt`（SnakeYAML 2.2，新依赖）解析外部目录 `getExternalFilesDir(null)/skills/*.yaml`（与 mcp_servers.json 同目录策略）；启动加载（`ClawApplication`），`mcp_*` 工具允许后注册，其余未知工具整文件拒载；`Skill` 加 `source` 字段，`SkillRegistry` 加 `unregister`/`unregisterBySource`
+- **捕获"保存为技能"**：`agent/skill/ToolCallRecorder.kt` 挂 `ToolRegistry.executeTool` 钩子，agent 循环（runAgentLoop 顶部 begin）记录工具调用，finish 成功/纯文本完成时 markSuccess 快照；生成 YAML 自动剔除 finish/get_screen_info/take_screenshot
+- **管理 UI**：`ui/settings/UserSkillsActivity`（设置 → Tools → 自定义技能）：配方列表（点击编辑 YAML、长按删除）、从上次任务创建（无捕获时置灰）、手动新建（内置模板）、保存即注册生效
+- **装机 e2e**（2026-10-07 实测）：`adb push scripts/sample_skill.yaml` → 重启 → logcat `User skills: 1 loaded, 0 error(s)`；管理页截图正常（配方"打开设置 · 2 步"）
+- 格式文档 `docs/SKILL_FORMAT.md`，示例 `scripts/sample_skill.yaml`
+- 未做（可选增强）：配方自动触发仅 PipelineTier2 正则（继承内置逻辑）；技能面板 Workflows 卡片由 `getUserFacing()` 自动带出，未单独截图验证；MCP 管理 UI 的"测试连接"按钮和工具来源标记仍为待办
+- 坑：Kotlin 块注释支持嵌套——KDoc 里写 `/skills/*.yaml` 的 `/*` 会开启嵌套注释吃掉整个文件（"Unclosed comment"），注释里写路径带 `*` 要注意
 
 ## Git / 远端（2026-10-07）
 
