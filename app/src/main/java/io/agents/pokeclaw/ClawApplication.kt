@@ -40,6 +40,8 @@ class ClawApplication : BaseApp() {
         ToolRegistry.getInstance().registerAllTools(ToolRegistry.DeviceType.MOBILE)
         io.agents.pokeclaw.agent.skill.SkillRegistry.loadBuiltInSkills()
         io.agents.pokeclaw.agent.PlaybookManager.loadAll(this)
+        // MCP: load remote tool configs and register remote tools (async, network)
+        io.agents.pokeclaw.agent.mcp.McpConnectionManager.loadAndRegister(this)
         XLog.e(TAG, "ClawApplication initialized, tools registered: ${ToolRegistry.getInstance().getAllTools().size}")
 
         // Write network logs to file (set to true when debugging)
