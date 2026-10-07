@@ -22,3 +22,9 @@ CLAUDE.local.md
 thoughts/
 .claudeignore
 /.kotlin/
+
+# Local scratch / tooling
+.tmp_*
+.mimosa/
+baseline_build.log
+/tools/

@@ -80,6 +80,15 @@ object ToolRegistry {
         tools[tool.getName()] = tool
     }
 
+    fun unregister(name: String): Boolean = tools.remove(name) != null
+
+    /** Removes every tool whose registered name starts with [prefix]; returns how many were removed. */
+    fun unregisterByPrefix(prefix: String): Int {
+        val removed = tools.keys.filter { it.startsWith(prefix) }
+        for (name in removed) tools.remove(name)
+        return removed.size
+    }
+
     fun getTool(name: String): BaseTool? = tools[name]
 
     fun getDisplayName(name: String): String = tools[name]?.getDisplayName() ?: name

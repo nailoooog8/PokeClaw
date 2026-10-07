@@ -62,6 +62,7 @@ class SettingsActivity : BaseActivity() {
     private var externalAutomationItem: io.agents.pokeclaw.widget.MenuItem? = null
     private var globalPromptItem: io.agents.pokeclaw.widget.MenuItem? = null
     private var customModelUrlItem: io.agents.pokeclaw.widget.MenuItem? = null
+    private var mcpServersItem: io.agents.pokeclaw.widget.MenuItem? = null
 
     private val viewModel by lazy {
         ViewModelProvider(this)[SettingsViewModel::class.java]
@@ -110,6 +111,7 @@ class SettingsActivity : BaseActivity() {
         refreshSettings()
         refreshPermissions()
         refreshExternalAutomation()
+        mcpServersItem?.setTrailingText(refreshMcpServerCount())
         handler.removeCallbacks(permPoller)
         handler.postDelayed(permPoller, 1000)
     }
@@ -117,6 +119,12 @@ class SettingsActivity : BaseActivity() {
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(permPoller)
+    }
+
+    /** Refreshes the trailing label on the MCP-servers row. */
+    private fun refreshMcpServerCount(): String {
+        val count = io.agents.pokeclaw.agent.mcp.McpConnectionManager.loadConfigs(this).size
+        return if (count == 0) "Not configured" else "$count configured"
     }
 
     private fun refreshPermissions() {
@@ -198,20 +206,20 @@ class SettingsActivity : BaseActivity() {
         if (KVUtils.isExternalAutomationEnabled()) {
             KVUtils.setExternalAutomationEnabled(false)
             refreshExternalAutomation()
-            Toast.makeText(this, "External Automation disabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "外部自动化已关闭", Toast.LENGTH_SHORT).show()
             return
         }
 
         ConfirmDialog.showWarm(
             context = this,
-            title = "Enable External Automation?",
+            title = "启用外部自动化？",
             message = "This lets trusted apps like Tasker, MacroDroid, or ADB start PokeClaw tasks with explicit Android intents. Keep it off unless you control the automation that will call it.",
             actionTitle = "Enable",
             cancelTitle = getString(R.string.common_cancel),
             onAction = {
                 KVUtils.setExternalAutomationEnabled(true)
                 refreshExternalAutomation()
-                Toast.makeText(this, "External Automation enabled", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "外部自动化已开启", Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -252,7 +260,7 @@ class SettingsActivity : BaseActivity() {
 
         permNotifAccess = permissionsGroup.addMenuItem(
             leadingIcon = R.drawable.ic_notification,
-            title = "Notification Access",
+            title = "通知使用权",
             onClick = {
                 AppCapabilityCoordinator.openSystemSettings(this, AppRequirement.NOTIFICATION_ACCESS)
             },
@@ -343,7 +351,7 @@ class SettingsActivity : BaseActivity() {
         // Task Budget (inline in model group)
         modelGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_recent_history,
-            title = "Task Budget",
+            title = "任务预算",
             onClick = { showBudgetDialog() },
             showDivider = true
         ).apply {
@@ -430,7 +438,7 @@ class SettingsActivity : BaseActivity() {
 
         appearanceGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_slideshow,
-            title = "Theme",
+            title = "主题",
             onClick = {
                 startActivity(Intent(this, ThemeActivity::class.java))
             },
@@ -447,13 +455,24 @@ class SettingsActivity : BaseActivity() {
 
         toolsGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_manage,
-            title = "Manage Tools",
+            title = "管理工具",
             onClick = {
-                Toast.makeText(this, "12 tools enabled. Tool management coming soon.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "已启用 12 个工具。工具管理即将上线。", Toast.LENGTH_SHORT).show()
             },
-            showDivider = false
+            showDivider = true
         ).apply {
             setTrailingText("12 enabled")
+        }
+
+        // MCP server manager — in-app editor for mcp_servers.json
+        mcpServersItem = toolsGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_share,
+            title = "MCP 服务器",
+            onClick = { startActivity(Intent(this, McpServersActivity::class.java)) },
+            showDivider = false
+        ).apply {
+            setLeadingIconColor(getColor(R.color.colorTextPrimary))
+            setTrailingText(refreshMcpServerCount())
         }
 
         // Remote Control
@@ -462,7 +481,7 @@ class SettingsActivity : BaseActivity() {
 
         remoteGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_send,
-            title = "Telegram Bot",
+            title = "Telegram 机器人",
             onClick = {
                 channelConfigLauncher.launch(ChannelConfigActivity.ChannelType.TELEGRAM)
             },
@@ -474,7 +493,7 @@ class SettingsActivity : BaseActivity() {
 
         externalAutomationItem = remoteGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_share,
-            title = "External Automation",
+            title = "外部自动化",
             onClick = { toggleExternalAutomation() },
             showDivider = true
         ).apply {
@@ -492,7 +511,7 @@ class SettingsActivity : BaseActivity() {
 
         remoteGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_myplaces,
-            title = "Web Dashboard",
+            title = "Web 控制台",
             onClick = { },
             showDivider = false
         ).apply {
@@ -514,7 +533,7 @@ class SettingsActivity : BaseActivity() {
 
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_send,
-            title = "Report a Bug",
+            title = "报告问题",
             onClick = { reportBug() },
             showDivider = true
         ).apply {
@@ -543,7 +562,7 @@ class SettingsActivity : BaseActivity() {
 
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_compass,
-            title = "Built by",
+            title = "开发者",
             onClick = {
                 startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/ithiria894".toUri()))
             },
@@ -555,18 +574,18 @@ class SettingsActivity : BaseActivity() {
 
     private fun reportBug() {
         buildSupportBundle(
-            preparingToast = "Preparing bug report…"
+            preparingToast = "正在生成问题报告…"
         ) { report ->
             AlertDialog.show(
                 context = this@SettingsActivity,
-                title = "Bug report ready",
+                title = "问题报告已生成",
                 message = """
                     ${report.name} is ready.
 
                     Open GitHub Issue to file the bug now.
                     If your browser or GitHub app makes attachment upload awkward, tap Share ZIP instead and send the report manually.
                 """.trimIndent(),
-                actionTitle = "Open GitHub Issue",
+                actionTitle = "打开 GitHub Issue",
                 cancelTitle = "Share ZIP",
                 onAction = { openGitHubIssue(report) },
                 onCancel = {
@@ -633,7 +652,7 @@ class SettingsActivity : BaseActivity() {
                 Toast.LENGTH_LONG
             ).show()
         } catch (e: ActivityNotFoundException) {
-            Toast.makeText(this, "No app available to open GitHub", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "没有可打开 GitHub 的应用", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -684,7 +703,7 @@ class SettingsActivity : BaseActivity() {
         try {
             startActivity(Intent.createChooser(intent, chooserTitle))
         } catch (e: ActivityNotFoundException) {
-            Toast.makeText(this@SettingsActivity, "No app available to share the report", Toast.LENGTH_LONG).show()
+            Toast.makeText(this@SettingsActivity, "没有可分享报告的应用", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -792,7 +811,7 @@ class SettingsActivity : BaseActivity() {
         }
 
         val tokenLabel = android.widget.TextView(this).apply {
-            text = "Max tokens per task"
+            text = "单任务最大 token 数"
             setTextColor(getColor(R.color.colorTextPrimary))
         }
         layout.addView(tokenLabel)
@@ -815,21 +834,21 @@ class SettingsActivity : BaseActivity() {
         layout.addView(tokenSpinner)
 
         val costLabel = android.widget.TextView(this).apply {
-            text = "\nMax cost per task (USD)"
+            text = "\n单任务成本上限（美元）"
             setTextColor(getColor(R.color.colorTextPrimary))
         }
         layout.addView(costLabel)
 
         val costInput = android.widget.EditText(this).apply {
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            hint = "Blank = no cost cap"
+            hint = "留空 = 不设成本上限"
             setText(currentCost?.let { String.format("%.2f", it) } ?: "")
             setTextColor(getColor(R.color.colorTextPrimary))
         }
         layout.addView(costInput)
 
         android.app.AlertDialog.Builder(this)
-            .setTitle("Task Budget")
+            .setTitle("任务预算")
             .setView(layout)
             .setPositiveButton("Save") { _, _ ->
                 val newTokens = tokenValues[tokenSpinner.selectedItemPosition]
@@ -845,7 +864,7 @@ class SettingsActivity : BaseActivity() {
                 }
 
                 val summary = io.agents.pokeclaw.agent.TaskBudget.describeCurrentBudget()
-                Toast.makeText(this, "Budget: $summary", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "预算：$summary", Toast.LENGTH_SHORT).show()
                 recreate()
             }
             .setNegativeButton("Cancel", null)
