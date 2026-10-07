@@ -41,6 +41,9 @@ class ClawApplication : BaseApp() {
         io.agents.pokeclaw.agent.skill.SkillRegistry.loadBuiltInSkills()
         io.agents.pokeclaw.agent.skill.UserSkillLoader.loadAndRegister(this)
         io.agents.pokeclaw.agent.PlaybookManager.loadAll(this)
+        // Watchdog: periodic job (persisted across reboots) that re-syncs the
+        // foreground service and revives dropped channels if the process was killed
+        io.agents.pokeclaw.service.KeepAliveJobService.schedule(this)
         // MCP: load remote tool configs and register remote tools (async, network)
         io.agents.pokeclaw.agent.mcp.McpConnectionManager.loadAndRegister(this)
         XLog.e(TAG, "ClawApplication initialized, tools registered: ${ToolRegistry.getInstance().getAllTools().size}")

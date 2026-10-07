@@ -91,6 +91,13 @@ object ChannelManager {
         }
     }
 
+    /**
+     * Whether any channel currently holds a live connection.
+     * Used by the foreground service to decide keep-alive.
+     */
+    @JvmStatic
+    fun hasConnectedChannel(): Boolean = handlers.values.any { it.isConnected() }
+
     @JvmStatic
     fun reinitDiscordFromStorage() {
         handlers[Channel.DISCORD]?.reinitFromStorage()

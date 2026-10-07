@@ -243,3 +243,14 @@
 # ============================================================
 -dontwarn jp.wasabeef.glide.**
 -keep class jp.wasabeef.glide.** { *; }
+
+# ============================================================
+# SnakeYAML (user skill recipes) — java.beans doesn't exist on Android
+# ============================================================
+-dontwarn java.beans.BeanInfo
+-dontwarn java.beans.FeatureDescriptor
+-dontwarn java.beans.IntrospectionException
+-dontwarn java.beans.Introspector
+-dontwarn java.beans.PropertyDescriptor
+-keep class org.yaml.snakeyaml.** { *; }
+-dontwarn org.yaml.snakeyaml.**

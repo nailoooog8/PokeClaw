@@ -48,6 +48,7 @@ class KeepAliveJobService : JobService() {
 
     override fun onStartJob(params: JobParameters?): Boolean {
         XLog.i(TAG, "KeepAlive job triggered, ForegroundService running: ${ForegroundService.isRunning()}")
+        io.agents.pokeclaw.channel.ChannelManager.reconnectIfNeeded()
         ForegroundService.syncToBackgroundState(applicationContext)
         return false
     }

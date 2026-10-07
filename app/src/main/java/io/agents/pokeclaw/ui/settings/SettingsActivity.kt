@@ -63,6 +63,7 @@ class SettingsActivity : BaseActivity() {
     private var globalPromptItem: io.agents.pokeclaw.widget.MenuItem? = null
     private var customModelUrlItem: io.agents.pokeclaw.widget.MenuItem? = null
     private var mcpServersItem: io.agents.pokeclaw.widget.MenuItem? = null
+    private var keepAliveItem: io.agents.pokeclaw.widget.MenuItem? = null
 
     private val viewModel by lazy {
         ViewModelProvider(this)[SettingsViewModel::class.java]
@@ -480,9 +481,26 @@ class SettingsActivity : BaseActivity() {
             leadingIcon = android.R.drawable.ic_menu_agenda,
             title = "自定义技能",
             onClick = { startActivity(Intent(this, UserSkillsActivity::class.java)) },
+            showDivider = true
+        ).apply {
+            setLeadingIconColor(getColor(R.color.colorTextPrimary))
+        }
+
+        // Persistent background keep-alive — holds a foreground service so
+        // vivo-style ROMs don't freeze the process when nothing else runs
+        keepAliveItem = toolsGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_mylocation,
+            title = "常驻后台",
+            onClick = {
+                val enabled = !ForegroundService.isPersistentKeepAliveEnabled()
+                ForegroundService.setPersistentKeepAliveEnabled(enabled)
+                keepAliveItem?.setTrailingText(if (enabled) "开启" else "关闭")
+                ForegroundService.syncToBackgroundState(this)
+            },
             showDivider = false
         ).apply {
             setLeadingIconColor(getColor(R.color.colorTextPrimary))
+            setTrailingText(if (ForegroundService.isPersistentKeepAliveEnabled()) "开启" else "关闭")
         }
 
         // Remote Control

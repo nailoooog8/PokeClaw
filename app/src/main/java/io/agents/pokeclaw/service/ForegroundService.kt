@@ -35,6 +35,7 @@ class ForegroundService : Service() {
         private const val DEFAULT_TASK_TEXT = "Running task..."
         private const val DEFAULT_MONITOR_TITLE = "PokeClaw · Monitoring"
         private const val DEGRADED_MONITOR_TITLE = "PokeClaw · Monitoring paused"
+        private const val KEY_KEEPALIVE_PERSISTENT = "KEY_KEEPALIVE_PERSISTENT"
 
         private enum class ForegroundMode {
             IDLE,
@@ -111,13 +112,52 @@ class ForegroundService : Service() {
 
         fun syncToBackgroundState(context: Context): Boolean {
             val manager = AutoReplyManager.getInstance()
-            return if (manager.isEnabled && manager.monitoredContacts.isNotEmpty()) {
-                showMonitorStatus(context)
+            if (manager.isEnabled && manager.monitoredContacts.isNotEmpty()) {
+                return showMonitorStatus(context)
+            }
+            val keepText = when {
+                // User opted for a persistent foreground service ("常驻后台")
+                isPersistentKeepAliveEnabled() -> "Keep-alive active"
+                // Keep alive while any channel (Telegram/Discord/WeChat) holds a live
+                // connection, otherwise vivo-style ROMs freeze the process and drop
+                // the polling/socket.
+                hasConnectedChannels() -> "Channels connected"
+                // Accessibility is the auto-reply infrastructure: keep the process
+                // alive whenever it's enabled so the system doesn't kill the binding.
+                isAccessibilityEnabled(context) -> "Keep-alive active"
+                else -> null
+            }
+            _mode = ForegroundMode.IDLE
+            return if (keepText != null) {
+                showNotification(context, DEFAULT_MONITOR_TITLE, keepText)
             } else {
-                _mode = ForegroundMode.IDLE
                 stop(context)
                 false
             }
+        }
+
+        fun isPersistentKeepAliveEnabled(): Boolean {
+            return runCatching { io.agents.pokeclaw.utils.KVUtils.getBoolean(KEY_KEEPALIVE_PERSISTENT, true) }
+                .getOrDefault(true)
+        }
+
+        fun setPersistentKeepAliveEnabled(enabled: Boolean) {
+            io.agents.pokeclaw.utils.KVUtils.putBoolean(KEY_KEEPALIVE_PERSISTENT, enabled)
+        }
+
+        fun hasConnectedChannels(): Boolean {
+            return runCatching { io.agents.pokeclaw.channel.ChannelManager.hasConnectedChannel() }
+                .getOrDefault(false)
+        }
+
+        private fun isAccessibilityEnabled(context: Context): Boolean {
+            return runCatching { ClawAccessibilityService.isEnabledInSettings(context) }
+                .getOrDefault(false)
+        }
+
+        private fun isKeepAliveNeeded(context: Context): Boolean {
+            return isPersistentKeepAliveEnabled() || hasConnectedChannels() ||
+                isAccessibilityEnabled(context)
         }
 
         private fun showNotification(context: Context, title: String, text: String): Boolean {
@@ -214,6 +254,11 @@ class ForegroundService : Service() {
             if (!_isRunning) return
             if (_mode == ForegroundMode.MONITOR) {
                 ForegroundService.syncToBackgroundState(applicationContext)
+            } else if (_mode == ForegroundMode.IDLE && !isKeepAliveNeeded(applicationContext)) {
+                // Keepalive no longer needed: persistent flag off, last channel
+                // dropped and accessibility disabled
+                _mode = ForegroundMode.IDLE
+                stop(applicationContext)
             }
             healthHandler.postDelayed(this, MONITOR_HEALTH_POLL_MS)
         }
@@ -248,7 +293,16 @@ class ForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = createNotification(intent)
         startForeground(NOTIFICATION_ID, notification)
-        return START_NOT_STICKY
+        if (intent == null) {
+            // System restarted the service after a process kill (START_STICKY).
+            // Re-sync to actual state: keep running only if monitoring or a
+            // channel still needs it, otherwise shut down cleanly.
+            _mode = ForegroundMode.IDLE
+            if (!syncToBackgroundState(applicationContext)) {
+                stopSelf()
+            }
+        }
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

@@ -9,8 +9,9 @@ import android.content.Intent
 import io.agents.pokeclaw.utils.XLog
 
 /**
- * Boot broadcast receiver retained for future restart hooks.
- * PokeClaw no longer starts a persistent foreground notification on boot.
+ * Boot broadcast receiver: schedules the keep-alive watchdog.
+ * The watchdog job is persisted across reboots, this re-arms it and
+ * re-syncs the foreground service in case monitoring was active before shutdown.
  */
 class BootReceiver : BroadcastReceiver() {
 
@@ -21,7 +22,8 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
             intent.action == "android.intent.action.QUICKBOOT_POWERON") {
-            XLog.i(TAG, "Boot broadcast received, no foreground service needed at boot")
+            XLog.i(TAG, "Boot broadcast received, scheduling keep-alive watchdog")
+            KeepAliveJobService.schedule(context)
         }
     }
 }

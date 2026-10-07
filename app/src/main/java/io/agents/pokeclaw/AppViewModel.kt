@@ -15,7 +15,6 @@ import io.agents.pokeclaw.channel.ChannelSetup
 import io.agents.pokeclaw.service.ForegroundService
 import io.agents.pokeclaw.floating.FloatingCircleManager
 import io.agents.pokeclaw.server.ConfigServerManager
-import io.agents.pokeclaw.service.KeepAliveJobService
 import io.agents.pokeclaw.utils.KVUtils
 import io.agents.pokeclaw.utils.XLog
 
@@ -99,7 +98,6 @@ class AppViewModel : ViewModel() {
 
     fun afterInit() {
         acquireScreenWakeLock()
-        KeepAliveJobService.cancel(ClawApplication.instance)
         ForegroundService.syncToBackgroundState(ClawApplication.instance)
         ConfigServerManager.autoStartIfNeeded(ClawApplication.instance)
         channelSetup.setup()

@@ -40,15 +40,6 @@
 - 未做（可选增强）：配方自动触发仅 PipelineTier2 正则（继承内置逻辑）；技能面板 Workflows 卡片由 `getUserFacing()` 自动带出，未单独截图验证；MCP 管理 UI 的"测试连接"按钮和工具来源标记仍为待办
 - 坑：Kotlin 块注释支持嵌套——KDoc 里写 `/skills/*.yaml` 的 `/*` 会开启嵌套注释吃掉整个文件（"Unclosed comment"），注释里写路径带 `*` 要注意
 
-## Git / 远端（2026-10-07）
-
-- 工作分支 `fork/mcp-extension`，三笔提交（MCP 客户端 / 汉化+图标 / 管理 UI），已推送 GitHub：`nailoooog8/PokeClaw`（remote 名 `fork`；origin 指上游 agents-io/PokeClaw 无推送权）
-- 提交身份已用仓库级配置 `nailoooog8 <nailoooog8@users.noreply.github.com>`（勿改回 QQ 邮箱，防隐私泄露）；全库 diff 已复查无私密信息
-- 注意：ZCode 里 git commit/push 会被 Mimosa 门禁拦（上游遗留 WeChatCdn 弱加密+KVUtils 误报，4 个 high，无害勿修）——**git 提交/推送在用户自己的终端里做**；git 联网需 `https_proxy=http://127.0.0.1:7897`
-- 同步上游：`git fetch origin && git rebase origin/main`
-
 ## 相关文件
 
 - `MCP_INTEGRATION_PLAN.md` — MCP/Skills 集成设计（已完成编码部分见此文档）
-- fork 位置：本地仓库（agents-io/PokeClaw @ 0.7.1 + MCP 四件套 + 汉化补丁），工作分支 `fork/mcp-extension`
-- 构建：JDK17 在 `../tools/jdk17`，代理在用户级 `~/.gradle/gradle.properties`
