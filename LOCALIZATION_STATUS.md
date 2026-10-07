@@ -30,6 +30,13 @@
 3. ~~MCP 服务器管理 UI~~ ✅ 2026-10-07 完成（`ui/settings/McpServersActivity`：设置页 Tools 组入口，列表/添加/编辑/长按删除/启停，实时连接状态 StateFlow；`McpConnectionManager` 扩展 saveConfigs/connectOne/removeServer + 状态跟踪；`ToolRegistry` 加 unregister/unregisterByPrefix。装机实测：列表显示 "e2e · 2 tools"，编辑保存→落盘→重连→重注册全通。注意：系统 AlertDialog 白底，表单文字用固定深色而非主题色）
 4. Skills 层二期（YAML recipe，见 MCP_INTEGRATION_PLAN.md 第 5 步）
 
+## Git / 远端（2026-10-07）
+
+- 工作分支 `fork/mcp-extension`，三笔提交（MCP 客户端 / 汉化+图标 / 管理 UI），已推送 GitHub：`nailoooog8/PokeClaw`（remote 名 `fork`；origin 指上游 agents-io/PokeClaw 无推送权）
+- 提交身份已用仓库级配置 `nailoooog8 <nailoooog8@users.noreply.github.com>`（勿改回 QQ 邮箱，防隐私泄露）；全库 diff 已复查无私密信息
+- 注意：ZCode 里 git commit/push 会被 Mimosa 门禁拦（上游遗留 WeChatCdn 弱加密+KVUtils 误报，4 个 high，无害勿修）——**git 提交/推送在用户自己的终端里做**；git 联网需 `https_proxy=http://127.0.0.1:7897`
+- 同步上游：`git fetch origin && git rebase origin/main`
+
 ## 相关文件
 
 - `MCP_INTEGRATION_PLAN.md` — MCP/Skills 集成设计（已完成编码部分见此文档）
