@@ -14,6 +14,13 @@ import com.google.gson.annotations.SerializedName
  * Persisted as a JSON array at: <external files dir>/mcp_servers.json
  * (editable via adb push or any file manager; the app reads it on startup
  * and whenever McpConnectionManager.refresh() is called).
+ *
+ * [headerValue] is the one field that must not sit on disk in the clear:
+ * McpConnectionManager encrypts it with a Keystore-backed key before writing
+ * and decrypts it on load, so in-memory instances always carry the real token
+ * while the file carries `enc:v1:`-tagged ciphertext. A hand-written plaintext
+ * value is still accepted on load and is re-encrypted the next time the file
+ * is saved.
  */
 data class McpServerConfig(
     /** Short identifier used to prefix registered tool names (mcp_{name}_{tool}) */

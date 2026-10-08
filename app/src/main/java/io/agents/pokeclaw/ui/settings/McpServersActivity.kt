@@ -60,7 +60,9 @@ class McpServersActivity : BaseActivity() {
         serversGroup.setCardBackgroundColor(tc.toolbarBg)
 
         findViewById<TextView>(R.id.tvConfigPath)?.apply {
-            text = "配置存储于 mcp_servers.json（应用外部目录），与 adb 推送方式兼容。\n点击服务器编辑，长按删除。"
+            text = "配置存储于 mcp_servers.json（应用外部目录），与 adb 推送方式兼容。\n" +
+                "鉴权 Header 值以 enc:v1: 开头的密文保存，请在应用内填写。\n" +
+                "点击服务器编辑，长按删除。"
             setTextColor(tc.aiText)
         }
 

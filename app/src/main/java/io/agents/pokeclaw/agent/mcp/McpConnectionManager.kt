@@ -9,6 +9,7 @@ import android.os.Looper
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import io.agents.pokeclaw.tool.ToolRegistry
+import io.agents.pokeclaw.utils.SecretBox
 import io.agents.pokeclaw.utils.XLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +23,9 @@ import java.util.concurrent.Executors
  *
  * Config file: mcp_servers.json (JSON array of McpServerConfig) located in
  * the app's external files dir (preferred, adb-editable) or internal files dir.
- * The in-app MCP server manager UI writes through [saveConfigs].
+ * The in-app MCP server manager UI writes through [saveConfigs]; the auth
+ * header value is encrypted at rest with a Keystore key, so an adb-editable
+ * file never carries the token in the clear.
  *
  * All ToolRegistry mutations are posted to the main thread: registration
  * happens once at app startup (main) and after async discovery (main),
@@ -78,15 +81,36 @@ object McpConnectionManager {
     @JvmStatic
     fun loadConfigs(context: Context): List<McpServerConfig> = readConfigs(context.applicationContext)
 
-    /** Persists configs to mcp_servers.json (external files dir preferred, internal fallback). */
+    /**
+     * Persists configs to mcp_servers.json (external files dir preferred, internal fallback).
+     *
+     * The auth header value is encrypted with a Keystore-backed key before it
+     * hits the disk, so the file stays adb-editable for name/url/enabled without
+     * leaking the token to anyone who can read it. If encryption fails the save
+     * fails — writing the token in the clear is worse than not writing at all.
+     */
     @JvmStatic
     fun saveConfigs(context: Context, configs: List<McpServerConfig>): Boolean {
         val app = context.applicationContext
         val file = configFile(app) ?: return false
+        val redacted = ArrayList<McpServerConfig>(configs.size)
+        for (c in configs) {
+            val secret = c.headerValue
+            if (secret.isNullOrEmpty() || SecretBox.isEncrypted(secret)) {
+                redacted.add(c)
+                continue
+            }
+            val enc = SecretBox.encrypt(secret)
+            if (enc == null) {
+                XLog.e(TAG, "Refusing to save '${c.name}' with an unencrypted auth header")
+                return false
+            }
+            redacted.add(c.copy(headerValue = enc))
+        }
         return try {
             val gson: Gson = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
-            file.writeText(gson.toJson(configs))
-            XLog.i(TAG, "Saved ${configs.size} MCP server config(s) to ${file.absolutePath}")
+            file.writeText(gson.toJson(redacted))
+            XLog.i(TAG, "Saved ${redacted.size} MCP server config(s) to ${file.absolutePath}")
             true
         } catch (e: Exception) {
             XLog.e(TAG, "Failed to save MCP configs", e)
@@ -192,7 +216,7 @@ object McpConnectionManager {
         val candidates = listOfNotNull(external, File(app.filesDir, CONFIG_FILE))
         for (f in candidates) {
             if (f.isFile && f.length() > 0) {
-                val parsed = McpServerConfig.parseList(f.readText())
+                val parsed = decryptSecrets(McpServerConfig.parseList(f.readText()))
                 if (parsed.isNotEmpty()) {
                     XLog.i(TAG, "Loaded ${parsed.size} MCP server(s) from ${f.absolutePath}")
                     return parsed
@@ -200,5 +224,30 @@ object McpConnectionManager {
             }
         }
         return emptyList()
+    }
+
+    /**
+     * Undoes the at-rest encryption from [saveConfigs]. Entries written by an
+     * older build, or hand-edited into the file, carry a plaintext header and
+     * pass through untouched. A server whose token cannot be decrypted is
+     * dropped rather than kept with a ciphertext token that would only produce
+     * a confusing 401 later.
+     */
+    private fun decryptSecrets(configs: List<McpServerConfig>): List<McpServerConfig> {
+        val out = ArrayList<McpServerConfig>(configs.size)
+        for (c in configs) {
+            val stored = c.headerValue
+            if (stored.isNullOrEmpty() || !SecretBox.isEncrypted(stored)) {
+                out.add(c)
+                continue
+            }
+            val plain = SecretBox.decrypt(stored)
+            if (plain == null) {
+                XLog.e(TAG, "Dropping MCP server '${c.name}': its auth header could not be decrypted")
+                continue
+            }
+            out.add(c.copy(headerValue = plain))
+        }
+        return out
     }
 }
