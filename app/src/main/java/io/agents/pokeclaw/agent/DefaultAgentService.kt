@@ -471,6 +471,7 @@ class DefaultAgentService : AgentService {
         val fullSystemPrompt = buildString {
             append(basePrompt)
             append(playbookSection)
+            append(io.agents.pokeclaw.agent.memory.MemoryStore.briefing(rawUserRequest))
             append(inAppSearchGuard.buildPromptSection())
             append(emailComposeGuard.buildPromptSection())
             append(directDeviceDataGuard.buildPromptSection())

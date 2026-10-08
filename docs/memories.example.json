@@ -1,0 +1,46 @@
+[
+  {
+    "id": "example0001",
+    "content": "用户是示例大学计算机专业的大二学生。",
+    "kind": "profile",
+    "tags": ["用户", "身份", "学校"],
+    "pinned": true,
+    "createdAt": 1788000000000,
+    "updatedAt": 1788000000000,
+    "hits": 0,
+    "lastUsedAt": 0
+  },
+  {
+    "id": "example0002",
+    "content": "示例设备：某品牌 Android 14 手机，每次重装 APK 后悬浮窗权限需要重新授权。",
+    "kind": "fact",
+    "tags": ["device", "appops", "后台保活"],
+    "pinned": true,
+    "createdAt": 1788000000000,
+    "updatedAt": 1788000000000,
+    "hits": 0,
+    "lastUsedAt": 0
+  },
+  {
+    "id": "example0003",
+    "content": "用户偏好中文界面和中文回复；提交代码使用 noreply 邮箱。",
+    "kind": "preference",
+    "tags": ["语言", "git"],
+    "pinned": false,
+    "createdAt": 1788000000000,
+    "updatedAt": 1788000000000,
+    "hits": 0,
+    "lastUsedAt": 0
+  },
+  {
+    "id": "example0004",
+    "content": "示例冲突对：同一件事被记录成两个互相矛盾的值，两条都会带 ⚠ 标记。",
+    "kind": "event",
+    "tags": ["示例", "矛盾"],
+    "pinned": false,
+    "createdAt": 1788000000000,
+    "updatedAt": 1788000000000,
+    "hits": 0,
+    "lastUsedAt": 0
+  }
+]

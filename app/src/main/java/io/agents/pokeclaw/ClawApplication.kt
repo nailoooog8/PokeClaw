@@ -41,6 +41,8 @@ class ClawApplication : BaseApp() {
         io.agents.pokeclaw.agent.skill.SkillRegistry.loadBuiltInSkills()
         io.agents.pokeclaw.agent.skill.UserSkillLoader.loadAndRegister(this)
         io.agents.pokeclaw.agent.PlaybookManager.loadAll(this)
+        // Memory bank: parse memories.json so the first task already has the bank warm
+        io.agents.pokeclaw.agent.memory.MemoryStore.init(this)
         // Watchdog: periodic job (persisted across reboots) that re-syncs the
         // foreground service and revives dropped channels if the process was killed
         io.agents.pokeclaw.service.KeepAliveJobService.schedule(this)

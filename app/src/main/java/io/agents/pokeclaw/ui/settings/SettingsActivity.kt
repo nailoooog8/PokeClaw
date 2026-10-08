@@ -128,6 +128,14 @@ class SettingsActivity : BaseActivity() {
         return if (count == 0) "Not configured" else "$count configured"
     }
 
+    /** Trailing label for the memory-bank row: off state wins over the count. */
+    private fun refreshMemoryCount(): String {
+        io.agents.pokeclaw.agent.memory.MemoryStore.init(this)
+        if (!io.agents.pokeclaw.agent.memory.MemoryStore.isEnabled()) return "已关闭"
+        val count = io.agents.pokeclaw.agent.memory.MemoryStore.count()
+        return if (count == 0) "空" else "$count 条"
+    }
+
     private fun refreshPermissions() {
         val capabilities = AppCapabilityCoordinator.snapshot(this)
         permAccessibility?.setTrailingText(capabilities.accessibilityStatusLabel)
@@ -484,6 +492,17 @@ class SettingsActivity : BaseActivity() {
             showDivider = true
         ).apply {
             setLeadingIconColor(getColor(R.color.colorTextPrimary))
+        }
+
+        // Long-term memory bank — what the agent carries between sessions
+        toolsGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_save,
+            title = "记忆库",
+            onClick = { startActivity(Intent(this, MemoryActivity::class.java)) },
+            showDivider = true
+        ).apply {
+            setLeadingIconColor(getColor(R.color.colorTextPrimary))
+            setTrailingText(refreshMemoryCount())
         }
 
         // Persistent background keep-alive — holds a foreground service so

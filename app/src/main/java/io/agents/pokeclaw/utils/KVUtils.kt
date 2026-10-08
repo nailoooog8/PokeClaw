@@ -165,6 +165,11 @@ object KVUtils {
     fun isConfigServerEnabled(): Boolean = getBoolean(KEY_CONFIG_SERVER_ENABLED, false)
     fun setConfigServerEnabled(enabled: Boolean) = putBoolean(KEY_CONFIG_SERVER_ENABLED, enabled)
 
+    // ==================== Memory Bank ====================
+    private const val KEY_MEMORY_ENABLED = "KEY_MEMORY_ENABLED"
+    fun isMemoryEnabled(): Boolean = getBoolean(KEY_MEMORY_ENABLED, true)
+    fun setMemoryEnabled(enabled: Boolean) = putBoolean(KEY_MEMORY_ENABLED, enabled)
+
     // ==================== External Automation ====================
     private const val KEY_EXTERNAL_AUTOMATION_ENABLED = "KEY_EXTERNAL_AUTOMATION_ENABLED"
     fun isExternalAutomationEnabled(): Boolean = getBoolean(KEY_EXTERNAL_AUTOMATION_ENABLED, false)

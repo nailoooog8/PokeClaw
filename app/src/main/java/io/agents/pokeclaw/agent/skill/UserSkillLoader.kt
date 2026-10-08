@@ -215,7 +215,11 @@ object UserSkillLoader {
         description: String
     ): String {
         // Observation-only and terminal tools are noise in a deterministic recipe.
-        val skipped = setOf("finish", "get_screen_info", "take_screenshot")
+        val skipped = setOf(
+            "finish", "get_screen_info", "take_screenshot",
+            // Memory calls are side effects, not device steps
+            "memory_save", "memory_recall", "memory_forget"
+        )
         val steps = capture.calls
             .filterNot { it.toolName in skipped }
             .map { call ->

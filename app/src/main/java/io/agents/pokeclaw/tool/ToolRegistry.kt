@@ -4,6 +4,9 @@
 package io.agents.pokeclaw.tool
 
 import io.agents.pokeclaw.agent.knowledge.*
+import io.agents.pokeclaw.agent.memory.MemoryForgetTool
+import io.agents.pokeclaw.agent.memory.MemoryRecallTool
+import io.agents.pokeclaw.agent.memory.MemorySaveTool
 import io.agents.pokeclaw.tool.impl.*
 import io.agents.pokeclaw.tool.impl.mobile.*
 import io.agents.pokeclaw.tool.impl.tv.*
@@ -51,6 +54,10 @@ object ToolRegistry {
         register(KbSearchTool())
         register(KbAppendTool())
         register(KbAddTodoTool())
+        // Long-term memory bank — what the agent carries between sessions
+        register(MemorySaveTool())
+        register(MemoryRecallTool())
+        register(MemoryForgetTool())
     }
 
     private fun registerTvTools() {
