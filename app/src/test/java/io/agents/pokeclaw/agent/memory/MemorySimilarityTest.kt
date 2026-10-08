@@ -154,15 +154,133 @@ class MemorySimilarityTest {
 
     @Test
     fun `a full paraphrase escapes suppression - the known lexical limit`() {
-        // Bigram matching cannot see that these say the same thing. Documented
-        // as a limitation rather than papered over: raising the threshold would
-        // cost more in over-suppression than it buys.
+        // Neither test can see that these say the same thing: bigrams miss the
+        // reword, and the contradiction rules key on a shared sentence frame a
+        // paraphrase does not share. Documented as a limitation rather than
+        // papered over — closing it needs an embedding, not a better threshold.
         val forgotten = "用户不喜欢在晚上八点以后收到工作消息。"
         val paraphrase = "用户不希望被工作上的事打扰，尤其是很晚的时候。"
         assertTrue(
             MemorySimilarity.similarity(forgotten, paraphrase) <
                 MemorySimilarity.SUPPRESS_THRESHOLD
         )
+        assertFalse(MemorySimilarity.isSuppressedBy(forgotten, paraphrase))
+    }
+
+    // ── Suppression: the leaks that made the old version look broken ──────────
+
+    @Test
+    fun `a re-save with the value swapped is suppressed`() {
+        // Dice is 0.67, under the 0.70 threshold, so wording alone missed this —
+        // yet it plainly restates what the user deleted.
+        assertTrue(
+            MemorySimilarity.isSuppressedBy("用户每周跑3次。", "用户每周跑5次。")
+        )
+    }
+
+    @Test
+    fun `a re-save with the brand swapped is suppressed`() {
+        // Dice is 0.59 — the agent re-learns "phone is X" right after the user
+        // dropped "phone is Y". This is the leak users actually hit.
+        assertTrue(
+            MemorySimilarity.isSuppressedBy("用户的手机是Pixel。", "用户的手机是小米。")
+        )
+    }
+
+    @Test
+    fun `a re-save with the value swapped is suppressed in english too`() {
+        assertTrue(
+            MemorySimilarity.isSuppressedBy(
+                "The user drinks 3 coffees daily.",
+                "The user drinks 7 coffees daily."
+            )
+        )
+    }
+
+    @Test
+    fun `a polarity flip of a forgotten memory is suppressed`() {
+        assertTrue(
+            MemorySimilarity.isSuppressedBy("用户喜欢用微信聊天。", "用户不喜欢用微信聊天。")
+        )
+    }
+
+    @Test
+    fun `an extended restatement of a forgotten memory is suppressed`() {
+        // Dice 0.74, already over the threshold before the frame rule existed.
+        // Suppression wants this blocked even though contradiction does not:
+        // "wechat and QQ" is still the preference the user dropped, and letting
+        // it back in is the failure mode, not a tolerable near-miss.
+        assertTrue(
+            MemorySimilarity.isSuppressedBy(
+                "用户喜欢用微信聊天。",
+                "用户喜欢用微信和QQ聊天。"
+            )
+        )
+    }
+
+    // ── Suppression: these must NOT fire ──────────────────────────────────────
+
+    @Test
+    fun `a new memory beside a forgotten one is not suppressed`() {
+        // Same subject, different claim — the user dropped the phone model, not
+        // every fact they own a phone to remember. Dice 0.36.
+        assertFalse(
+            MemorySimilarity.isSuppressedBy(
+                "用户的手机是Pixel。",
+                "用户的手机电量一般能用一天。"
+            )
+        )
+    }
+
+    @Test
+    fun `an unrelated memory is not suppressed`() {
+        assertFalse(
+            MemorySimilarity.isSuppressedBy(
+                "用户每周跑3次。",
+                "用户的导师姓李，研究方向是动物药理学。"
+            )
+        )
+    }
+
+    @Test
+    fun `an unrelated english memory is not suppressed`() {
+        assertFalse(
+            MemorySimilarity.isSuppressedBy(
+                "The user drinks 3 coffees daily.",
+                "The user set an alarm for 7 minutes."
+            )
+        )
+    }
+
+    @Test
+    fun `traces stay individually addressable for a one-at-a-time restore`() {
+        val traces = MemorySimilarity.Traces.parse(
+            """
+            [
+              { "id": "one", "text": "用户每周跑3次。", "at": 1 },
+              { "id": "two", "text": "用户的导师姓李。", "at": 2 }
+            ]
+            """.trimIndent()
+        )
+        assertEquals(2, traces.size)
+        assertEquals("用户每周跑3次。", traces.first { it.id == "one" }.text)
+        assertEquals("用户的导师姓李。", traces.first { it.id == "two" }.text)
+    }
+
+    @Test
+    fun `a trace remembers the kind so a restore is not flattened to fact`() {
+        val traces = MemorySimilarity.Traces.parse(
+            """[{ "text": "用户每周跑3次。", "kind": "preference" }]"""
+        )
+        assertEquals(MemoryKind.PREFERENCE, traces.single().kind)
+    }
+
+    @Test
+    fun `a trace with a bogus kind falls back to fact`() {
+        val traces = MemorySimilarity.Traces.parse(
+            """[{ "text": "用户每周跑3次。", "kind": "nonsense" }]"""
+        )
+        assertEquals(MemoryKind.FACT, traces.single().kind)
     }
 
     @Test

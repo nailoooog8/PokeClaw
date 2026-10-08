@@ -23,7 +23,11 @@ import java.security.MessageDigest
  */
 object MemorySimilarity {
 
-    /** Two traces at or above this Dice coefficient count as the same thing. */
+    /**
+     * Two texts at or above this Dice coefficient count as the same wording.
+     *
+     * This is only half the suppression test — see [isSuppressedBy].
+     */
     const val SUPPRESS_THRESHOLD = 0.70
 
     /** Sentences need this much shared skeleton before a value swap counts. */
@@ -140,6 +144,38 @@ object MemorySimilarity {
         return slotSwaps(existing, candidate)
     }
 
+    // ── Suppression ──────────────────────────────────────────────────────────
+
+    /**
+     * Whether [candidate] is the agent trying to write back something the user
+     * already forgot ([forgotten]).
+     *
+     * Two tests, because either one alone leaks badly:
+     *
+     *  - **Wording** — `similarity` at [SUPPRESS_THRESHOLD]. Catches a verbatim
+     *    or lightly reworded re-save.
+     *  - **Subject frame** — [contradicts]. This is what wording cannot see, and
+     *    it is where the old version leaked every time: the agent does not
+     *    re-add the sentence it was told to drop, it re-adds *the same claim
+     *    with a different value*. Measured, at Dice-over-bigrams:
+     *
+     *      用户的手机是Pixel   →  用户的手机是小米     0.59   escaped
+     *      用户每周跑3次       →  用户每周跑5次       0.67   escaped
+     *      用户每周跑3次       →  用户每周跑步3次     0.77   caught by wording
+     *
+     *    The first two slip under the threshold while both plainly restating the
+     *    thing the user deleted. [contradicts] keys on the sentence frame instead
+     *    of the wording, so it catches exactly those.
+     *
+     * Reusing the contradiction rules is safe because they are already tuned to
+     * stay quiet: a memory that merely extends a forgotten one ("用微信聊天" →
+     * "用微信和QQ聊天") or sits beside it ("用户的手机是Pixel" → "手机电量能用一天")
+     * is not a conflict, and so is not suppressed.
+     */
+    fun isSuppressedBy(forgotten: String, candidate: String): Boolean =
+        similarity(forgotten, candidate) >= SUPPRESS_THRESHOLD ||
+            contradicts(forgotten, candidate)
+
     /** Short content hash used as a stable id (not a security primitive). */
     fun idOf(normalized: String): String = try {
         MessageDigest.getInstance("SHA-256")
@@ -156,13 +192,16 @@ object MemorySimilarity {
      * Fingerprint left behind when a memory is deleted.
      *
      * The text is kept so the agent can be told what it may not re-learn, and
-     * `blocked` counts the writes this trace has turned away.
+     * `blocked` counts the writes this trace has turned away. [kind] travels
+     * with it so a restore puts the memory back where it came from instead of
+     * flattening everything to "fact".
      */
     data class Trace(
         val id: String,
         val text: String,
         val at: Long,
-        val blocked: Int = 0
+        val blocked: Int = 0,
+        val kind: String = MemoryKind.FACT
     )
 
     object Traces {
@@ -184,7 +223,10 @@ object MemorySimilarity {
                             .ifBlank { idOf(normalize(text)) },
                         text = text,
                         at = runCatching { o.get("at")?.asLong }.getOrNull() ?: 0L,
-                        blocked = runCatching { o.get("blocked")?.asInt }.getOrNull() ?: 0
+                        blocked = runCatching { o.get("blocked")?.asInt }.getOrNull() ?: 0,
+                        kind = runCatching { o.get("kind")?.asString }.getOrNull()
+                            .orEmpty().lowercase()
+                            .let { if (MemoryKind.isValid(it)) it else MemoryKind.FACT }
                     )
                 }
             } catch (_: Exception) {

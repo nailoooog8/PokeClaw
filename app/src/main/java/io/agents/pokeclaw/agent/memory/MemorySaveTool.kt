@@ -23,14 +23,17 @@ class MemorySaveTool : BaseTool() {
             "the outcome of an important task. Store ONE fact per call, as a self-contained sentence. " +
             "Do NOT store transient state (what is on screen, today's to-dos, temporary errors). " +
             "Near-duplicates are merged automatically. If the fact contradicts something already " +
-            "stored, or resembles something the user asked you to forget, the result says so — " +
-            "report that to the user instead of retrying."
+            "stored, or restates something the user asked you to forget — including the same claim " +
+            "with a different value — the result says so. Report that to the user instead of retrying; " +
+            "if they do want it back, they can restore it under Settings > Tools > Memory bank."
 
     override fun getDescriptionCN() =
         "把一条值得长期记住的事存入记忆库，跨会话保留。适用于：了解到的用户身份与习惯偏好、" +
             "设备/账号相关事实、踩过的坑、重要任务的结果。每次只存一条，写成能独立成立的短句。" +
             "不要存临时状态（当前屏幕内容、今天的待办、偶发报错）。相近的内容会自动合并。" +
-            "若与已有记忆矛盾、或与用户让你忘掉的内容相似，返回结果会明说——请转告用户，不要重试。"
+            "若与已有记忆矛盾、或与用户让你忘掉的内容相似（包括同一说法换了值：次数变了、型号变了），" +
+            "返回结果会明说——请转告用户，不要重试；用户确实想加回来的，可在 设置 → 工具 → 记忆库 " +
+            "的「遗忘抑制」里自行恢复。"
 
     override fun getParameters() = listOf(
         ToolParameter(
