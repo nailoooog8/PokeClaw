@@ -439,6 +439,17 @@ class DefaultAgentService : AgentService {
     private fun runAgentLoop(userPrompt: String, callback: AgentCallback) {
         // Arm the "save as skill" capture for this task (cleared on next task)
         ToolCallRecorder.begin(userPrompt)
+        // Every exit path — pre-check bail-out, cancel, exception, iteration
+        // limit — must disarm the recorder, or it keeps recording for the rest
+        // of the process under this finished task.
+        try {
+            runAgentLoopInternal(userPrompt, callback)
+        } finally {
+            ToolCallRecorder.markEnded()
+        }
+    }
+
+    private fun runAgentLoopInternal(userPrompt: String, callback: AgentCallback) {
         // Pre-flight check
         preCheck()?.let {
             callback.onError(0, RuntimeException(it), 0)

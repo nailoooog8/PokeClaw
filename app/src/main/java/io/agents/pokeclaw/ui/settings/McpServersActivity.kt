@@ -153,13 +153,17 @@ class McpServersActivity : BaseActivity() {
         val fieldColor = 0xFF333333.toInt()
         val labelColor = 0xFF666666.toInt()
 
-        fun field(hint: String, preset: String?, singleLine: Boolean = true): EditText {
+        fun field(hint: String, preset: String?, singleLine: Boolean = true, password: Boolean = false): EditText {
             return EditText(this).apply {
                 this.hint = hint
                 setText(preset ?: "")
                 setSingleLine(singleLine)
                 setTextColor(fieldColor)
                 setHintTextColor(labelColor)
+                if (password) {
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                        android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                }
             }
         }
 
@@ -189,7 +193,7 @@ class McpServersActivity : BaseActivity() {
         layout.addView(headerNameInput)
 
         label("\n鉴权 Header 值（可选，如 Bearer sk-…）")
-        val headerValueInput = field("", existing?.headerValue)
+        val headerValueInput = field("", existing?.headerValue, password = true)
         layout.addView(headerValueInput)
 
         val enabledCheck = CheckBox(this).apply {
@@ -199,10 +203,18 @@ class McpServersActivity : BaseActivity() {
         }
         layout.addView(enabledCheck)
 
-        android.app.AlertDialog.Builder(this)
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(if (existing == null) "添加 MCP 服务器" else "编辑 ${existing.name}")
             .setView(layout)
-            .setPositiveButton("保存") { _, _ ->
+            // Validate on click instead of in the builder callback: a builder
+            // callback runs after the dialog is already dismissed, so a rejected
+            // input threw away everything the user had typed.
+            .setPositiveButton("保存", null)
+            .setNegativeButton("取消", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = nameInput.text.toString().trim()
                 val url = urlInput.text.toString().trim()
                 val headerName = headerNameInput.text.toString().trim().ifEmpty { null }
@@ -210,12 +222,12 @@ class McpServersActivity : BaseActivity() {
 
                 if (name.isEmpty()) {
                     Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 val lower = url.lowercase()
                 if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
                     Toast.makeText(this, "URL 必须以 http:// 或 https:// 开头", Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
 
                 val fresh = McpServerConfig(
@@ -232,14 +244,20 @@ class McpServersActivity : BaseActivity() {
                 }
                 if (!McpConnectionManager.saveConfigs(this, updated)) {
                     Toast.makeText(this, "配置写入失败", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 configs = updated
+                if (existing != null && existing.name != name) {
+                    // Unregister the old server, otherwise its mcp_<oldName>_* tools
+                    // stay registered and callable after the rename.
+                    McpConnectionManager.removeServer(this, existing)
+                }
                 McpConnectionManager.connectOne(this, fresh)
                 renderServerItems()
                 Toast.makeText(this, "已保存，正在连接 ${fresh.name}…", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
             }
-            .setNegativeButton("取消", null)
-            .show()
+        }
+        dialog.show()
     }
 }

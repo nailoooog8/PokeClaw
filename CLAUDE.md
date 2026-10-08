@@ -31,7 +31,9 @@ QA must reflect the product direction in `README.md`: do not turn stochastic mod
 
 1. **Design QA tests FIRST** — before writing code, define what the E2E test looks like
 2. **Add tests to `QA_CHECKLIST.md`** — permanent, under the relevant section (A-K or new section)
-3. **Tests must be E2E via ADB** — simulate real user behavior: `adb shell input tap/text`, `adb shell am broadcast`, uiautomator dump, logcat verification. No unit tests, no mocks. Control the phone like a user would.
+3. **Tests must be E2E via ADB** — simulate real user behavior: `adb shell input tap/text`, `adb shell am broadcast`, uiautomator dump, logcat verification. Control the phone like a user would.
+
+   *Exception — pure logic only:* unit tests are allowed, and required, for pure functions with no Android dependencies (algorithms, parsers, state machines, retention/eviction math). No mocks. Anything touching Context, SharedPreferences, disk I/O, or lifecycle still requires E2E via ADB and must not be unit-tested with mocks. Adding such tests also means wiring `./gradlew test` into `.github/workflows/` — CI currently runs no tests at all, which is why regressions reach main.
 4. **Cover edge cases** — happy path + error path + boundary conditions. For every feature, ask: "what if permission is missing?", "what if network drops?", "what if user taps twice?", "what if another task is running?"
 5. **Run the new tests** — execute them yourself, verify PASS, record results in the QA Debug Changelog
 6. **Run affected existing tests** — any section that could be impacted by the change, re-run those tests

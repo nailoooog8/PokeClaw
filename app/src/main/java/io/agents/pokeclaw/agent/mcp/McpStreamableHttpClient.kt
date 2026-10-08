@@ -41,7 +41,10 @@ class McpStreamableHttpClient(private val server: McpServerConfig) {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    // Written by the handshake thread, read by every tool-execution thread.
+    @Volatile
     private var sessionId: String? = null
+    @Volatile
     private var negotiatedProtocol: String = PROTOCOL_VERSION
 
     /** Remote tool description returned by tools/list */
@@ -180,11 +183,20 @@ class McpStreamableHttpClient(private val server: McpServerConfig) {
             when {
                 line.startsWith("data:") -> dataBuf.append(line.removePrefix("data:").trimStart())
                 line.isBlank() && dataBuf.isNotEmpty() -> {
-                    val candidate = JsonParser.parseString(dataBuf.toString()).asJsonObject
+                    val payload = dataBuf.toString()
+                    dataBuf.setLength(0)
+                    // Keep-alives and heartbeats also arrive as `data:` but are
+                    // not JSON objects. Skip them instead of letting the parse
+                    // error tear down the whole stream.
+                    val candidate = try {
+                        JsonParser.parseString(payload).asJsonObject
+                    } catch (e: Exception) {
+                        XLog.d(TAG, "Skipping non-JSON SSE payload: ${payload.take(80)}")
+                        null
+                    } ?: continue
                     val hasId = candidate.get("id")
                     val matches = id == null || (hasId != null && !hasId.isJsonNull && hasId.asLong == id)
                     if (matches) return candidate
-                    dataBuf.setLength(0)
                 }
             }
         }

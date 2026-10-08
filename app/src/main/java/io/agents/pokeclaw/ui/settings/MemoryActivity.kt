@@ -450,14 +450,22 @@ class MemoryActivity : BaseActivity() {
         }
         layout.addView(pinnedCheck)
 
-        android.app.AlertDialog.Builder(this)
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(if (existing == null) "添加记忆" else "编辑记忆")
             .setView(layout)
-            .setPositiveButton("保存") { _, _ ->
+            // Validate on click, not in the builder callback: the builder
+            // callback runs after the dialog is dismissed, so rejecting empty
+            // content there discarded everything the user had typed.
+            .setPositiveButton("保存", null)
+            .setNegativeButton("取消", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val content = contentInput.text.toString().trim()
                 if (content.isEmpty()) {
                     Toast.makeText(this, "内容不能为空", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 val kind = kindButtons.entries.firstOrNull { it.value.isChecked }?.key
                     ?: MemoryKind.FACT
@@ -484,8 +492,9 @@ class MemoryActivity : BaseActivity() {
                 }
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 renderAll()
+                dialog.dismiss()
             }
-            .setNegativeButton("取消", null)
-            .show()
+        }
+        dialog.show()
     }
 }

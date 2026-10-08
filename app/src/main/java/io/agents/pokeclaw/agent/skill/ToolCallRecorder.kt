@@ -74,4 +74,21 @@ object ToolCallRecorder {
     fun clearCapture() {
         lastCapture = null
     }
+
+    /**
+     * Disarm and drop the buffer without producing a capture. Call on every
+     * task exit path that is not a success — without this the recorder stays
+     * armed after a failure/cancel and keeps recording every later tool call
+     * in the app (including ones triggered over HTTP) under the finished task.
+     */
+    fun markEnded() {
+        synchronized(buffer) {
+            if (armed && buffer.isNotEmpty()) {
+                XLog.d(TAG, "Discarding ${buffer.size} recorded call(s) from unfinished task")
+            }
+            armed = false
+            buffer.clear()
+            taskPrompt = ""
+        }
+    }
 }

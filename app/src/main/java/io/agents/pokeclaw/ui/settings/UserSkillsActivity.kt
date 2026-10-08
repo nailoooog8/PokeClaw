@@ -198,32 +198,41 @@ class UserSkillsActivity : BaseActivity() {
         val descInput = field("", "")
         layout.addView(descInput)
 
-        android.app.AlertDialog.Builder(this)
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle("从上次任务创建技能")
             .setMessage("已捕获 ${capture.calls.size} 次工具调用（任务：${capture.task.take(60)}）")
             .setView(layout)
-            .setPositiveButton("生成配方") { _, _ ->
+            // Validate on click, not in the builder callback: the builder
+            // callback runs after dismissal, so a rejected ID threw away the
+            // name and description the user had already typed.
+            .setPositiveButton("生成配方", null)
+            .setNegativeButton("取消", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val id = idInput.text.toString().trim()
                 val name = nameInput.text.toString().trim()
                 if (id.isEmpty() || !id.matches(Regex("[a-zA-Z0-9_]+"))) {
                     Toast.makeText(this, "ID 只能含英文/数字/下划线", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 if (name.isEmpty()) {
                     Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 val yaml = UserSkillLoader.captureToYaml(
                     capture, id, name, descInput.text.toString().trim()
                 )
                 if (yaml.isEmpty()) {
                     Toast.makeText(this, "捕获中没有可用的动作步骤（只截屏/finish 的任务无法成技能）", Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
+                dialog.dismiss()
                 showEditor(id, yaml, isNew = true)
             }
-            .setNegativeButton("取消", null)
-            .show()
+        }
+        dialog.show()
     }
 
     /** YAML editor: new file (null) / existing file / prefilled capture text. */
@@ -282,15 +291,22 @@ class UserSkillsActivity : BaseActivity() {
         }
         layout.addView(yamlInput)
 
-        android.app.AlertDialog.Builder(this)
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(if (isNew) "保存技能配方" else "编辑配方")
             .setView(layout)
-            .setPositiveButton("保存") { _, _ ->
+            // Validate on click: a YAML error in the builder callback fired
+            // after dismissal and discarded the whole recipe the user typed.
+            .setPositiveButton("保存", null)
+            .setNegativeButton("取消", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val id = idInput.text.toString().trim()
                 val yaml = yamlInput.text.toString()
                 if (id.isEmpty() || !id.matches(Regex("[a-zA-Z0-9_]+"))) {
                     Toast.makeText(this, "ID 只能含英文/数字/下划线", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 val parsed = try {
                     UserSkillLoader.parse(yaml)
@@ -299,11 +315,11 @@ class UserSkillsActivity : BaseActivity() {
                 }
                 if (parsed == null) {
                     Toast.makeText(this, "YAML 解析失败或引用未知工具，未保存", Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 if (parsed.id != id) {
                     Toast.makeText(this, "YAML 里的 id（${parsed.id}）须与上方 ID 一致", Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 // Renaming an existing file: remove the old one
                 if (editingFile != null && editingFile.name != "$id.yaml") {
@@ -312,14 +328,15 @@ class UserSkillsActivity : BaseActivity() {
                 val saved = UserSkillLoader.save(this, id, yaml)
                 if (saved == null) {
                     Toast.makeText(this, "写入失败", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
                 SkillRegistry.register(parsed)
                 Toast.makeText(this, "已保存并启用：${parsed.name}（${parsed.steps.size} 步）", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
                 reload()
             }
-            .setNegativeButton("取消", null)
-            .show()
+        }
+        dialog.show()
     }
 
     private companion object {

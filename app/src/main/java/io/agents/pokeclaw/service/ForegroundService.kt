@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.agents.pokeclaw.AppCapabilityCoordinator
@@ -137,8 +138,11 @@ class ForegroundService : Service() {
         }
 
         fun isPersistentKeepAliveEnabled(): Boolean {
-            return runCatching { io.agents.pokeclaw.utils.KVUtils.getBoolean(KEY_KEEPALIVE_PERSISTENT, true) }
-                .getOrDefault(true)
+            // Default off: this key is never written on existing installs, so a
+            // default of true made every install look like it had opted in and
+            // kept isKeepAliveNeeded() permanently true, so stop() never ran.
+            return runCatching { io.agents.pokeclaw.utils.KVUtils.getBoolean(KEY_KEEPALIVE_PERSISTENT, false) }
+                .getOrDefault(false)
         }
 
         fun setPersistentKeepAliveEnabled(enabled: Boolean) {
@@ -206,7 +210,19 @@ class ForegroundService : Service() {
                 }
                 true
             } catch (e: Exception) {
+                // API 31+ throws ForegroundServiceStartNotAllowedException when the
+                // app is in the background. Surface it instead of only logging,
+                // but only when we still hold an Activity to show it on.
                 XLog.w(TAG, "Foreground service start blocked or failed", e)
+                if (context !is android.app.Application) {
+                    runCatching {
+                        Toast.makeText(
+                            context,
+                            "无法启动前台服务，任务保活未生效",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
                 false
             }
         }
