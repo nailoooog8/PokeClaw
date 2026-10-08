@@ -10,7 +10,6 @@ import io.agents.pokeclaw.utils.KVUtils
 import io.agents.pokeclaw.utils.XLog
 import java.io.File
 import java.security.MessageDigest
-import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -29,8 +28,9 @@ import kotlin.math.min
  *  - the memory manager UI (ui/settings/MemoryActivity) for direct editing.
  *
  * Ranking is deliberately cheap and local (no embeddings): term overlap with
- * the current task, kind weight, how often the entry proved useful, and a slow
- * recency decay. Pinned entries bypass decay and are always injected.
+ * the current task, kind weight, and the access-weighted retention curve in
+ * [MemoryRetention] — which is where "how often this proved useful" lives.
+ * Pinned entries bypass decay and are always injected.
  */
 object MemoryStore {
 
@@ -46,8 +46,6 @@ object MemoryStore {
 
     /** Character budget for the injected briefing section. */
     private const val BRIEFING_CHAR_BUDGET = 1400
-
-    private const val DAY_MS = 86_400_000.0
 
     private val gson: Gson = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
     private val lock = Any()
@@ -134,7 +132,7 @@ object MemoryStore {
                 entries.filter { it.kind == kind }
             }
             val hits = pool.filter { matches(it, qTerms) || qTerms.isEmpty() }
-                .map { score(it, qTerms) to it }
+                .map { score(it, qTerms, now) to it }
                 .sortedByDescending { it.first }
                 .take(min(limit.coerceIn(1, 25), BRIEFING_LIMIT))
                 .map { it.second }
@@ -147,7 +145,7 @@ object MemoryStore {
                 cache = merged.toMutableList()
                 persistLocked()
             }
-            hits.map { Scored(it, score(it, qTerms)) }
+            hits.map { Scored(it, score(it, qTerms, now)) }
         }
     }
 
@@ -207,6 +205,20 @@ object MemoryStore {
                 }
             }
 
+            // Suppression: refuse to let the agent re-learn what was forgotten.
+            // Runs *before* the merge check below — otherwise a forgotten fact
+            // that happens to overlap a live one is quietly merged back in
+            // instead of being refused, which is the one outcome suppression
+            // exists to prevent.
+            if (fromAgent) {
+                val trace = suppressionLocked(text)
+                if (trace != null) {
+                    bumpSuppressionLocked(trace)
+                    XLog.i(TAG, "memory_save refused — resembles a forgotten memory (${trace.id})")
+                    return RememberResult.Suppressed(trace)
+                }
+            }
+
             // Duplicate / near-duplicate: merge into the existing entry.
             val dup = entries.firstOrNull { overlaps(norm, normalize(it.content)) }
             if (dup != null) {
@@ -224,16 +236,6 @@ object MemoryStore {
                 persistLocked()
                 XLog.d(TAG, "memory_save merged into ${merged.id} (${merged.content.take(40)})")
                 return RememberResult.Stored(merged, merged = true)
-            }
-
-            // Suppression: refuse to let the agent re-learn what was forgotten.
-            if (fromAgent) {
-                val trace = suppressionLocked(text)
-                if (trace != null) {
-                    bumpSuppressionLocked(trace)
-                    XLog.i(TAG, "memory_save refused — resembles a forgotten memory (${trace.id})")
-                    return RememberResult.Suppressed(trace)
-                }
             }
 
             // Contradiction: keep the new fact, but flag both sides so the model asks.
@@ -259,7 +261,7 @@ object MemoryStore {
                 XLog.w(TAG, "memory_save: ${conflicts.size} possible conflict(s) with \"${text.take(40)}\"")
             }
             entries.add(entry)
-            evictLocked(entries)
+            evictLocked(entries, now)
             cache = entries
             persistLocked()
             XLog.i(TAG, "memory_save: ${entry.kind} \"${entry.content.take(40)}\" (${entries.size} total)")
@@ -279,7 +281,7 @@ object MemoryStore {
         val entries = loadLocked()
         val victim = entries.firstOrNull { it.id == id } ?: return false
         val kept = entries.filterNot { it.id == id }
-        addSuppressionLocked(victim.content)
+        addSuppressionLocked(victim.content, victim.kind)
         // Point the other side of a conflict back into thin air.
         val repaired = kept.map { e ->
             if (e.conflictsWith.contains(id)) {
@@ -302,7 +304,7 @@ object MemoryStore {
                 (it.tags.any { tag -> tag.contains(q, ignoreCase = true) } && q.length >= 3)
         }
         if (victims.isEmpty()) return 0
-        for (v in victims) addSuppressionLocked(v.content)
+        for (v in victims) addSuppressionLocked(v.content, v.kind)
         val kept = entries.filterNot { it in victims }
         cache = kept.toMutableList()
         persistLocked()
@@ -352,6 +354,45 @@ object MemoryStore {
         n
     }
 
+    /**
+     * Lifts one fingerprint, leaving the rest in force.
+     *
+     * This is the way back from a deletion done by mistake, without having to
+     * give the agent the whole suppression bank again.
+     */
+    @JvmStatic
+    fun clearSuppression(id: String): Boolean = synchronized(lock) {
+        val list = loadSuppressionsLocked()
+        val idx = list.indexOfFirst { it.id == id }
+        if (idx < 0) return false
+        list.removeAt(idx)
+        persistSuppressionsLocked()
+        XLog.i(TAG, "Suppression lifted for ${list.size} remaining")
+        true
+    }
+
+    /**
+     * Undoes a deletion: the forgotten memory goes back into the bank and its
+     * fingerprint goes away with it.
+     *
+     * Written as a pair of options on purpose — [clearSuppression] is for "I did
+     * not mean to delete that", this is for "I deleted it and I want it back".
+     */
+    @JvmStatic
+    fun restoreSuppression(id: String): Boolean {
+        val trace = synchronized(lock) {
+            val list = loadSuppressionsLocked()
+            val idx = list.indexOfFirst { it.id == id }
+            if (idx < 0) return false
+            list.removeAt(idx).also { persistSuppressionsLocked() }
+        }
+        // Not fromAgent: the user just asked for this one back, and restoring it
+        // must not be re-checked against the fingerprint we are lifting.
+        remember(trace.text, trace.kind, emptyList(), fromAgent = false)
+        XLog.i(TAG, "Restored a forgotten memory (${MemoryStore.count()} total)")
+        return true
+    }
+
     private fun loadSuppressionsLocked(): MutableList<MemorySimilarity.Trace> {
         suppressions?.let { return it }
         val loaded = try {
@@ -375,23 +416,24 @@ object MemoryStore {
         }
     }
 
-    /** First fingerprint close enough to [text], or null. */
+    /** First fingerprint that [text] falls under, or null. */
     private fun suppressionLocked(text: String): MemorySimilarity.Trace? =
         loadSuppressionsLocked().firstOrNull {
-            MemorySimilarity.similarity(it.text, text) >= MemorySimilarity.SUPPRESS_THRESHOLD
+            MemorySimilarity.isSuppressedBy(it.text, text)
         }
 
-    private fun addSuppressionLocked(text: String) {
+    private fun addSuppressionLocked(text: String, kind: String = MemoryKind.FACT) {
         val list = loadSuppressionsLocked()
         val clean = text.trim()
         if (clean.isEmpty()) return
-        if (list.any { MemorySimilarity.similarity(it.text, clean) >= MemorySimilarity.SUPPRESS_THRESHOLD }) {
+        if (list.any { MemorySimilarity.isSuppressedBy(it.text, clean) }) {
             return
         }
         list.add(0, MemorySimilarity.Trace(
             id = MemorySimilarity.idOf(normalize(clean)),
             text = clean,
-            at = System.currentTimeMillis()
+            at = System.currentTimeMillis(),
+            kind = if (MemoryKind.isValid(kind)) kind else MemoryKind.FACT
         ))
         while (list.size > MemorySimilarity.Traces.MAX_TRACES) list.removeAt(list.size - 1)
         persistSuppressionsLocked()
@@ -475,8 +517,9 @@ object MemoryStore {
                 "3. 值得跨会话记住的事实时调用 memory_save（身份、偏好、设备/账号事实、\n" +
                 "   踩过的坑、完成过的重要任务的结果）。一次一条，别把临时状态也存进来。\n" +
                 "4. 需要更多历史时用 memory_recall 按主题检索；记忆确实作废时用 memory_forget 删除。\n" +
-                "   被用户删掉的记忆留有抑制指纹，memory_save 会拒绝写回相似内容——" +
-                "   除非用户明确要求你重新记住，此时请让用户自己在记忆库里添加。\n"
+                "   被用户删掉的记忆留有抑制指纹，memory_save 会拒绝写回相似内容——措辞相近或\n" +
+                "   同一个说法换了说法（次数变了、型号变了）都算。除非用户明确要求你重新记住，\n" +
+                "   此时请让用户在 设置 → 工具 → 记忆库 → 遗忘抑制 里自行恢复，不要反复重试。\n"
         )
         return sb.toString()
     }
@@ -484,7 +527,8 @@ object MemoryStore {
     /** Pinned entries first, then the best-scoring others, within the char budget. */
     private fun pick(query: String, entries: List<MemoryEntry>): List<Scored> {
         val qTerms = terms(query)
-        val scored = entries.map { Scored(it, score(it, qTerms)) }.sortedByDescending { it.score }
+        val scored = entries.map { Scored(it, score(it, qTerms, System.currentTimeMillis())) }
+            .sortedByDescending { it.score }
         val out = mutableListOf<Scored>()
         var chars = 0
         for (s in scored) {
@@ -542,12 +586,25 @@ object MemoryStore {
         }
     }
 
-    /** Drops the weakest unpinned entries once the bank exceeds [MAX_ENTRIES]. */
-    private fun evictLocked(entries: MutableList<MemoryEntry>) {
+    /**
+     * Drops the weakest unpinned entries once the bank exceeds [MAX_ENTRIES].
+     *
+     * Ordered by retention rather than raw [MemoryEntry.hits]: the entries that
+     * lose their claim first are the ones nobody has recalled in a long time,
+     * which a hit count alone cannot tell apart from a frequently-recalled entry
+     * that was written recently.
+     *
+     * Deliberately leaves **no suppression fingerprint**. Running out of room is
+     * not evidence the user stopped wanting the memory — [delete] is what does
+     * that. If eviction ever gains a fingerprint, the agent would be forbidden
+     * from re-learning facts nobody asked it to forget, and the two cases would
+     * have become indistinguishable on disk.
+     */
+    private fun evictLocked(entries: MutableList<MemoryEntry>, now: Long) {
         if (entries.size <= MAX_ENTRIES) return
         entries.sortWith(
             compareByDescending<MemoryEntry> { it.pinned }
-                .thenBy { it.hits }
+                .thenByDescending { MemoryRetention.retention(it, now) }
                 .thenBy { it.updatedAt }
         )
         while (entries.size > MAX_ENTRIES) {
@@ -560,19 +617,26 @@ object MemoryStore {
 
     // ── Matching helpers ──────────────────────────────────────────────────────
 
-    private fun score(e: MemoryEntry, qTerms: Set<String>): Double {
+    /**
+     * Ranking for one entry against the current task.
+     *
+     * Recency is handled by [MemoryRetention], not here: an entry's usefulness
+     * is an access-weighted curve over its own age, and that deserves to be
+     * stated once ([MemoryRetention]) rather than re-derived per ranking term.
+     * There is deliberately no separate `hits` bonus — [recall] bumps `hits`
+     * and `lastUsedAt` together, so counting hits twice would reward the same
+     * signal twice and cap it at seven recalls besides.
+     */
+    private fun score(e: MemoryEntry, qTerms: Set<String>, now: Long): Double {
         var s = MemoryKind.weight(e.kind)
         if (e.pinned) s += 3.0
-        s += min(2.0, 0.3 * e.hits)
         if (qTerms.isNotEmpty() && matches(e, qTerms)) {
             s += 2.0
             val tagHits = e.tags.count { tag -> qTerms.any { it in tag } }
             s += min(1.5, 0.5 * tagHits)
         }
         // Slow decay so stale facts drift out of the briefing on their own.
-        val ref = if (e.lastUsedAt > 0) e.lastUsedAt else e.updatedAt
-        val ageDays = max(0.0, (System.currentTimeMillis() - ref) / DAY_MS)
-        s += max(0.0, 1.5 - 0.04 * ageDays)
+        s += MemoryRetention.scoreTerm(e, now)
         return s
     }
 

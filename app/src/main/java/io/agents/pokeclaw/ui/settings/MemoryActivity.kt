@@ -18,6 +18,8 @@ import android.widget.Toast
 import io.agents.pokeclaw.R
 import io.agents.pokeclaw.agent.memory.MemoryEntry
 import io.agents.pokeclaw.agent.memory.MemoryKind
+import io.agents.pokeclaw.agent.memory.MemoryRetention
+import io.agents.pokeclaw.agent.memory.MemorySimilarity
 import io.agents.pokeclaw.agent.memory.MemoryStore
 import io.agents.pokeclaw.base.BaseActivity
 import io.agents.pokeclaw.ui.chat.ThemeManager
@@ -131,6 +133,7 @@ class MemoryActivity : BaseActivity() {
             return
         }
 
+        val now = System.currentTimeMillis()
         for (entry in entries) {
             val conflicted = entry.conflictsWith.isNotEmpty()
             memoryGroup.addMenuItem(
@@ -145,6 +148,11 @@ class MemoryActivity : BaseActivity() {
                         append(entry.kindLabel)
                         if (conflicted) append(" · 矛盾")
                         if (entry.hits > 0) append(" · ${entry.hits}次")
+                        // Only the fading tail of the retention curve is worth
+                        // showing; tagging every steady entry would be noise.
+                        if (MemoryRetention.isFading(entry, now)) {
+                            append(" · ${MemoryRetention.labelOf(entry, now)}")
+                        }
                     }
                 )
                 setTrailingTextColor(tc.aiText)
@@ -170,14 +178,20 @@ class MemoryActivity : BaseActivity() {
     private fun footerText(): String {
         val total = MemoryStore.count()
         val all = MemoryStore.all()
+        val now = System.currentTimeMillis()
         val pinned = all.count { it.pinned }
         val conflicted = all.count { it.conflictsWith.isNotEmpty() }
         val suppressed = MemoryStore.suppressionCount()
+        // Reported so the fading marks above read as a working curve rather
+        // than entries quietly going missing.
+        val fading = all.count { MemoryRetention.isFading(it, now) }
         val state = if (MemoryStore.isEnabled()) "已开启" else "已关闭"
         return "记忆库$state · 共 $total 条（置顶 $pinned 条" +
             (if (conflicted > 0) " · 矛盾 $conflicted 条" else "") +
+            (if (fading > 0) " · 渐淡 $fading 条" else "") +
             "）· 上限 ${MemoryStore.MAX_ENTRIES} 条\n" +
             "存储于应用外部目录 memories.json，可直接用 adb 推送编辑。\n" +
+            "长期没被召回的记忆会慢慢淡出简报，被召回得越多淡得越慢；只淡出，不会自动删除。\n" +
             (if (suppressed > 0) "删除过的 $suppressed 条记忆留有抑制指纹，Agent 不会自动写回相似内容。\n" else "") +
             "点击编辑，长按删除。"
     }
@@ -257,13 +271,66 @@ class MemoryActivity : BaseActivity() {
         actionsGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_close_clear_cancel,
             title = "遗忘抑制（$suppressed）",
-            onClick = { showClearSuppressionDialog() },
+            onClick = { showSuppressionListDialog() },
             showDivider = false
         ).apply {
             setTitleColor(tc.aiText)
             setLeadingIconColor(tc.aiText)
             setTrailingIconColor(tc.aiText)
         }
+    }
+
+    /**
+     * The fingerprints themselves, not just a count.
+     *
+     * A number tells you nothing about what is currently blocked, so a
+     * suppression that is working looks identical to one that is silently
+     * eating a legitimate memory. Listing the text makes it checkable, and
+     * gives a per-item way back out — deleting the wrong thing should not cost
+     * you the whole suppression bank.
+     */
+    private fun showSuppressionListDialog() {
+        val traces = MemoryStore.suppressions()
+        if (traces.isEmpty()) {
+            Toast.makeText(this, "当前没有抑制记录", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels = traces.map { t ->
+            val blocked = if (t.blocked > 0) " · 挡过 ${t.blocked} 次" else ""
+            "${t.text.take(40)}\n[${MemoryKind.labelOf(t.kind)}]${blocked}"
+        }.toTypedArray()
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("遗忘抑制（${traces.size}）\n这些内容已被删除，Agent 不会自动写回相似内容。")
+            .setItems(labels) { _, which -> showSuppressionItemDialog(traces[which]) }
+            .setNeutralButton("全部清除") { _, _ -> showClearSuppressionDialog() }
+            .setNegativeButton(getString(R.string.common_cancel), null)
+            .show()
+    }
+
+    private fun showSuppressionItemDialog(trace: MemorySimilarity.Trace) {
+        val blocked = if (trace.blocked > 0) "\n已挡下 ${trace.blocked} 次 Agent 写回。" else ""
+        android.app.AlertDialog.Builder(this)
+            .setTitle(trace.text)
+            .setMessage(
+                "分类：${MemoryKind.labelOf(trace.kind)}$blocked\n\n" +
+                    "「恢复记忆」把这条放回记忆库并解除抑制；「仅解除抑制」只让 Agent 可以重新学到，" +
+                    "记忆库本身不变。"
+            )
+            .setPositiveButton("恢复记忆") { _, _ ->
+                MemoryStore.restoreSuppression(trace.id)
+                Toast.makeText(this, "已恢复这条记忆", Toast.LENGTH_SHORT).show()
+                renderAll()
+                showSuppressionListDialog()
+            }
+            .setNeutralButton("仅解除抑制") { _, _ ->
+                MemoryStore.clearSuppression(trace.id)
+                Toast.makeText(this, "已解除这条抑制", Toast.LENGTH_SHORT).show()
+                renderAll()
+                showSuppressionListDialog()
+            }
+            .setNegativeButton(getString(R.string.common_cancel), null)
+            .show()
     }
 
     private fun showClearSuppressionDialog() {
