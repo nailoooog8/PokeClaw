@@ -1,3 +1,97 @@
+# PokeClaw Fork — 远程控制与安全加固版
+
+> 这是 [agents-io/PokeClaw](https://github.com/agents-io/PokeClaw) 的独立 fork。上游停在 2026-06-02，本分支在其基础上继续开发，重点解决**多渠道远程控制**、**安全边界收敛**和**中文本地化**三个上游未覆盖的方向。
+>
+> 下方「[上游原始 README](#upstream-readme)」之后是完整的官方文档、产品定位和基准数据，内容未经改动。
+
+[![fork](https://img.shields.io/badge/fork-of-agents--io%2FPokeClaw-3DDC84?style=flat-square)](https://github.com/agents-io/PokeClaw)
+[![branch](https://img.shields.io/badge/branch-fork%2Fpersonal--fork--release-8A2BE2?style=flat-square)](#)
+[![license](https://img.shields.io/badge/license-Apache--2.0-3DDC84?style=flat-square)](https://github.com/agents-io/PokeClaw/blob/main/LICENSE)
+[![android](https://img.shields.io/badge/Android-9%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
+
+**为什么 Android 需要一个 OEM 中立的 agent 中间层**
+
+Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略核心就是去 Google 化；HyperOS 的路线图写着「去 Google 化」；而中国市场 Google 根本进不来。**OEM 之间互不信任，意味着永远需要第三方的中立开源层。** 这是本 fork 存在的理由。
+
+---
+
+## 本 fork 相对上游做了什么
+
+| 能力 | 说明 |
+|---|---|
+| **QQ 渠道** | OneBot v11 反向 WebSocket，断线自动重连 |
+| **抖音渠道** | Webhook / Gateway 接入 |
+| **微信渠道** | Base URL 与 Token 可配置（适配第三方网关） |
+| **渠道安全网关** | 所有外部消息必须通过 PIN 配对 + 白名单，未授权发送者**无法**触达 TaskOrchestrator |
+| **凭据限速锁定** | 6 位 PIN 原本零限速（10⁶ 组合可爆破），现改为失败计数 + 递增锁定 + 常量时间比较 |
+| **控制台密钥脱敏** | LAN 控制台的 `GET` 接口原本明文返回全部 bot token 与 API Key，现返回掩码 |
+| **MCP 客户端** | Streamable HTTP，含管理 UI、Bearer/Basic/Custom 鉴权、Keystore 落盘加密 |
+| **MCP 工具投毒防护** | 第三方 MCP 服务器的描述不再原样进入 system prompt |
+| **长期记忆库** | 跨会话记忆、矛盾检测、遗忘抑制指纹、访问加权保留 |
+| **技能层** | YAML 配方、任务捕获、技能管理 UI |
+| **任务看门狗** | 120 秒无活动 / 600 秒总时长自动中止并释放任务锁，避免卡死 |
+| **后台保活** | 常驻前台服务开关 + 粘性服务 + 看门狗 |
+| **三语界面** | English / 简体中文 / 日本語 |
+
+### 安全审计
+
+本分支做过一次完整的红队审计（OWASP MASTG / Android IPC / 间接提示注入），修复了 2 个 Critical、1 个 High、1 个 Medium：
+
+- **Critical — PIN 暴力破解**：渠道配对 PIN 与 LAN 控制台 PIN 均为 6 位，且两处比较都**没有任何限速**。新增 `BruteForceGuard`。
+- **Critical — 凭据泄漏**：`GET /api/channels` 与 `/api/llm` 明文返回全部 bot token 和 LLM API Key。读路径改为掩码返回。
+- **High — MCP 工具投毒**：`McpTool` 把远程服务器的 `description` 直接拼进 system prompt，恶意服务器可向一个能点击、输入、发消息的模型注入指令。新增 `McpDescriptionSanitizer`。
+- **Medium — 路径穿越**：`handleServeFile` 用 `absolutePath.startsWith(cacheDir)` 做校验，不折叠 `..`。
+
+同时**证伪了三条假设**：SnakeYAML 反序列化（实测 2.2 版已禁用全局标签）、Debug 接收器暴露（有 `BuildConfig.DEBUG` 闸门）、记忆库召回注入（已有围栏防护）。
+
+完整用例见 [`QA_CHECKLIST.md`](QA_CHECKLIST.md) 的 `SEC` 段（SEC1–SEC11）。
+
+---
+
+## 快速开始
+
+```bash
+git clone -b fork/personal-fork-release https://github.com/nailoooog8/PokeClaw.git
+cd PokeClaw
+./gradlew assembleDebug
+```
+
+构建环境见 [`MCP_INTEGRATION_PLAN.md`](MCP_INTEGRATION_PLAN.md) 末尾的「构建环境备忘」。
+
+**首次使用**：安装 APK → 授予无障碍权限 → 需要后台监听时再授予通知使用权 → 本地模式首次启动会下载模型（约 2.6 GB）。
+
+> ⚠️ **vivo / 部分 OEM 注意**：强制停止应用或在部分 ROM 上重装会连带清空无障碍开关，需要手动重新打开。判断无障碍是否真的活着请看 `dumpsys accessibility` 的 `Bound services`，不要只看设置里的开关状态。
+
+---
+
+## 文档
+
+| 文件 | 内容 |
+|---|---|
+| [`STRATEGY.md`](STRATEGY.md) | 项目定位、护城河论证、买家图谱 |
+| [`EXECUTION_PLAN.md`](EXECUTION_PLAN.md) | 分阶段执行计划 |
+| [`docs/ARCHITECTURE_DECISIONS.md`](docs/ARCHITECTURE_DECISIONS.md) | D1–D8 架构决策（技术尽调向） |
+| [`docs/MEMORY_BANK.md`](docs/MEMORY_BANK.md) | 记忆库设计 |
+| [`docs/SKILL_FORMAT.md`](docs/SKILL_FORMAT.md) | 技能配方格式 |
+| [`docs/OEM_COVERAGE_TIERS.md`](docs/OEM_COVERAGE_TIERS.md) | 各 OEM 测试覆盖层级 |
+| [`QA_CHECKLIST.md`](QA_CHECKLIST.md) | E2E 用例库（含安全红队段） |
+| [`BACKLOG.md`](BACKLOG.md) | 功能与缺陷优先级 |
+
+---
+
+## 贡献与许可
+
+本 fork 遵循上游的 **Apache-2.0** 许可，保留上游署名。原始项目作者与社区贡献者见文末 [Acknowledgments](#acknowledgments)。
+
+---
+
+<a name="upstream-readme"></a>
+
+# ↑↑ 以上为本 fork 内容，以下为上游 agents-io/PokeClaw 原始 README ↑↑
+
+---
+
+
 
 <p align="center">
   <img src="banna.png" width="600" />
@@ -18,7 +112,7 @@
   🌐 <a href="https://agents-io.github.io/PokeClaw/">Landing Page</a> — available in English · हिन्दी · 日本語 · Deutsch · 繁中
 </p>
 
-# PokeClaw (PocketClaw) — On-Device AI Phone Agent
+## PokeClaw (PocketClaw) — On-Device AI Phone Agent · upstream
 
 **PokeClaw**, also known as **PocketClaw**, is an open-source Android app for AI phone automation.
 
