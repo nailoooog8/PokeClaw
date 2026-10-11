@@ -8,6 +8,7 @@ import io.agents.pokeclaw.ClawApplication
 import io.agents.pokeclaw.R
 import io.agents.pokeclaw.ServiceBindingState
 import io.agents.pokeclaw.TaskOrchestrator
+import io.agents.pokeclaw.channel.security.ChannelSecurityGuard
 import io.agents.pokeclaw.service.ClawAccessibilityService
 import io.agents.pokeclaw.utils.KVUtils
 
@@ -24,10 +25,22 @@ class ChannelSetup(
             discordBotToken = KVUtils.getDiscordBotToken().ifEmpty { null },
             telegramBotToken = KVUtils.getTelegramBotToken().ifEmpty { null },
             wechatBotToken = KVUtils.getWechatBotToken().ifEmpty { null },
-            wechatApiBaseUrl = KVUtils.getWechatApiBaseUrl().ifEmpty { null }
+            wechatApiBaseUrl = KVUtils.getWechatApiBaseUrl().ifEmpty { null },
+            qqWsUrl = KVUtils.getQqWsUrl().ifEmpty { null },
+            qqBotToken = KVUtils.getQqBotToken().ifEmpty { null },
+            douyinGatewayUrl = KVUtils.getDouyinWebhookUrl().ifEmpty { null },
+            douyinBotToken = KVUtils.getDouyinToken().ifEmpty { null }
         )
         ChannelManager.setOnMessageReceivedListener(object : ChannelManager.OnMessageReceivedListener {
-            override fun onMessageReceived(channel: Channel, message: String, messageID: String) {
+            override fun onMessageReceived(channel: Channel, message: String, messageID: String, senderId: String) {
+                // First line of defense: check sender authorization against whitelist & PIN binding
+                val decision = ChannelSecurityGuard.verify(channel, senderId, message)
+                if (decision is ChannelSecurityGuard.Decision.Reject) {
+                    ChannelManager.sendMessage(channel, decision.replyMessage, messageID)
+                    ChannelManager.flushMessages(channel)
+                    return
+                }
+
                 val app = ClawApplication.instance
                 val capabilityState = AppCapabilityCoordinator.accessibilityState(app)
                 if (capabilityState == ServiceBindingState.DISABLED) {

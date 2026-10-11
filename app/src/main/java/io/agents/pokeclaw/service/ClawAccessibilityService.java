@@ -127,9 +127,25 @@ public class ClawAccessibilityService extends AccessibilityService {
         maybeReturnToAppAfterPermissionFlow();
     }
 
+    private long lastKeepAliveSyncTime = 0L;
+    private static final long KEEP_ALIVE_SYNC_INTERVAL_MS = 60_000L;
+
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         KVUtils.INSTANCE.noteAccessibilityHeartbeat();
+
+        long now = System.currentTimeMillis();
+        if (now - lastKeepAliveSyncTime > KEEP_ALIVE_SYNC_INTERVAL_MS) {
+            lastKeepAliveSyncTime = now;
+            try {
+                if (!ForegroundService.Companion.isRunning() && ForegroundService.Companion.isPersistentKeepAliveEnabled()) {
+                    ForegroundService.Companion.syncToBackgroundState(this);
+                }
+            } catch (Exception e) {
+                XLog.w(TAG, "Failed to sync keep-alive state on accessibility event", e);
+            }
+        }
+
         // Debug: log notification events from messaging apps
         if (event != null && event.getEventType() == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             XLog.d(TAG, "Notification event from: " + event.getPackageName());

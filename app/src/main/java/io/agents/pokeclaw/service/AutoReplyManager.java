@@ -142,6 +142,8 @@ public class AutoReplyManager {
         monitoredApps.add("com.google.android.apps.messaging");
         monitoredApps.add("jp.naver.line.android");
         monitoredApps.add("com.tencent.mm");
+        monitoredApps.add("com.tencent.mobileqq");
+        monitoredApps.add("com.ss.android.ugc.aweme");
     }
 
     public static synchronized AutoReplyManager getInstance() {
@@ -1172,6 +1174,8 @@ public class AutoReplyManager {
             case "com.google.android.apps.messaging": return "Messages";
             case "jp.naver.line.android": return "LINE";
             case "com.tencent.mm": return "WeChat";
+            case "com.tencent.mobileqq": return "QQ";
+            case "com.ss.android.ugc.aweme": return "Douyin";
             default: return "WhatsApp";
         }
     }
@@ -1191,6 +1195,11 @@ public class AutoReplyManager {
             case "wechat":
             case "we chat":
                 return "WeChat";
+            case "qq":
+                return "QQ";
+            case "douyin":
+            case "tiktok":
+                return "Douyin";
             default:
                 return "WhatsApp";
         }
@@ -1208,6 +1217,10 @@ public class AutoReplyManager {
                 return "jp.naver.line.android";
             case "WeChat":
                 return "com.tencent.mm";
+            case "QQ":
+                return "com.tencent.mobileqq";
+            case "Douyin":
+                return "com.ss.android.ugc.aweme";
             default:
                 return null;
         }

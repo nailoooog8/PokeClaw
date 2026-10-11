@@ -4,6 +4,8 @@
 package io.agents.pokeclaw.channel
 
 import io.agents.pokeclaw.channel.discord.DiscordChannelHandler
+import io.agents.pokeclaw.channel.douyin.DouyinChannelHandler
+import io.agents.pokeclaw.channel.qq.QqChannelHandler
 import io.agents.pokeclaw.channel.telegram.TelegramChannelHandler
 import io.agents.pokeclaw.channel.wechat.WeChatChannelHandler
 import io.agents.pokeclaw.utils.XLog
@@ -16,6 +18,8 @@ enum class Channel(val displayName: String) {
     DISCORD("Discord"),
     TELEGRAM("Telegram"),
     WECHAT("WeChat"),
+    QQ("QQ"),
+    DOUYIN("Douyin"),
     LOCAL("Local"),
 }
 
@@ -33,7 +37,7 @@ object ChannelManager {
      * Callback interface for received messages
      */
     interface OnMessageReceivedListener {
-        fun onMessageReceived(channel: Channel, message: String, messageID: String)
+        fun onMessageReceived(channel: Channel, message: String, messageID: String, senderId: String = "")
     }
 
     @JvmStatic
@@ -50,7 +54,11 @@ object ChannelManager {
         discordBotToken: String? = null,
         telegramBotToken: String? = null,
         wechatBotToken: String? = null,
-        wechatApiBaseUrl: String? = null
+        wechatApiBaseUrl: String? = null,
+        qqWsUrl: String? = null,
+        qqBotToken: String? = null,
+        douyinGatewayUrl: String? = null,
+        douyinBotToken: String? = null
     ) {
         handlers[Channel.DISCORD] = DiscordChannelHandler(
             scope,
@@ -64,6 +72,16 @@ object ChannelManager {
             scope,
             wechatBotToken?.takeIf { it.isNotEmpty() } ?: "",
             wechatApiBaseUrl?.takeIf { it.isNotEmpty() } ?: "",
+        )
+        handlers[Channel.QQ] = QqChannelHandler(
+            scope,
+            qqWsUrl?.takeIf { it.isNotEmpty() } ?: "",
+            qqBotToken?.takeIf { it.isNotEmpty() } ?: "",
+        )
+        handlers[Channel.DOUYIN] = DouyinChannelHandler(
+            scope,
+            douyinGatewayUrl?.takeIf { it.isNotEmpty() } ?: "",
+            douyinBotToken?.takeIf { it.isNotEmpty() } ?: "",
         )
 
         handlers.values.forEach { it.init() }
@@ -111,6 +129,16 @@ object ChannelManager {
     @JvmStatic
     fun reinitWeChatFromStorage() {
         handlers[Channel.WECHAT]?.reinitFromStorage()
+    }
+
+    @JvmStatic
+    fun reinitQQFromStorage() {
+        handlers[Channel.QQ]?.reinitFromStorage()
+    }
+
+    @JvmStatic
+    fun reinitDouyinFromStorage() {
+        handlers[Channel.DOUYIN]?.reinitFromStorage()
     }
 
     @JvmStatic
@@ -184,7 +212,8 @@ object ChannelManager {
      * Called internally by ChannelHandlers to dispatch received messages to registered listeners.
      */
     @JvmStatic
-    fun dispatchMessage(channel: Channel, message: String, messageID: String) {
-        messageListener?.onMessageReceived(channel, message, messageID)
+    @JvmOverloads
+    fun dispatchMessage(channel: Channel, message: String, messageID: String, senderId: String = "") {
+        messageListener?.onMessageReceived(channel, message, messageID, senderId)
     }
 }

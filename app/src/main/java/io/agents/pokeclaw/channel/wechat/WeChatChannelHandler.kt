@@ -237,7 +237,7 @@ class WeChatChannelHandler(
 
         XLog.i(TAG, "[${channel.displayName}] Message received: ${body.take(80)}, from=${fromUserId.takeLast(16)}")
         lastFromUserId = fromUserId
-        ChannelManager.dispatchMessage(channel, body, msg.contextToken ?: "")
+        ChannelManager.dispatchMessage(channel, body, msg.contextToken ?: "", fromUserId)
     }
 
     // ==================== ChannelHandler Interface Implementation ====================
