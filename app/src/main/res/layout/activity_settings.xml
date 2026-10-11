@@ -59,12 +59,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
-            <!-- 通道分组 (hidden) -->
+            <!-- 通道分组：Discord / Telegram / WeChat / QQ / Douyin + 配对 PIN + LAN 控制台 -->
             <io.agents.pokeclaw.widget.MenuGroup
                 android:id="@+id/channelGroup"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone" />
+                android:layout_height="wrap_content" />
 
             <View
                 android:layout_width="match_parent"

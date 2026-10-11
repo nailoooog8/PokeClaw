@@ -337,6 +337,24 @@ class SettingsActivity : BaseActivity() {
             onClick = { viewModel.onMenuItemClick(SettingsViewModel.MenuAction.WECHAT) },
             showDivider = true
         )
+        menuItems[SettingsViewModel.MenuAction.QQ.name] = channelGroup.addMenuItem(
+            leadingIcon = R.drawable.ic_channel_qq,
+            title = getString(R.string.menu_qq),
+            onClick = { viewModel.onMenuItemClick(SettingsViewModel.MenuAction.QQ) },
+            showDivider = true
+        )
+        menuItems[SettingsViewModel.MenuAction.DOUYIN.name] = channelGroup.addMenuItem(
+            leadingIcon = R.drawable.ic_channel_douyin,
+            title = getString(R.string.menu_douyin),
+            onClick = { viewModel.onMenuItemClick(SettingsViewModel.MenuAction.DOUYIN) },
+            showDivider = true
+        )
+        menuItems[SettingsViewModel.MenuAction.CHANNEL_PIN.name] = channelGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_lock_lock,
+            title = getString(R.string.menu_channel_pin),
+            onClick = { viewModel.onMenuItemClick(SettingsViewModel.MenuAction.CHANNEL_PIN) },
+            showDivider = true
+        )
         menuItems[SettingsViewModel.MenuAction.LAN_CONFIG.name] = channelGroup.addMenuItem(
             leadingIcon = R.drawable.ic_lan_config,
             title = getString(R.string.menu_lan_config),
@@ -793,8 +811,43 @@ class SettingsActivity : BaseActivity() {
                                         Toast.makeText(this@SettingsActivity, R.string.common_unbound_success, Toast.LENGTH_SHORT).show()
                                     }
                                 } else {
-                                    viewModel.startWeChatQrLogin(this@SettingsActivity)
+                                    AlertDialog.show(
+                                        context = this@SettingsActivity,
+                                        title = getString(R.string.channel_config_wechat_title),
+                                        message = getString(R.string.channel_config_wechat_choose_mode),
+                                        actionTitle = getString(R.string.channel_config_wechat_qr_mode),
+                                        cancelTitle = getString(R.string.channel_config_wechat_manual_mode),
+                                        onAction = {
+                                            viewModel.startWeChatQrLogin(this@SettingsActivity)
+                                        },
+                                        onCancel = {
+                                            channelConfigLauncher.launch(ChannelConfigActivity.ChannelType.WECHAT)
+                                        }
+                                    )
                                 }
+                            }
+                            SettingsViewModel.MenuAction.QQ -> {
+                                if (viewModel.isQqBound()) {
+                                    showUnbindDialog(getString(R.string.channel_qq)) {
+                                        viewModel.unbindQq()
+                                        Toast.makeText(this@SettingsActivity, R.string.common_unbound_success, Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    channelConfigLauncher.launch(ChannelConfigActivity.ChannelType.QQ)
+                                }
+                            }
+                            SettingsViewModel.MenuAction.DOUYIN -> {
+                                if (viewModel.isDouyinBound()) {
+                                    showUnbindDialog(getString(R.string.channel_douyin)) {
+                                        viewModel.unbindDouyin()
+                                        Toast.makeText(this@SettingsActivity, R.string.common_unbound_success, Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    channelConfigLauncher.launch(ChannelConfigActivity.ChannelType.DOUYIN)
+                                }
+                            }
+                            SettingsViewModel.MenuAction.CHANNEL_PIN -> {
+                                showPairPinDialog()
                             }
                             SettingsViewModel.MenuAction.DISCORD -> {
                                 if (viewModel.isDiscordBound()) {
@@ -846,6 +899,33 @@ class SettingsActivity : BaseActivity() {
             actionTitle = getString(R.string.unbind_action),
             onAction = onUnbind
         )
+    }
+
+    private fun showPairPinDialog() {
+        val currentPin = KVUtils.getChannelPairPin()
+        InputDialog.show(
+            context = this@SettingsActivity,
+            title = getString(R.string.channel_pair_pin_title),
+            presetText = currentPin,
+            hint = getString(R.string.channel_pair_pin_hint),
+            numberOnly = true,
+            minLength = 6,
+            maxLength = 6,
+            confirmText = getString(R.string.common_save),
+            inputValidate = { text ->
+                val trimmed = text.trim()
+                if (trimmed.length == 6 && trimmed.all { it.isDigit() }) {
+                    InputDialog.ValidateResult(true, null)
+                } else {
+                    InputDialog.ValidateResult(false, getString(R.string.channel_pair_pin_invalid))
+                }
+            }
+        ) { text ->
+            val trimmed = text.trim()
+            KVUtils.setChannelPairPin(trimmed)
+            viewModel.refresh()
+            Toast.makeText(this@SettingsActivity, R.string.channel_pair_pin_saved, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showBudgetDialog() {
