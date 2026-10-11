@@ -7,6 +7,7 @@ import com.google.gson.JsonObject
 import io.agents.pokeclaw.tool.BaseTool
 import io.agents.pokeclaw.tool.ToolParameter
 import io.agents.pokeclaw.tool.ToolResult
+import io.agents.pokeclaw.utils.XLog
 
 /**
  * A remote MCP tool wrapped as a PokeClaw BaseTool so it participates in
@@ -53,15 +54,31 @@ class McpTool(
     private val registeredName: String = "mcp_${server.safeName()}_${remote.name.replace(Regex("[^a-zA-Z0-9_]"), "_")}"
     private val mappedParams: List<ToolParameter> = schemaToParameters(remote.inputSchema)
 
+    // The description comes from a third-party server and is rendered into the
+    // system prompt. Sanitize once at construction rather than on every call,
+    // and log when the text looked like an injection attempt.
+    private val sanitizedDescription: McpDescriptionSanitizer.Sanitized =
+        McpDescriptionSanitizer.sanitize(remote.description)
+
+    init {
+        if (sanitizedDescription.suspicious) {
+            XLog.w(
+                "McpTool",
+                "Server '${server.name}' tool '${remote.name}' carries instruction-like text; " +
+                    "description was neutralized before reaching the prompt"
+            )
+        }
+    }
+
     override fun getName(): String = registeredName
 
     override fun getParameters(): List<ToolParameter> = mappedParams
 
     override fun getDescriptionEN(): String =
-        "[MCP:${server.name}] ${remote.description ?: "Remote tool ${remote.name}"}"
+        "[MCP:${server.name}] ${sanitizedDescription.text.ifEmpty { "Remote tool ${remote.name}" }}"
 
     override fun getDescriptionCN(): String =
-        "［MCP:${server.name}］${remote.description ?: "远程工具 ${remote.name}"}（来自 MCP 服务器 ${server.name}）"
+        "［MCP:${server.name}］${sanitizedDescription.text.ifEmpty { "远程工具 ${remote.name}" }}（来自第三方 MCP 服务器 ${server.name}）"
 
     override fun execute(params: Map<String, Any>): ToolResult {
         return try {
