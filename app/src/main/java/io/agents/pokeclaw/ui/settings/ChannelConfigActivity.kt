@@ -54,6 +54,9 @@ class ChannelConfigActivity : BaseActivity() {
             setTitle(when (channelType) {
                 ChannelType.DISCORD -> getString(R.string.channel_config_discord_title)
                 ChannelType.TELEGRAM -> getString(R.string.channel_config_telegram_title)
+                ChannelType.WECHAT -> getString(R.string.channel_config_wechat_title)
+                ChannelType.QQ -> getString(R.string.channel_config_qq_title)
+                ChannelType.DOUYIN -> getString(R.string.channel_config_douyin_title)
             })
             showBackButton(true) { finish() }
         }
@@ -83,6 +86,39 @@ class ChannelConfigActivity : BaseActivity() {
                 (etInput2.parent.parent as View).visibility = View.GONE
                 etInput1.hint = getString(R.string.channel_config_telegram_hint1)
                 etInput1.setText(KVUtils.getTelegramBotToken())
+            }
+            ChannelType.WECHAT -> {
+                tvTip.text = getString(R.string.channel_config_wechat_manual_tip)
+                tvLabel1.text = getString(R.string.channel_config_wechat_api_url_label)
+                etInput1.hint = getString(R.string.channel_config_wechat_api_url_hint)
+                etInput1.setText(KVUtils.getWechatApiBaseUrl())
+                tvLabel2.visibility = View.VISIBLE
+                tvLabel2.text = "Bot Token"
+                (etInput2.parent.parent as View).visibility = View.VISIBLE
+                etInput2.hint = getString(R.string.channel_config_wechat_token_hint)
+                etInput2.setText(KVUtils.getWechatBotToken())
+            }
+            ChannelType.QQ -> {
+                tvTip.text = getString(R.string.channel_config_qq_tip)
+                tvLabel1.text = getString(R.string.channel_config_qq_ws_url_label)
+                etInput1.hint = getString(R.string.channel_config_qq_ws_url_hint)
+                etInput1.setText(KVUtils.getQqWsUrl())
+                tvLabel2.visibility = View.VISIBLE
+                tvLabel2.text = getString(R.string.channel_config_qq_token_label)
+                (etInput2.parent.parent as View).visibility = View.VISIBLE
+                etInput2.hint = getString(R.string.channel_config_qq_token_hint)
+                etInput2.setText(KVUtils.getQqBotToken())
+            }
+            ChannelType.DOUYIN -> {
+                tvTip.text = getString(R.string.channel_config_douyin_tip)
+                tvLabel1.text = getString(R.string.channel_config_douyin_url_label)
+                etInput1.hint = getString(R.string.channel_config_douyin_url_hint)
+                etInput1.setText(KVUtils.getDouyinWebhookUrl())
+                tvLabel2.visibility = View.VISIBLE
+                tvLabel2.text = getString(R.string.channel_config_douyin_token_label)
+                (etInput2.parent.parent as View).visibility = View.VISIBLE
+                etInput2.hint = getString(R.string.channel_config_douyin_token_hint)
+                etInput2.setText(KVUtils.getDouyinToken())
             }
         }
 
@@ -125,24 +161,40 @@ class ChannelConfigActivity : BaseActivity() {
     private fun onSaveClicked(channelType: ChannelType) {
         val value1 = etInput1.text.toString().trim()
         val value2 = etInput2.text.toString().trim()
+        var isConfigured = false
 
         when (channelType) {
             ChannelType.DISCORD -> {
                 KVUtils.setDiscordBotToken(value1)
+                ChannelManager.reinitDiscordFromStorage()
+                isConfigured = value1.isNotEmpty()
             }
             ChannelType.TELEGRAM -> {
                 KVUtils.setTelegramBotToken(value1)
+                ChannelManager.reinitTelegramFromStorage()
+                isConfigured = value1.isNotEmpty()
+            }
+            ChannelType.WECHAT -> {
+                KVUtils.setWechatApiBaseUrl(value1)
+                KVUtils.setWechatBotToken(value2)
+                ChannelManager.reinitWeChatFromStorage()
+                isConfigured = value1.isNotEmpty() || value2.isNotEmpty()
+            }
+            ChannelType.QQ -> {
+                KVUtils.setQqWsUrl(value1)
+                KVUtils.setQqBotToken(value2)
+                ChannelManager.reinitQQFromStorage()
+                isConfigured = value1.isNotEmpty()
+            }
+            ChannelType.DOUYIN -> {
+                KVUtils.setDouyinWebhookUrl(value1)
+                KVUtils.setDouyinToken(value2)
+                ChannelManager.reinitDouyinFromStorage()
+                isConfigured = value1.isNotEmpty() || value2.isNotEmpty()
             }
         }
 
-        // Reconnect only the corresponding channel; do not affect other channels
-        when (channelType) {
-            ChannelType.DISCORD -> ChannelManager.reinitDiscordFromStorage()
-            ChannelType.TELEGRAM -> ChannelManager.reinitTelegramFromStorage()
-        }
-
         // Return config result
-        val isConfigured = value1.isNotEmpty()
         val result = ChannelConfigResult(
             channelType = channelType,
             isConfigured = isConfigured
@@ -156,7 +208,7 @@ class ChannelConfigActivity : BaseActivity() {
     }
 
     enum class ChannelType {
-        DISCORD, TELEGRAM
+        DISCORD, TELEGRAM, WECHAT, QQ, DOUYIN
     }
 
     /**

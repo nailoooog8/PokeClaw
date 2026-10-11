@@ -227,4 +227,142 @@
     <string name="custom_local_model_url_not_set">未設定</string>
     <string name="custom_local_model_url_set">カスタム URL 設定済み</string>
     <string name="custom_local_model_url_invalid">URL は http:// または https:// で始まる必要があります</string>
+
+    <!-- チャット画面 i18n (#44) -->
+    <string name="chat_tab_local">ローカル</string>
+    <string name="chat_tab_cloud">クラウド</string>
+    <string name="chat_cd_switch_model">モデルを切り替え</string>
+    <string name="chat_no_api_key">API キーが未設定</string>
+    <string name="chat_configure_api_key">API キーを設定…</string>
+    <string name="chat_on_device_tag">（オンデバイス）</string>
+    <string name="chat_no_local_model">ローカルモデル未ダウンロード</string>
+    <string name="chat_download_models">モデルをダウンロード…</string>
+    <string name="chat_permissions_needed">権限が必要です。タップして修正</string>
+
+    <string name="chat_token_cost_info"> · %1$s トークン · %2$s</string>
+    <string name="chat_token_info"> · %1$s トークン</string>
+
+    <string name="chat_mode_chat">💬 チャット</string>
+    <string name="chat_mode_task">🤖 タスク</string>
+    <string name="chat_hint_phone_task">端末の操作タスクを入力…</string>
+    <string name="chat_hint_chat_or_task">チャットまたはタスクを入力…</string>
+    <string name="chat_hint_local_ai">ローカル AI とチャット…</string>
+    <string name="chat_btn_stop">停止</string>
+    <string name="chat_btn_waiting">返信待機中</string>
+    <string name="chat_btn_send">送信</string>
+    <string name="chat_skills_title">スキル</string>
+    <string name="chat_cd_collapse">折りたたむ</string>
+    <string name="chat_cd_expand">展開</string>
+
+    <string name="chat_downloading_brain">AI モデルをダウンロード中</string>
+    <string name="chat_downloading_once">初回のみダウンロードが必要です</string>
+
+    <string name="chat_cloud_ai_title">クラウド AI</string>
+    <string name="chat_local_ai_title">ローカル AI</string>
+    <string name="chat_local_intro_prefix"> </string>
+    <string name="chat_local_intro_mode"> モードでチャット、または </string>
+    <string name="chat_local_intro_suffix"> で端末を操作</string>
+    <string name="chat_cloud_intro_subtitle">チャットとタスクが連携 — 何でも入力してください</string>
+
+    <string name="chat_sugg_tokyo_time">東京は今何時ですか？</string>
+    <string name="chat_sugg_birthday_msg">誕生日メッセージの作成を手伝って</string>
+    <string name="chat_sugg_send_hi">💬 連絡先に挨拶を送信</string>
+    <string name="chat_sugg_tell_joke">ジョークを言って</string>
+    <string name="chat_sugg_what_can_you_do">何ができますか？</string>
+    <string name="chat_sugg_draft_email">メールの下書きを手伝って</string>
+
+    <string name="chat_quick_task_templates">クイックタスクテンプレート</string>
+    <string name="chat_task_open_reddit">🦞 アプリを開いて PokeClaw を検索</string>
+    <string name="chat_task_search_youtube">🎬 YouTube で面白い猫動画を検索</string>
+    <string name="chat_task_install_telegram">📦 Play ストアからアプリをインストール</string>
+    <string name="chat_task_check_trending">🐦 トレンドを調べて教えて</string>
+    <string name="chat_task_check_whatsapp">💬 最新のメッセージを確認して要約</string>
+    <string name="chat_task_copy_email">📋 最新メールの件名をコピーして検索</string>
+    <string name="chat_task_write_email">📧 今日遅れることを伝えるメールを作成</string>
+    <string name="chat_task_check_notif">📵 通知を確認 — 重要なものはある？</string>
+    <string name="chat_task_read_clipboard">📋 クリップボードを読み取って説明</string>
+    <string name="chat_task_clean_storage">🧹 ストレージとアプリを確認 — 何を削除できる？</string>
+    <string name="chat_task_summarize_notif">🔔 通知を読み取って要約</string>
+    <string name="chat_task_check_battery">🔋 バッテリーを確認して充電が必要か教えて</string>
+    <string name="chat_task_list_apps">📱 どんなアプリがインストールされていますか？</string>
+    <string name="chat_task_phone_temp">🌡️ 端末の温度は何度ですか？</string>
+    <string name="chat_task_is_bluetooth_on">🔵 Bluetooth はオンになっていますか？</string>
+    <string name="chat_task_battery_left">🔋 バッテリー残量はどのくらいですか？</string>
+    <string name="chat_task_call_mom">📞 家族に電話をかける</string>
+    <string name="chat_task_storage_left">💾 空き容量はどのくらいありますか？</string>
+    <string name="chat_task_android_version">📲 Android のバージョンは何ですか？</string>
+
+    <string name="chat_section_background">バックグラウンド</string>
+    <string name="chat_status_active">アクティブ</string>
+    <string name="chat_skill_monitor_title">メッセージ監視＆自動返信</string>
+    <string name="chat_skill_monitor_active_desc">監視中 — 上部バーから停止できます</string>
+    <string name="chat_skill_monitor_desc">メッセージを監視して自動で返信</string>
+    <string name="chat_workflows_title">ワークフロー</string>
+    <string name="chat_workflows_subtitle">AI 搭載のバックグラウンドタスク — 単一の指示ではできない高度な処理。</string>
+    <string name="chat_workflows_experimental">実験的機能 — さらなるワークフローを近日公開</string>
+    <string name="chat_workflow_monitor_title">メッセージを監視</string>
+    <string name="chat_workflow_monitor_desc">バックグラウンドでメッセージを監視して自動返信</string>
+    <string name="chat_workflow_send_title">メッセージを送信</string>
+    <string name="chat_workflow_send_desc">任意のメッセージアプリで相手にメッセージを送信</string>
+    <string name="chat_running_in_background">バックグラウンドで実行中</string>
+    <string name="chat_tone_casual">カジュアル</string>
+    <string name="chat_tone_formal">フォーマル</string>
+    <string name="chat_tone_funny">ユーモア</string>
+    <string name="chat_monitor_target_label">対象連絡先</string>
+    <string name="chat_monitor_target_hint">例：お母さん、+81 90 1234 5678</string>
+    <string name="chat_monitor_app_label">アプリ</string>
+    <string name="chat_monitor_tone_label">口調</string>
+    <string name="chat_btn_start_monitoring">監視を開始</string>
+    <string name="chat_send_hint_label">より賢いモデルなら、直接入力するだけ：</string>
+    <string name="chat_send_example_quote">\"連絡先にこんにちはと送信\"</string>
+    <string name="chat_send_word_send">送信 </string>
+    <string name="chat_send_word_message">メッセージ</string>
+    <string name="chat_send_word_to">宛先 </string>
+    <string name="chat_send_word_name">名前</string>
+    <string name="chat_send_word_on"> 経由 </string>
+    <string name="chat_monitoring_single">監視中: %s</string>
+    <string name="chat_monitoring_multiple">%d 件を監視中</string>
+    <string name="chat_btn_stop_all">すべて停止</string>
+
+    <string name="chat_drawer_recent">履歴</string>
+    <string name="chat_drawer_new_chat">新しいチャット</string>
+    <string name="chat_drawer_no_conversations">会話履歴がありません</string>
+    <string name="chat_dialog_rename">名前変更</string>
+    <string name="chat_dialog_delete">削除</string>
+    <string name="chat_dialog_delete_title">会話を削除しますか？</string>
+    <string name="chat_dialog_rename_title">会話名を変更</string>
+    <string name="chat_drawer_settings">設定</string>
+    <string name="chat_drawer_models">モデル</string>
+
+    <string name="channel_qq">QQ</string>
+    <string name="channel_douyin">抖音</string>
+    <string name="channel_pair_pin_title">チャンネルペアリングPIN</string>
+    <string name="channel_pair_pin_hint">6桁のPINコードを入力</string>
+    <string name="channel_pair_pin_invalid">PINコードは6桁の数字である必要があります</string>
+    <string name="channel_pair_pin_saved">ペアリングPINが更新されました</string>
+    <string name="menu_qq">QQ</string>
+    <string name="menu_douyin">抖音</string>
+    <string name="menu_channel_pin">セキュリティペアリングPIN</string>
+
+    <string name="channel_config_qq_title">QQ 設定 (OneBot)</string>
+    <string name="channel_config_qq_tip">OneBot (V11) WebSocket サーバーのアドレスとアクセストークンを設定します。</string>
+    <string name="channel_config_qq_ws_url_label">WebSocket URL</string>
+    <string name="channel_config_qq_ws_url_hint">ws://192.168.1.x:3001</string>
+    <string name="channel_config_qq_token_label">アクセストークン (任意)</string>
+    <string name="channel_config_qq_token_hint">OneBot で設定されている場合は入力</string>
+
+    <string name="channel_config_douyin_title">抖音 設定</string>
+    <string name="channel_config_douyin_tip">抖音オープンプラットフォーム Webhook URLとアクセストークンを設定します。</string>
+    <string name="channel_config_douyin_url_label">Webhook URL</string>
+    <string name="channel_config_douyin_url_hint">https://your-domain.com/douyin/webhook</string>
+    <string name="channel_config_douyin_token_label">クライアントトークン / シークレット</string>
+    <string name="channel_config_douyin_token_hint">抖音アクセストークンを入力</string>
+
+    <string name="channel_config_wechat_manual_tip">WeChat iLink BotトークンとAPIベースURLを手動で設定するか、QRコードでログインします。</string>
+    <string name="channel_config_wechat_api_url_label">API ベース URL</string>
+    <string name="channel_config_wechat_api_url_hint">https://ilink.weixin.qq.com</string>
+    <string name="channel_config_wechat_token_hint">WeChat Bot トークンを入力</string>
+    <string name="channel_config_wechat_choose_mode">WeChatチャンネルの設定方法を選択してください：</string>
+    <string name="channel_config_wechat_qr_mode">QRコードログイン</string>
+    <string name="channel_config_wechat_manual_mode">手動設定</string>
 </resources>

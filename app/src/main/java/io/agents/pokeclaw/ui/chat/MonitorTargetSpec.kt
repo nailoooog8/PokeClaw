@@ -12,7 +12,7 @@ data class MonitorTargetSpec(
         get() = "$label on $app"
 
     companion object {
-        val supportedApps = listOf("WhatsApp", "Telegram", "Messages", "LINE", "WeChat")
+        val supportedApps = listOf("WhatsApp", "Telegram", "Messages", "LINE", "WeChat", "QQ", "Douyin")
     }
 }
 
@@ -30,9 +30,11 @@ object MonitorTargetParser {
         val lower = text.lowercase()
         return when {
             Regex("""\btelegram\b""").containsMatchIn(lower) -> "Telegram"
-            Regex("""\bwe\s*chat\b""").containsMatchIn(lower) -> "WeChat"
+            Regex("""\bwe\s*chat\b|微信""").containsMatchIn(lower) -> "WeChat"
+            Regex("""\bqq\b""").containsMatchIn(lower) -> "QQ"
+            Regex("""\b(douyin|tiktok)\b|抖音""").containsMatchIn(lower) -> "Douyin"
             Regex("""\bline\b""").containsMatchIn(lower) -> "LINE"
-            Regex("""\b(messages|google messages|sms)\b""").containsMatchIn(lower) -> "Messages"
+            Regex("""\b(messages|google messages|sms)\b|短信""").containsMatchIn(lower) -> "Messages"
             else -> "WhatsApp"
         }
     }
@@ -43,8 +45,10 @@ object MonitorTargetParser {
         val removeWords = listOf(
             "monitoring", "monitor", "auto-reply", "auto reply", "watching", "watch",
             "on whatsapp", "on telegram", "on messages", "on google messages", "on sms", "on wechat", "on line",
+            "on qq", "on douyin", "on tiktok",
             "messages", "message", "'s", "'s", "for", "from",
             "please", "can you", "start", "enable", "begin", "help me",
+            "监控", "监听", "自动回复", "回复", "在qq上", "在微信上", "在抖音上"
         )
         for (word in removeWords) {
             cleaned = cleaned.replace(word, " ")

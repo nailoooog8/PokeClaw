@@ -227,4 +227,142 @@
     <string name="custom_local_model_url_not_set">未设置</string>
     <string name="custom_local_model_url_set">已设置自定义 URL</string>
     <string name="custom_local_model_url_invalid">URL 必须以 http:// 或 https:// 开头</string>
+
+    <!-- 聊天主界面国际化 (#44) -->
+    <string name="chat_tab_local">本地</string>
+    <string name="chat_tab_cloud">云端</string>
+    <string name="chat_cd_switch_model">切换模型</string>
+    <string name="chat_no_api_key">未配置 API Key</string>
+    <string name="chat_configure_api_key">配置 API Key…</string>
+    <string name="chat_on_device_tag">（端侧）</string>
+    <string name="chat_no_local_model">未下载本地模型</string>
+    <string name="chat_download_models">下载模型…</string>
+    <string name="chat_permissions_needed">需要权限，点击前往开启</string>
+
+    <string name="chat_token_cost_info"> · %1$s 消耗 · %2$s</string>
+    <string name="chat_token_info"> · %1$s 消耗</string>
+
+    <string name="chat_mode_chat">💬 对话</string>
+    <string name="chat_mode_task">🤖 任务</string>
+    <string name="chat_hint_phone_task">描述一个手机操作任务…</string>
+    <string name="chat_hint_chat_or_task">发送消息或布置任务…</string>
+    <string name="chat_hint_local_ai">与本地 AI 对话…</string>
+    <string name="chat_btn_stop">停止</string>
+    <string name="chat_btn_waiting">等待回复中</string>
+    <string name="chat_btn_send">发送</string>
+    <string name="chat_skills_title">快捷技能</string>
+    <string name="chat_cd_collapse">收起</string>
+    <string name="chat_cd_expand">展开</string>
+
+    <string name="chat_downloading_brain">正在下载端侧 AI 模型</string>
+    <string name="chat_downloading_once">仅需下载一次</string>
+
+    <string name="chat_cloud_ai_title">云端 AI</string>
+    <string name="chat_local_ai_title">本地 AI</string>
+    <string name="chat_local_intro_prefix">在 </string>
+    <string name="chat_local_intro_mode"> 模式下聊天，或切换至 </string>
+    <string name="chat_local_intro_suffix"> 模式控制手机</string>
+    <string name="chat_cloud_intro_subtitle">对话与任务智能协作 — 输入任意内容即可开始</string>
+
+    <string name="chat_sugg_tokyo_time">东京现在几点了？</string>
+    <string name="chat_sugg_birthday_msg">帮我写一段生日祝福语</string>
+    <string name="chat_sugg_send_hi">💬 给微信好友发个问候</string>
+    <string name="chat_sugg_tell_joke">讲个笑话</string>
+    <string name="chat_sugg_what_can_you_do">你能帮我做些什么？</string>
+    <string name="chat_sugg_draft_email">帮我起草一封邮件</string>
+
+    <string name="chat_quick_task_templates">快捷任务模板</string>
+    <string name="chat_task_open_reddit">🦞 打开社交应用搜索 PokeClaw</string>
+    <string name="chat_task_search_youtube">🎬 在视频应用搜索搞笑猫咪视频</string>
+    <string name="chat_task_install_telegram">📦 从应用商店下载或更新应用</string>
+    <string name="chat_task_check_trending">🐦 查看当下的热门趋势并告诉我</string>
+    <string name="chat_task_check_whatsapp">💬 查看最近的聊天消息并总结</string>
+    <string name="chat_task_copy_email">📋 复制最新邮件的主题并在浏览器搜索</string>
+    <string name="chat_task_write_email">📧 起草邮件说明今天会迟到</string>
+    <string name="chat_task_check_notif">📵 检查通知栏 — 有重要消息吗？</string>
+    <string name="chat_task_read_clipboard">📋 读取剪贴板并解释内容</string>
+    <string name="chat_task_clean_storage">🧹 检查手机存储与应用 — 有什么能清理？</string>
+    <string name="chat_task_summarize_notif">🔔 读取我的通知并汇总</string>
+    <string name="chat_task_check_battery">🔋 查看电量并告诉我是否需要充电</string>
+    <string name="chat_task_list_apps">📱 手机上安装了哪些应用？</string>
+    <string name="chat_task_phone_temp">🌡️ 手机当前温度如何？</string>
+    <string name="chat_task_is_bluetooth_on">🔵 蓝牙是否已开启？</string>
+    <string name="chat_task_battery_left">🔋 剩余电量还有多少？</string>
+    <string name="chat_task_call_mom">📞 拨打电话给家人</string>
+    <string name="chat_task_storage_left">💾 还有多少可用存储空间？</string>
+    <string name="chat_task_android_version">📲 当前运行的 Android 版本是什么？</string>
+
+    <string name="chat_section_background">后台运行</string>
+    <string name="chat_status_active">运行中</string>
+    <string name="chat_skill_monitor_title">消息监听与自动回复</string>
+    <string name="chat_skill_monitor_active_desc">监控运行中 — 点击顶部栏可停止</string>
+    <string name="chat_skill_monitor_desc">后台监听消息并自动回复</string>
+    <string name="chat_workflows_title">自动化工作流</string>
+    <string name="chat_workflows_subtitle">由 AI 驱动的后台任务 — 完成单次指令无法处理的持续工作。</string>
+    <string name="chat_workflows_experimental">实验性功能 — 更多工作流即将推出</string>
+    <string name="chat_workflow_monitor_title">监听消息</string>
+    <string name="chat_workflow_monitor_desc">在后台监听并自动回复指定联系人的消息</string>
+    <string name="chat_workflow_send_title">发送消息</string>
+    <string name="chat_workflow_send_desc">通过任意通讯应用向指定联系人发送消息</string>
+    <string name="chat_running_in_background">正在后台运行</string>
+    <string name="chat_tone_casual">随和</string>
+    <string name="chat_tone_formal">正式</string>
+    <string name="chat_tone_funny">幽默</string>
+    <string name="chat_monitor_target_label">目标联系人</string>
+    <string name="chat_monitor_target_hint">例如：妈妈、张三、13800138000</string>
+    <string name="chat_monitor_app_label">应用</string>
+    <string name="chat_monitor_tone_label">语气风格</string>
+    <string name="chat_btn_start_monitoring">开始监听</string>
+    <string name="chat_send_hint_label">搭配高智能模型，您只需直接输入：</string>
+    <string name="chat_send_example_quote">\"给微信好友发一句你好\"</string>
+    <string name="chat_send_word_send">发送 </string>
+    <string name="chat_send_word_message">内容</string>
+    <string name="chat_send_word_to">给 </string>
+    <string name="chat_send_word_name">联系人</string>
+    <string name="chat_send_word_on"> 通过 </string>
+    <string name="chat_monitoring_single">正在监听：%s</string>
+    <string name="chat_monitoring_multiple">%d 项监听运行中</string>
+    <string name="chat_btn_stop_all">全部停止</string>
+
+    <string name="chat_drawer_recent">最近对话</string>
+    <string name="chat_drawer_new_chat">新建对话</string>
+    <string name="chat_drawer_no_conversations">暂无历史对话</string>
+    <string name="chat_dialog_rename">重命名</string>
+    <string name="chat_dialog_delete">删除</string>
+    <string name="chat_dialog_delete_title">删除对话？</string>
+    <string name="chat_dialog_rename_title">重命名对话</string>
+    <string name="chat_drawer_settings">设置</string>
+    <string name="chat_drawer_models">模型</string>
+
+    <string name="channel_qq">QQ</string>
+    <string name="channel_douyin">抖音</string>
+    <string name="channel_pair_pin_title">通道安全配对 PIN</string>
+    <string name="channel_pair_pin_hint">输入6位数字配对码</string>
+    <string name="channel_pair_pin_invalid">PIN码必须为6位数字</string>
+    <string name="channel_pair_pin_saved">配对 PIN 已更新</string>
+    <string name="menu_qq">QQ</string>
+    <string name="menu_douyin">抖音</string>
+    <string name="menu_channel_pin">安全配对 PIN</string>
+
+    <string name="channel_config_qq_title">QQ 配置 (OneBot)</string>
+    <string name="channel_config_qq_tip">配置 OneBot (V11) WebSocket 服务地址与访问凭据 (Access Token)。</string>
+    <string name="channel_config_qq_ws_url_label">WebSocket URL</string>
+    <string name="channel_config_qq_ws_url_hint">ws://192.168.1.x:3001</string>
+    <string name="channel_config_qq_token_label">Access Token (可选)</string>
+    <string name="channel_config_qq_token_hint">如 OneBot 设置了 Token 请在此输入</string>
+
+    <string name="channel_config_douyin_title">抖音配置</string>
+    <string name="channel_config_douyin_tip">配置抖音开放平台 Webhook 回调地址与访问 Token。</string>
+    <string name="channel_config_douyin_url_label">Webhook URL</string>
+    <string name="channel_config_douyin_url_hint">https://your-domain.com/douyin/webhook</string>
+    <string name="channel_config_douyin_token_label">Client Token / Secret</string>
+    <string name="channel_config_douyin_token_hint">输入抖音访问凭据 Token</string>
+
+    <string name="channel_config_wechat_manual_tip">手动配置微信 iLink Bot Token 和 API Base URL，或使用扫码登录。</string>
+    <string name="channel_config_wechat_api_url_label">API Base URL</string>
+    <string name="channel_config_wechat_api_url_hint">https://ilink.weixin.qq.com 或本地代理地址</string>
+    <string name="channel_config_wechat_token_hint">输入微信 Bot Token</string>
+    <string name="channel_config_wechat_choose_mode">请选择微信通道的配置方式：</string>
+    <string name="channel_config_wechat_qr_mode">扫码登录</string>
+    <string name="channel_config_wechat_manual_mode">手动配置</string>
 </resources>

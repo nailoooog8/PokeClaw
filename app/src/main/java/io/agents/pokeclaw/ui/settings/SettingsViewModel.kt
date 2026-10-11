@@ -43,12 +43,19 @@ class SettingsViewModel : ViewModel() {
     fun refresh() {
         val discordBotToken = KVUtils.getDiscordBotToken().isNotEmpty()
         val telegramBotToken = KVUtils.getTelegramBotToken().isNotEmpty()
-        val wechatBotToken = KVUtils.getWechatBotToken().isNotEmpty()
+        val wechatBotToken = KVUtils.getWechatBotToken().isNotEmpty() || KVUtils.getWechatApiBaseUrl().isNotEmpty()
+        val qqBound = KVUtils.getQqWsUrl().isNotEmpty()
+        val douyinBound = KVUtils.getDouyinWebhookUrl().isNotEmpty() || KVUtils.getDouyinToken().isNotEmpty()
+        val pairPin = KVUtils.getChannelPairPin()
+
         val map = mapOf(
             MenuAction.LLM_CONFIG.name to SettingValue.Text(getActiveModelDisplayName()),
             MenuAction.DISCORD.name to SettingValue.Text(ClawApplication.instance.getString(if (discordBotToken) R.string.common_bound else R.string.common_unbound)),
             MenuAction.TELEGRAM.name to SettingValue.Text(ClawApplication.instance.getString(if (telegramBotToken) R.string.common_bound else R.string.common_unbound)),
             MenuAction.WECHAT.name to SettingValue.Text(ClawApplication.instance.getString(if (wechatBotToken) R.string.common_bound else R.string.common_unbound)),
+            MenuAction.QQ.name to SettingValue.Text(ClawApplication.instance.getString(if (qqBound) R.string.common_bound else R.string.common_unbound)),
+            MenuAction.DOUYIN.name to SettingValue.Text(ClawApplication.instance.getString(if (douyinBound) R.string.common_bound else R.string.common_unbound)),
+            MenuAction.CHANNEL_PIN.name to SettingValue.Text(pairPin),
             MenuAction.LAN_CONFIG.name to SettingValue.Text(getLanConfigTrailingText())
         )
         _settingItems.value = map
@@ -249,6 +256,24 @@ class SettingsViewModel : ViewModel() {
         refresh()
     }
 
+    fun isQqBound(): Boolean = KVUtils.getQqWsUrl().isNotEmpty()
+
+    fun unbindQq() {
+        KVUtils.setQqWsUrl("")
+        KVUtils.setQqBotToken("")
+        ChannelManager.reinitQQFromStorage()
+        refresh()
+    }
+
+    fun isDouyinBound(): Boolean = KVUtils.getDouyinWebhookUrl().isNotEmpty() || KVUtils.getDouyinToken().isNotEmpty()
+
+    fun unbindDouyin() {
+        KVUtils.setDouyinWebhookUrl("")
+        KVUtils.setDouyinToken("")
+        ChannelManager.reinitDouyinFromStorage()
+        refresh()
+    }
+
     /**
      * Sealed class for setting values
      */
@@ -285,7 +310,7 @@ class SettingsViewModel : ViewModel() {
      * Menu action enum
      */
     enum class MenuAction {
-        DISCORD, TELEGRAM, WECHAT,
+        DISCORD, TELEGRAM, WECHAT, QQ, DOUYIN, CHANNEL_PIN,
         LAN_CONFIG,
         LLM_CONFIG
     }

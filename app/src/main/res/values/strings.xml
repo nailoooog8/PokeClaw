@@ -227,4 +227,142 @@
     <string name="custom_local_model_url_not_set">Not set</string>
     <string name="custom_local_model_url_set">Custom URL set</string>
     <string name="custom_local_model_url_invalid">URL must start with http:// or https://</string>
+
+    <!-- Chat Screen i18n (#44) -->
+    <string name="chat_tab_local">Local</string>
+    <string name="chat_tab_cloud">Cloud</string>
+    <string name="chat_cd_switch_model">Switch model</string>
+    <string name="chat_no_api_key">No API key configured</string>
+    <string name="chat_configure_api_key">Configure API key…</string>
+    <string name="chat_on_device_tag"> (On-device)</string>
+    <string name="chat_no_local_model">No local model downloaded</string>
+    <string name="chat_download_models">Download models…</string>
+    <string name="chat_permissions_needed">Permissions needed. Tap to fix.</string>
+
+    <string name="chat_token_cost_info"> · %1$s tokens · %2$s</string>
+    <string name="chat_token_info"> · %1$s tokens</string>
+
+    <string name="chat_mode_chat">💬 Chat</string>
+    <string name="chat_mode_task">🤖 Task</string>
+    <string name="chat_hint_phone_task">Describe a phone task…</string>
+    <string name="chat_hint_chat_or_task">Chat or give a task…</string>
+    <string name="chat_hint_local_ai">Chat with local AI…</string>
+    <string name="chat_btn_stop">Stop</string>
+    <string name="chat_btn_waiting">Waiting for reply</string>
+    <string name="chat_btn_send">Send</string>
+    <string name="chat_skills_title">Skills</string>
+    <string name="chat_cd_collapse">Collapse</string>
+    <string name="chat_cd_expand">Expand</string>
+
+    <string name="chat_downloading_brain">Downloading your AI brain</string>
+    <string name="chat_downloading_once">This only happens once</string>
+
+    <string name="chat_cloud_ai_title">Cloud AI</string>
+    <string name="chat_local_ai_title">Local AI</string>
+    <string name="chat_local_intro_prefix">Chat in </string>
+    <string name="chat_local_intro_mode"> mode, or switch to </string>
+    <string name="chat_local_intro_suffix"> to control your phone</string>
+    <string name="chat_cloud_intro_subtitle">Chat and tasks work together — just type anything</string>
+
+    <string name="chat_sugg_tokyo_time">What time is it in Tokyo?</string>
+    <string name="chat_sugg_birthday_msg">Help me write a birthday message</string>
+    <string name="chat_sugg_send_hi">💬 Send hi to Mom on WhatsApp</string>
+    <string name="chat_sugg_tell_joke">Tell me a joke</string>
+    <string name="chat_sugg_what_can_you_do">What can you do?</string>
+    <string name="chat_sugg_draft_email">Help me draft an email</string>
+
+    <string name="chat_quick_task_templates">Quick Task Templates</string>
+    <string name="chat_task_open_reddit">🦞 Open Reddit and search for pokeclaw</string>
+    <string name="chat_task_search_youtube">🎬 Search YouTube for funny cat fails</string>
+    <string name="chat_task_install_telegram">📦 Install Telegram from Play Store</string>
+    <string name="chat_task_check_trending">🐦 Check what\'s trending on Twitter and tell me</string>
+    <string name="chat_task_check_whatsapp">💬 Check my latest WhatsApp chat and summarize it</string>
+    <string name="chat_task_copy_email">📋 Copy the latest email subject and Google it</string>
+    <string name="chat_task_write_email">📧 Write an email saying I\'ll be late today</string>
+    <string name="chat_task_check_notif">📵 Check my notifications — anything important?</string>
+    <string name="chat_task_read_clipboard">📋 Read my clipboard and explain what it says</string>
+    <string name="chat_task_clean_storage">🧹 Check my storage and apps — what can I delete?</string>
+    <string name="chat_task_summarize_notif">🔔 Read my notifications and summarize</string>
+    <string name="chat_task_check_battery">🔋 Check my battery and tell me if I need to charge</string>
+    <string name="chat_task_list_apps">📱 What apps do I have?</string>
+    <string name="chat_task_phone_temp">🌡️ How hot is my phone?</string>
+    <string name="chat_task_is_bluetooth_on">🔵 Is bluetooth on?</string>
+    <string name="chat_task_battery_left">🔋 How much battery left?</string>
+    <string name="chat_task_call_mom">📞 Call Mom</string>
+    <string name="chat_task_storage_left">💾 How much storage do I have?</string>
+    <string name="chat_task_android_version">📲 What Android version am I running?</string>
+
+    <string name="chat_section_background">BACKGROUND</string>
+    <string name="chat_status_active">Active</string>
+    <string name="chat_skill_monitor_title">Monitor &amp; Auto-Reply</string>
+    <string name="chat_skill_monitor_active_desc">Monitoring active — use the top bar to stop</string>
+    <string name="chat_skill_monitor_desc">Watch messages and reply automatically</string>
+    <string name="chat_workflows_title">Workflows</string>
+    <string name="chat_workflows_subtitle">Background tasks powered by AI — things a single prompt can\'t do.</string>
+    <string name="chat_workflows_experimental">Experimental — more workflows coming soon</string>
+    <string name="chat_workflow_monitor_title">Monitor Messages</string>
+    <string name="chat_workflow_monitor_desc">Auto-reply to someone\'s messages in background</string>
+    <string name="chat_workflow_send_title">Send Message</string>
+    <string name="chat_workflow_send_desc">Send a message to someone via any messaging app</string>
+    <string name="chat_running_in_background">Running in background</string>
+    <string name="chat_tone_casual">Casual</string>
+    <string name="chat_tone_formal">Formal</string>
+    <string name="chat_tone_funny">Funny</string>
+    <string name="chat_monitor_target_label">Target</string>
+    <string name="chat_monitor_target_hint">e.g. Mom, +1 555 123 4567</string>
+    <string name="chat_monitor_app_label">App</string>
+    <string name="chat_monitor_tone_label">Tone</string>
+    <string name="chat_btn_start_monitoring">Start Monitoring</string>
+    <string name="chat_send_hint_label">With a smarter LLM, you can just type:</string>
+    <string name="chat_send_example_quote">\"send hi to Mom on WhatsApp\"</string>
+    <string name="chat_send_word_send">Send </string>
+    <string name="chat_send_word_message">message</string>
+    <string name="chat_send_word_to">to </string>
+    <string name="chat_send_word_name">name</string>
+    <string name="chat_send_word_on"> on </string>
+    <string name="chat_monitoring_single">Monitoring: %s</string>
+    <string name="chat_monitoring_multiple">%d monitoring</string>
+    <string name="chat_btn_stop_all">Stop All</string>
+
+    <string name="chat_drawer_recent">Recent</string>
+    <string name="chat_drawer_new_chat">New Chat</string>
+    <string name="chat_drawer_no_conversations">No conversations yet</string>
+    <string name="chat_dialog_rename">Rename</string>
+    <string name="chat_dialog_delete">Delete</string>
+    <string name="chat_dialog_delete_title">Delete conversation?</string>
+    <string name="chat_dialog_rename_title">Rename conversation</string>
+    <string name="chat_drawer_settings">Settings</string>
+    <string name="chat_drawer_models">Models</string>
+
+    <string name="channel_qq">QQ</string>
+    <string name="channel_douyin">Douyin</string>
+    <string name="channel_pair_pin_title">Channel Pairing PIN</string>
+    <string name="channel_pair_pin_hint">Enter 6-digit PIN</string>
+    <string name="channel_pair_pin_invalid">PIN must be a 6-digit number</string>
+    <string name="channel_pair_pin_saved">Pairing PIN updated</string>
+    <string name="menu_qq">QQ</string>
+    <string name="menu_douyin">Douyin</string>
+    <string name="menu_channel_pin">Pairing PIN</string>
+
+    <string name="channel_config_qq_title">QQ (OneBot) Config</string>
+    <string name="channel_config_qq_tip">Configure OneBot (V11) WebSocket server URL and optional Access Token.</string>
+    <string name="channel_config_qq_ws_url_label">WebSocket URL</string>
+    <string name="channel_config_qq_ws_url_hint">ws://192.168.1.x:3001</string>
+    <string name="channel_config_qq_token_label">Access Token (Optional)</string>
+    <string name="channel_config_qq_token_hint">Enter Access Token if configured</string>
+
+    <string name="channel_config_douyin_title">Douyin Config</string>
+    <string name="channel_config_douyin_tip">Configure Douyin Open Platform Webhook URL and Access Token.</string>
+    <string name="channel_config_douyin_url_label">Webhook URL</string>
+    <string name="channel_config_douyin_url_hint">https://your-domain.com/douyin/webhook</string>
+    <string name="channel_config_douyin_token_label">Client Token / Secret</string>
+    <string name="channel_config_douyin_token_hint">Enter Douyin API Token</string>
+
+    <string name="channel_config_wechat_manual_tip">Enter WeChat iLink Bot Token and API Base URL manually, or use QR login.</string>
+    <string name="channel_config_wechat_api_url_label">API Base URL</string>
+    <string name="channel_config_wechat_api_url_hint">https://ilink.weixin.qq.com</string>
+    <string name="channel_config_wechat_token_hint">Enter WeChat Bot Token</string>
+    <string name="channel_config_wechat_choose_mode">Choose how to configure WeChat channel:</string>
+    <string name="channel_config_wechat_qr_mode">QR Code Scan</string>
+    <string name="channel_config_wechat_manual_mode">Manual Config</string>
 </resources>

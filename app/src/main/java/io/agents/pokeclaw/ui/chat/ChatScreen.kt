@@ -435,7 +435,7 @@ private fun ChatTopBar(
                     border = if (selectedTab == "local") androidx.compose.foundation.BorderStroke(1.dp, colors.aiBubbleBorder) else null,
                 ) {
                     Text(
-                        "Local",
+                        stringResource(R.string.chat_tab_local),
                         fontSize = 12.sp,
                         color = if (selectedTab == "local") colors.accent else colors.textTertiary,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
@@ -449,14 +449,14 @@ private fun ChatTopBar(
                     border = if (selectedTab == "cloud") androidx.compose.foundation.BorderStroke(1.dp, colors.aiBubbleBorder) else null,
                 ) {
                     Text(
-                        "Cloud",
+                        stringResource(R.string.chat_tab_cloud),
                         fontSize = 12.sp,
                         color = if (selectedTab == "cloud") colors.accent else colors.textTertiary,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                     )
                 }
                 IconButton(onClick = onSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.chat_drawer_settings))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -485,7 +485,7 @@ private fun ChatTopBar(
             Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.UnfoldMore,
-                contentDescription = "Switch model",
+                contentDescription = stringResource(R.string.chat_cd_switch_model),
                 tint = colors.textTertiary,
                 modifier = Modifier.size(12.dp),
             )
@@ -497,9 +497,9 @@ private fun ChatTopBar(
                 }
                 val costText = if (sessionCost < 0.01) "< $0.01" else "$${String.format("%.2f", sessionCost)}"
                 val tokenSuffix = if (!isLocalModel && sessionCost > 0) {
-                    " · $formattedTokens tokens · $costText"
+                    stringResource(R.string.chat_token_cost_info, formattedTokens, costText)
                 } else {
-                    " · $formattedTokens tokens"
+                    stringResource(R.string.chat_token_info, formattedTokens)
                 }
                 Text(
                     text = tokenSuffix,
@@ -550,13 +550,13 @@ private fun ChatTopBar(
                     } else {
                         // No API key configured
                         DropdownMenuItem(
-                            text = { Text("No API key configured", fontSize = 13.sp, color = colors.textTertiary) },
+                            text = { Text(stringResource(R.string.chat_no_api_key), fontSize = 13.sp, color = colors.textTertiary) },
                             onClick = { showModelMenu = false; onSettings() },
                         )
                     }
                     HorizontalDivider()
                     DropdownMenuItem(
-                        text = { Text("Configure API key...", fontSize = 13.sp, color = colors.accent) },
+                        text = { Text(stringResource(R.string.chat_configure_api_key), fontSize = 13.sp, color = colors.accent) },
                         onClick = { showModelMenu = false; onSettings() },
                     )
                 } else {
@@ -568,7 +568,7 @@ private fun ChatTopBar(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("$localName (On-device)", fontSize = 13.sp,
+                                    Text("$localName${stringResource(R.string.chat_on_device_tag)}", fontSize = 13.sp,
                                         fontWeight = if (isLocalModel) FontWeight.Bold else FontWeight.Normal)
                                     if (isLocalModel) {
                                         Spacer(Modifier.width(6.dp))
@@ -583,13 +583,13 @@ private fun ChatTopBar(
                         )
                     } else {
                         DropdownMenuItem(
-                            text = { Text("No local model downloaded", fontSize = 13.sp, color = colors.textTertiary) },
+                            text = { Text(stringResource(R.string.chat_no_local_model), fontSize = 13.sp, color = colors.textTertiary) },
                             onClick = { showModelMenu = false; onSettings() },
                         )
                     }
                     HorizontalDivider()
                     DropdownMenuItem(
-                        text = { Text("Download models...", fontSize = 13.sp, color = colors.accent) },
+                        text = { Text(stringResource(R.string.chat_download_models), fontSize = 13.sp, color = colors.accent) },
                         onClick = { showModelMenu = false; onSettings() },
                     )
                 }
@@ -620,7 +620,7 @@ private fun PermissionBanner(onClick: () -> Unit, colors: PokeclawColors) {
             Icon(Icons.Outlined.Shield, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(
-                "Permissions needed. Tap to fix.",
+                stringResource(R.string.chat_permissions_needed),
                 color = colors.accent,
                 fontSize = 13.sp,
                 modifier = Modifier.weight(1f),
@@ -930,7 +930,7 @@ private fun ChatInputBar(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        "💬 Chat",
+                        stringResource(R.string.chat_mode_chat),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (!isTaskMode) colors.textPrimary else colors.textTertiary,
@@ -947,7 +947,7 @@ private fun ChatInputBar(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        "🤖 Task",
+                        stringResource(R.string.chat_mode_task),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (isTaskMode) Color.White else colors.textTertiary,
@@ -971,9 +971,9 @@ private fun ChatInputBar(
                 placeholder = {
                     Text(
                         when {
-                            isLocalModel && isTaskMode -> "Describe a phone task..."
-                            !isLocalModel -> "Chat or give a task..."
-                            else -> "Chat with local AI..."
+                            isLocalModel && isTaskMode -> stringResource(R.string.chat_hint_phone_task)
+                            !isLocalModel -> stringResource(R.string.chat_hint_chat_or_task)
+                            else -> stringResource(R.string.chat_hint_local_ai)
                         },
                         color = if (isTaskMode && isLocalModel) colors.accent.copy(alpha = 0.5f) else colors.textTertiary,
                         fontSize = 14.sp,
@@ -1089,9 +1089,9 @@ private fun ChatInputBar(
                         else -> Icons.Default.ArrowUpward
                     },
                     contentDescription = when {
-                        isTaskRunning -> "Stop"
-                        isAwaitingReply -> "Waiting for reply"
-                        else -> "Send"
+                        isTaskRunning -> stringResource(R.string.chat_btn_stop)
+                        isAwaitingReply -> stringResource(R.string.chat_btn_waiting)
+                        else -> stringResource(R.string.chat_btn_send)
                     },
                     tint = Color.White,
                     modifier = Modifier.size(14.dp),
@@ -1140,14 +1140,14 @@ private fun SkillShortcutBar(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "Skills",
+                    stringResource(R.string.chat_skills_title),
                     fontSize = 12.sp,
                     color = colors.textTertiary,
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
                     if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    contentDescription = if (expanded) stringResource(R.string.chat_cd_collapse) else stringResource(R.string.chat_cd_expand),
                     tint = colors.textTertiary,
                     modifier = Modifier.size(16.dp),
                 )
@@ -1232,14 +1232,14 @@ private fun DownloadOverlay(progress: Int, colors: PokeclawColors) {
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "Downloading your AI brain",
+                    stringResource(R.string.chat_downloading_brain),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "This only happens once",
+                    stringResource(R.string.chat_downloading_once),
                     fontSize = 13.sp,
                     color = colors.textTertiary,
                 )
@@ -1280,19 +1280,19 @@ private fun EmptyStateWithPrompts(
     // Local: show chat examples (chat only, tasks go to Workflows tab)
     val prompts = if (!isLocalModel) {
         listOf(
-            Prompt("What time is it in Tokyo?", false),
-            Prompt("Help me write a birthday message", false),
-            Prompt("💬 Send hi to Mom on WhatsApp", true),
+            Prompt(stringResource(R.string.chat_sugg_tokyo_time), false),
+            Prompt(stringResource(R.string.chat_sugg_birthday_msg), false),
+            Prompt(stringResource(R.string.chat_sugg_send_hi), true),
         )
     } else {
         listOf(
-            Prompt("Tell me a joke", false),
-            Prompt("What can you do?", false),
-            Prompt("Help me draft an email", false),
+            Prompt(stringResource(R.string.chat_sugg_tell_joke), false),
+            Prompt(stringResource(R.string.chat_sugg_what_can_you_do), false),
+            Prompt(stringResource(R.string.chat_sugg_draft_email), false),
         )
     }
 
-    val headerText = if (!isLocalModel) "Cloud AI" else "Local AI"
+    val headerText = if (!isLocalModel) stringResource(R.string.chat_cloud_ai_title) else stringResource(R.string.chat_local_ai_title)
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -1323,17 +1323,22 @@ private fun EmptyStateWithPrompts(
         Spacer(Modifier.height(6.dp))
         // Hint text — Local has styled bold parts, Cloud is plain
         if (isLocalModel) {
+            val prefix = stringResource(R.string.chat_local_intro_prefix)
+            val modeStr = stringResource(R.string.chat_local_intro_mode)
+            val suffix = stringResource(R.string.chat_local_intro_suffix)
+            val chatLabel = stringResource(R.string.chat_mode_chat)
+            val taskLabel = stringResource(R.string.chat_mode_task)
             Text(
                 buildAnnotatedString {
-                    append("Chat in ")
+                    if (prefix.isNotEmpty()) append(prefix)
                     withStyle(SpanStyle(color = colors.accent, fontWeight = FontWeight.Bold)) {
-                        append("💬 Chat")
+                        append(chatLabel)
                     }
-                    append(" mode, or switch to ")
+                    append(modeStr)
                     withStyle(SpanStyle(color = colors.accent, fontWeight = FontWeight.Bold)) {
-                        append("🤖 Task")
+                        append(taskLabel)
                     }
-                    append(" to control your phone")
+                    append(suffix)
                 },
                 fontSize = 11.sp,
                 color = colors.textSecondary,
@@ -1343,7 +1348,7 @@ private fun EmptyStateWithPrompts(
             )
         } else {
             Text(
-                "Chat and tasks work together \u2014 just type anything",
+                stringResource(R.string.chat_cloud_intro_subtitle),
                 fontSize = 11.sp,
                 color = colors.textSecondary,
                 textAlign = TextAlign.Center,
@@ -1408,32 +1413,32 @@ private fun QuickTasksPanel(
     // Cloud-only tasks at the top (multi-step, Siri/GA can't do these)
     // Cloud-only tasks (multi-step, Siri can't do)
     val cloudOnlyTasks = listOf(
-        "🦞 Open Reddit and search for pokeclaw",
-        "🎬 Search YouTube for funny cat fails",
-        "📦 Install Telegram from Play Store",
-        "🐦 Check what's trending on Twitter and tell me",
-        "💬 Check my latest WhatsApp chat and summarize it",
-        "📋 Copy the latest email subject and Google it",
-        "📧 Write an email saying I'll be late today",
+        stringResource(R.string.chat_task_open_reddit),
+        stringResource(R.string.chat_task_search_youtube),
+        stringResource(R.string.chat_task_install_telegram),
+        stringResource(R.string.chat_task_check_trending),
+        stringResource(R.string.chat_task_check_whatsapp),
+        stringResource(R.string.chat_task_copy_email),
+        stringResource(R.string.chat_task_write_email),
     )
     // Reasoning tasks (1-2 tool calls + LLM analysis) — impressive, work on both
     val reasoningTasks = listOf(
-        "📵 Check my notifications — anything important?",
-        "📋 Read my clipboard and explain what it says",
-        "🧹 Check my storage and apps — what can I delete?",
-        "🔔 Read my notifications and summarize",
-        "🔋 Check my battery and tell me if I need to charge",
+        stringResource(R.string.chat_task_check_notif),
+        stringResource(R.string.chat_task_read_clipboard),
+        stringResource(R.string.chat_task_clean_storage),
+        stringResource(R.string.chat_task_summarize_notif),
+        stringResource(R.string.chat_task_check_battery),
     )
     // Simple deterministic tasks (1 tool, no reasoning)
     val deterministicTasks = listOf(
-        "💬 Send hi to Mom on WhatsApp",
-        "📱 What apps do I have?",
-        "🌡️ How hot is my phone?",
-        "🔵 Is bluetooth on?",
-        "🔋 How much battery left?",
-        "📞 Call Mom",
-        "💾 How much storage do I have?",
-        "📲 What Android version am I running?",
+        stringResource(R.string.chat_sugg_send_hi),
+        stringResource(R.string.chat_task_list_apps),
+        stringResource(R.string.chat_task_phone_temp),
+        stringResource(R.string.chat_task_is_bluetooth_on),
+        stringResource(R.string.chat_task_battery_left),
+        stringResource(R.string.chat_task_call_mom),
+        stringResource(R.string.chat_task_storage_left),
+        stringResource(R.string.chat_task_android_version),
     )
     // Cloud: cloud-only → reasoning → deterministic
     // Local: reasoning first (impressive) → deterministic
@@ -1465,7 +1470,7 @@ private fun QuickTasksPanel(
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                "Quick Task Templates",
+                stringResource(R.string.chat_quick_task_templates),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.accent,
@@ -1522,7 +1527,7 @@ private fun QuickTasksPanel(
             // Background section — always visible, NOT inside scroll
             Column(modifier = Modifier.padding(horizontal = 12.dp)) {
                 Text(
-                    "BACKGROUND",
+                    stringResource(R.string.chat_section_background),
                     fontSize = 9.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textTertiary,
@@ -1561,13 +1566,13 @@ private fun QuickTasksPanel(
                         Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                if (monitorActive) "Active" else "Monitor & Auto-Reply",
+                                if (monitorActive) stringResource(R.string.chat_status_active) else stringResource(R.string.chat_skill_monitor_title),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.textPrimary,
                             )
                             Text(
-                                if (monitorActive) "Monitoring active — use the top bar to stop" else "Watch messages and reply automatically",
+                                if (monitorActive) stringResource(R.string.chat_skill_monitor_active_desc) else stringResource(R.string.chat_skill_monitor_desc),
                                 fontSize = 9.sp,
                                 color = colors.textTertiary,
                             )
@@ -1620,7 +1625,7 @@ private fun SidebarContent(
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Edit, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text("Rename", color = colors.textPrimary)
+                            Text(stringResource(R.string.chat_dialog_rename), color = colors.textPrimary)
                         }
                     }
                     TextButton(
@@ -1633,14 +1638,14 @@ private fun SidebarContent(
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFF87171), modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text("Delete", color = Color(0xFFF87171))
+                            Text(stringResource(R.string.chat_dialog_delete), color = Color(0xFFF87171))
                         }
                     }
                 }
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { actionTarget = null }) { Text("Cancel", color = colors.textSecondary) }
+                TextButton(onClick = { actionTarget = null }) { Text(stringResource(R.string.common_cancel), color = colors.textSecondary) }
             },
             containerColor = colors.surface,
         )
@@ -1650,16 +1655,16 @@ private fun SidebarContent(
     if (deleteTarget != null) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete conversation?", color = colors.textPrimary) },
+            title = { Text(stringResource(R.string.chat_dialog_delete_title), color = colors.textPrimary) },
             text = { Text(deleteTarget!!.title, color = colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis) },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteConversation(deleteTarget!!)
                     deleteTarget = null
-                }) { Text("Delete", color = Color(0xFFF87171)) }
+                }) { Text(stringResource(R.string.chat_dialog_delete), color = Color(0xFFF87171)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("Cancel", color = colors.textSecondary) }
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.common_cancel), color = colors.textSecondary) }
             },
             containerColor = colors.surface,
         )
@@ -1669,7 +1674,7 @@ private fun SidebarContent(
     if (renameTarget != null) {
         AlertDialog(
             onDismissRequest = { renameTarget = null },
-            title = { Text("Rename conversation", color = colors.textPrimary) },
+            title = { Text(stringResource(R.string.chat_dialog_rename_title), color = colors.textPrimary) },
             text = {
                 androidx.compose.material3.OutlinedTextField(
                     value = renameText,
@@ -1692,10 +1697,10 @@ private fun SidebarContent(
                         onRenameConversation(renameTarget!!, newName)
                     }
                     renameTarget = null
-                }) { Text("Save", color = colors.accent) }
+                }) { Text(stringResource(R.string.common_save), color = colors.accent) }
             },
             dismissButton = {
-                TextButton(onClick = { renameTarget = null }) { Text("Cancel", color = colors.textSecondary) }
+                TextButton(onClick = { renameTarget = null }) { Text(stringResource(R.string.common_cancel), color = colors.textSecondary) }
             },
             containerColor = colors.surface,
         )
@@ -1737,7 +1742,7 @@ private fun SidebarContent(
         ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("New Chat")
+            Text(stringResource(R.string.chat_drawer_new_chat))
         }
 
         Spacer(Modifier.height(12.dp))
@@ -1746,7 +1751,7 @@ private fun SidebarContent(
 
         // Recent label
         Text(
-            "Recent",
+            stringResource(R.string.chat_drawer_recent),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = colors.textTertiary,
@@ -1758,7 +1763,7 @@ private fun SidebarContent(
             if (conversations.isEmpty()) {
                 item {
                     Text(
-                        "No conversations yet",
+                        stringResource(R.string.chat_drawer_no_conversations),
                         fontSize = 13.sp,
                         color = colors.textTertiary,
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
@@ -1791,7 +1796,7 @@ private fun SidebarContent(
                     )
                     Icon(
                         Icons.Default.Edit,
-                        contentDescription = "Rename conversation",
+                        contentDescription = stringResource(R.string.chat_dialog_rename_title),
                         tint = colors.textTertiary,
                         modifier = Modifier
                             .padding(end = 12.dp)
@@ -1820,7 +1825,7 @@ private fun SidebarContent(
             ) {
                 Icon(Icons.Outlined.Settings, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(12.dp))
-                Text("Settings", color = colors.textSecondary)
+                Text(stringResource(R.string.chat_drawer_settings), color = colors.textSecondary)
             }
         }
         TextButton(
@@ -1835,7 +1840,7 @@ private fun SidebarContent(
             ) {
                 Icon(Icons.Outlined.SmartToy, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(12.dp))
-                Text("Models", color = colors.textSecondary)
+                Text(stringResource(R.string.chat_drawer_models), color = colors.textSecondary)
             }
         }
 
@@ -1873,13 +1878,13 @@ private fun TaskSkillsPanel(
     ) {
         item {
             Text(
-                "Workflows",
+                stringResource(R.string.chat_workflows_title),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
             )
             Text(
-                "Background tasks powered by AI — things a single prompt can't do.",
+                stringResource(R.string.chat_workflows_subtitle),
                 fontSize = 12.sp,
                 color = colors.textTertiary,
                 modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
@@ -1890,7 +1895,7 @@ private fun TaskSkillsPanel(
                 modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
             ) {
                 Text(
-                    "Experimental — more workflows coming soon",
+                    stringResource(R.string.chat_workflows_experimental),
                     fontSize = 11.sp,
                     color = colors.accent,
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1902,8 +1907,8 @@ private fun TaskSkillsPanel(
         item {
             SkillCard(
                 icon = Icons.Outlined.Visibility,
-                title = "Monitor Messages",
-                description = "Auto-reply to someone's messages in background",
+                title = stringResource(R.string.chat_workflow_monitor_title),
+                description = stringResource(R.string.chat_workflow_monitor_desc),
                 onClick = onMonitorClick,
                 isActivating = activatingSkill == "monitor",
                 isActive = monitorActive,
@@ -1915,8 +1920,8 @@ private fun TaskSkillsPanel(
         item {
             SkillCard(
                 icon = Icons.Outlined.Send,
-                title = "Send Message",
-                description = "Send a message to someone via any messaging app",
+                title = stringResource(R.string.chat_workflow_send_title),
+                description = stringResource(R.string.chat_workflow_send_desc),
                 onClick = onSendClick,
                 colors = colors,
             )
@@ -1945,7 +1950,7 @@ private fun TaskSkillsPanel(
             item {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Recent",
+                    stringResource(R.string.chat_drawer_recent),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textTertiary,
@@ -2026,7 +2031,7 @@ private fun SkillCard(
                     Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = if (isActive) activeOrange else colors.textPrimary)
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        if (isActive) "Running in background" else description,
+                        if (isActive) stringResource(R.string.chat_running_in_background) else description,
                         fontSize = 12.sp,
                         color = if (isActive) activeOrange.copy(alpha = 0.7f) else colors.textTertiary,
                         lineHeight = 16.sp,
@@ -2066,6 +2071,11 @@ private fun MonitorDialog(
     var selectedTone by remember { mutableStateOf("Casual") }
     val apps = MonitorTargetSpec.supportedApps
     val tones = listOf("Casual", "Formal", "Funny")
+    val toneLabels = mapOf(
+        "Casual" to stringResource(R.string.chat_tone_casual),
+        "Formal" to stringResource(R.string.chat_tone_formal),
+        "Funny" to stringResource(R.string.chat_tone_funny),
+    )
 
     // Centered modal overlay
     Box(
@@ -2103,7 +2113,7 @@ private fun MonitorDialog(
 
                 // Title
                 Text(
-                    "\uD83D\uDC41\uFE0F Monitor & Auto-Reply",
+                    "\uD83D\uDC41\uFE0F ${stringResource(R.string.chat_skill_monitor_title)}",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textPrimary,
@@ -2116,10 +2126,10 @@ private fun MonitorDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Target",
+                        stringResource(R.string.chat_monitor_target_label),
                         fontSize = 11.sp,
                         color = colors.textSecondary,
-                        modifier = Modifier.width(50.dp),
+                        modifier = Modifier.width(64.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     androidx.compose.foundation.text.BasicTextField(
@@ -2141,7 +2151,7 @@ private fun MonitorDialog(
                                 .padding(horizontal = 10.dp, vertical = 8.dp),
                             ) {
                                 if (contact.isEmpty()) {
-                                    Text("e.g. Mom, +1 555 123 4567", fontSize = 12.sp, color = colors.textTertiary)
+                                    Text(stringResource(R.string.chat_monitor_target_hint), fontSize = 12.sp, color = colors.textTertiary)
                                 }
                                 innerTextField()
                             }
@@ -2156,10 +2166,10 @@ private fun MonitorDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "App",
+                        stringResource(R.string.chat_monitor_app_label),
                         fontSize = 11.sp,
                         color = colors.textSecondary,
-                        modifier = Modifier.width(50.dp),
+                        modifier = Modifier.width(64.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     Box {
@@ -2200,10 +2210,10 @@ private fun MonitorDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Tone",
+                        stringResource(R.string.chat_monitor_tone_label),
                         fontSize = 11.sp,
                         color = colors.textSecondary,
-                        modifier = Modifier.width(50.dp),
+                        modifier = Modifier.width(64.dp),
                     )
                     Spacer(Modifier.width(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -2218,7 +2228,7 @@ private fun MonitorDialog(
                                 ),
                             ) {
                                 Text(
-                                    tone,
+                                    toneLabels[tone] ?: tone,
                                     fontSize = 11.sp,
                                     color = if (isOn) colors.accent else colors.textSecondary,
                                     modifier = Modifier
@@ -2250,7 +2260,7 @@ private fun MonitorDialog(
                     color = colors.userBubble,
                 ) {
                     Text(
-                        "Start Monitoring",
+                        stringResource(R.string.chat_btn_start_monitoring),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White,
@@ -2279,13 +2289,13 @@ private fun SendMessageDialog(
         onDismissRequest = onDismiss,
         containerColor = colors.surface,
         title = {
-            Text("Send Message", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+            Text(stringResource(R.string.chat_workflow_send_title), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
         },
         text = {
             Column {
-                Text("With a smarter LLM, you can just type:", fontSize = 11.sp, color = colors.textTertiary)
+                Text(stringResource(R.string.chat_send_hint_label), fontSize = 11.sp, color = colors.textTertiary)
                 Spacer(Modifier.height(2.dp))
-                Text("\"send hi to Mom on WhatsApp\"", fontSize = 11.sp, color = colors.accent.copy(alpha = 0.7f))
+                Text(stringResource(R.string.chat_send_example_quote), fontSize = 11.sp, color = colors.accent.copy(alpha = 0.7f))
                 Spacer(Modifier.height(16.dp))
 
                 // Fill-in-the-blank: "Send [___] to [___] on [WhatsApp ▾]"
@@ -2293,12 +2303,12 @@ private fun SendMessageDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Send ", fontSize = 15.sp, color = colors.textPrimary)
+                    Text(stringResource(R.string.chat_send_word_send), fontSize = 15.sp, color = colors.textPrimary)
                     Text("\"", fontSize = 15.sp, color = colors.textTertiary)
                     OutlinedTextField(
                         value = message,
                         onValueChange = { message = it },
-                        placeholder = { Text("message", color = colors.textTertiary, fontSize = 14.sp) },
+                        placeholder = { Text(stringResource(R.string.chat_send_word_message), color = colors.textTertiary, fontSize = 14.sp) },
                         modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                         shape = RoundedCornerShape(8.dp),
                         singleLine = true,
@@ -2318,11 +2328,11 @@ private fun SendMessageDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("to ", fontSize = 15.sp, color = colors.textPrimary)
+                    Text(stringResource(R.string.chat_send_word_to), fontSize = 15.sp, color = colors.textPrimary)
                     OutlinedTextField(
                         value = contact,
                         onValueChange = { contact = it },
-                        placeholder = { Text("name", color = colors.textTertiary, fontSize = 14.sp) },
+                        placeholder = { Text(stringResource(R.string.chat_send_word_name), color = colors.textTertiary, fontSize = 14.sp) },
                         modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                         shape = RoundedCornerShape(8.dp),
                         singleLine = true,
@@ -2335,7 +2345,7 @@ private fun SendMessageDialog(
                             unfocusedTextColor = colors.textPrimary,
                         ),
                     )
-                    Text(" on ", fontSize = 15.sp, color = colors.textPrimary)
+                    Text(stringResource(R.string.chat_send_word_on), fontSize = 15.sp, color = colors.textPrimary)
                     Box {
                         Surface(
                             onClick = { appMenuExpanded = true },
@@ -2373,12 +2383,12 @@ private fun SendMessageDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
                 shape = RoundedCornerShape(10.dp),
             ) {
-                Text("Send")
+                Text(stringResource(R.string.chat_btn_send))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = colors.textSecondary)
+                Text(stringResource(R.string.common_cancel), color = colors.textSecondary)
             }
         },
     )
@@ -2419,7 +2429,7 @@ private fun ActiveTaskBar(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = if (tasks.size == 1) "Monitoring: ${tasks[0]}" else "${tasks.size} monitoring",
+                    text = if (tasks.size == 1) stringResource(R.string.chat_monitoring_single, tasks[0]) else stringResource(R.string.chat_monitoring_multiple, tasks.size),
                     color = colors.textPrimary,
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -2460,7 +2470,7 @@ private fun ActiveTaskBar(
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        text = "Stop",
+                        text = stringResource(R.string.chat_btn_stop),
                         color = androidx.compose.ui.graphics.Color(0xFFF44336),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
@@ -2478,7 +2488,7 @@ private fun ActiveTaskBar(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     Text(
-                        text = "Stop All",
+                        text = stringResource(R.string.chat_btn_stop_all),
                         color = androidx.compose.ui.graphics.Color(0xFFF44336),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,

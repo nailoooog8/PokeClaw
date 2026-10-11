@@ -219,8 +219,8 @@ class McpStreamableHttpClient(private val server: McpServerConfig) {
 
     private fun requestBuilder(): Request.Builder {
         val b = Request.Builder()
-        server.headerName?.takeIf { it.isNotBlank() }?.let { name ->
-            server.headerValue?.takeIf { it.isNotBlank() }?.let { value ->
+        server.headerName?.trim()?.takeIf { it.isNotEmpty() }?.let { name ->
+            server.normalizedHeaderValue()?.trim()?.takeIf { it.isNotEmpty() }?.let { value ->
                 b.header(name, value)
             }
         }

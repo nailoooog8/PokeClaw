@@ -14,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.agents.pokeclaw.R
+import io.agents.pokeclaw.agent.mcp.McpAuthType
 import io.agents.pokeclaw.agent.mcp.McpConnectionManager
 import io.agents.pokeclaw.agent.mcp.McpServerConfig
 import io.agents.pokeclaw.base.BaseActivity
@@ -190,27 +191,101 @@ class McpServersActivity : BaseActivity() {
         val urlInput = field("https://example.com/mcp", existing?.url)
         layout.addView(urlInput)
 
-        label("\n鉴权 Header 名（可选，如 Authorization）")
-        val headerNameInput = field("留空 = 不带鉴权", existing?.headerName)
-        layout.addView(headerNameInput)
+        label("\n鉴权方式")
+        val authTypes = listOf(
+            "无鉴权 (None)" to McpAuthType.NONE,
+            "Bearer Token (推荐)" to McpAuthType.BEARER,
+            "Basic 凭证 (用户名:密码)" to McpAuthType.BASIC,
+            "自定义 Header" to McpAuthType.CUSTOM,
+        )
+        val initialType = McpAuthType.detect(existing?.headerName, existing?.headerValue)
+        val authSpinner = android.widget.Spinner(this).apply {
+            adapter = android.widget.ArrayAdapter(
+                this@McpServersActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                authTypes.map { it.first }
+            )
+            setSelection(authTypes.indexOfFirst { it.second == initialType }.coerceAtLeast(0))
+        }
+        layout.addView(authSpinner)
 
-        label("\n鉴权 Header 值（可选，如 Bearer sk-…）")
-        val headerValueInput = field("", existing?.headerValue, password = true)
-        layout.addView(headerValueInput)
+        val headerNameContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 16, 0, 0)
+        }
+        val headerNameLabel = TextView(this).apply {
+            text = "Header 名"
+            setTextColor(fieldColor)
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        val headerNameInput = field("X-API-Key", existing?.headerName)
+        headerNameContainer.addView(headerNameLabel)
+        headerNameContainer.addView(headerNameInput)
+        layout.addView(headerNameContainer)
+
+        val headerValueContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 16, 0, 0)
+        }
+        val headerValueLabel = TextView(this).apply {
+            text = "Token / 密钥"
+            setTextColor(fieldColor)
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        val initialDisplayCred = existing?.displayCredential() ?: ""
+        val headerValueInput = field("填入密钥", initialDisplayCred, password = true)
+        headerValueContainer.addView(headerValueLabel)
+        headerValueContainer.addView(headerValueInput)
+        layout.addView(headerValueContainer)
+
+        fun updateAuthFieldVisibility(type: McpAuthType) {
+            when (type) {
+                McpAuthType.NONE -> {
+                    headerNameContainer.visibility = android.view.View.GONE
+                    headerValueContainer.visibility = android.view.View.GONE
+                }
+                McpAuthType.BEARER -> {
+                    headerNameContainer.visibility = android.view.View.GONE
+                    headerValueContainer.visibility = android.view.View.VISIBLE
+                    headerValueLabel.text = "Bearer Token（填入密钥，系统自动补全 Bearer 前缀）"
+                    headerValueInput.hint = "sk-…"
+                }
+                McpAuthType.BASIC -> {
+                    headerNameContainer.visibility = android.view.View.GONE
+                    headerValueContainer.visibility = android.view.View.VISIBLE
+                    headerValueLabel.text = "Basic 凭证（用户名:密码 或 Base64）"
+                    headerValueInput.hint = "user:password"
+                }
+                McpAuthType.CUSTOM -> {
+                    headerNameContainer.visibility = android.view.View.VISIBLE
+                    headerValueContainer.visibility = android.view.View.VISIBLE
+                    headerNameLabel.text = "Header 名（如 X-API-Key）"
+                    headerNameInput.hint = "X-API-Key"
+                    headerValueLabel.text = "Header 值"
+                    headerValueInput.hint = "值"
+                }
+            }
+        }
+        updateAuthFieldVisibility(initialType)
+
+        authSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                updateAuthFieldVisibility(authTypes.getOrNull(position)?.second ?: McpAuthType.NONE)
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
 
         val enabledCheck = CheckBox(this).apply {
             text = "启用（保存后立即连接并发现工具）"
             isChecked = existing?.enabled ?: true
             setTextColor(fieldColor)
+            setPadding(0, 16, 0, 0)
         }
         layout.addView(enabledCheck)
 
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle(if (existing == null) "添加 MCP 服务器" else "编辑 ${existing.name}")
             .setView(layout)
-            // Validate on click instead of in the builder callback: a builder
-            // callback runs after the dialog is already dismissed, so a rejected
-            // input threw away everything the user had typed.
             .setPositiveButton("保存", null)
             .setNegativeButton("取消", null)
             .create()
@@ -219,8 +294,32 @@ class McpServersActivity : BaseActivity() {
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = nameInput.text.toString().trim()
                 val url = urlInput.text.toString().trim()
-                val headerName = headerNameInput.text.toString().trim().ifEmpty { null }
-                val headerValue = headerValueInput.text.toString().trim().ifEmpty { null }
+
+                val selectedType = authTypes.getOrNull(authSpinner.selectedItemPosition)?.second ?: McpAuthType.BEARER
+                val (headerName, headerValue) = when (selectedType) {
+                    McpAuthType.NONE -> null to null
+                    McpAuthType.BEARER -> {
+                        val raw = headerValueInput.text.toString().trim()
+                        if (raw.isEmpty()) null to null
+                        else {
+                            val formatted = if (raw.startsWith("Bearer ", ignoreCase = true)) raw else "Bearer $raw"
+                            "Authorization" to formatted
+                        }
+                    }
+                    McpAuthType.BASIC -> {
+                        val raw = headerValueInput.text.toString().trim()
+                        if (raw.isEmpty()) null to null
+                        else {
+                            val formatted = if (raw.startsWith("Basic ", ignoreCase = true)) raw else "Basic $raw"
+                            "Authorization" to formatted
+                        }
+                    }
+                    McpAuthType.CUSTOM -> {
+                        val hName = headerNameInput.text.toString().trim().ifEmpty { null }
+                        val hVal = headerValueInput.text.toString().trim().ifEmpty { null }
+                        hName to hVal
+                    }
+                }
 
                 if (name.isEmpty()) {
                     Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
