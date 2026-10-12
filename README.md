@@ -50,13 +50,30 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 
 ---
 
+## 界面截图
+
+| 聊天首页 | 设置 · 通道分组 | 设置 · 工具与远程控制 |
+|:---:|:---:|:---:|
+| <img src="screenshots/fork-chat-home.jpg" width="250" alt="聊天首页"> | <img src="screenshots/fork-settings-channels.jpg" width="250" alt="设置页通道分组"> | <img src="screenshots/fork-settings-tools.jpg" width="250" alt="设置页工具与远程控制分组"> |
+| 本地 / 云端双模式，<br>中文快捷任务模板 | 本 fork 恢复可达的**通道分组**：<br>Discord / Telegram / 微信 / QQ / 抖音<br>+ 安全配对 PIN + 局域网配置 | 技能管理、MCP 服务器、<br>记忆库、常驻后台、<br>外部自动化与 Web 控制台 |
+
+> **左图**：云端模式下接 MiniMax-M3.1-Flash-Preview 的实际对话界面，中文快捷任务模板直接可点。
+>
+> **中图**：这一整组入口此前被 `visibility="gone"` 隐藏——代码完整但**七个入口全部不可达**，是本 fork 修复的第一个可见问题。
+>
+> **右图**：工具与远程控制分组，可见 MCP 鉴权选择器与记忆库入口。
+
+截图取自 fork 开发版真机（vivo X300 Pro BD，Android 16）。**注意右图中的分组标题（`Appearance` / `Tools` / `Remote Control`）与部分状态串（`Not connected`、`Coming soon`、`Ember light`）目前仍为英文**，汉化补齐尚未完成。
+
+---
+
 ## 下载
 
 [**下载本 fork 的 APK**](https://github.com/nailoooog8/PokeClaw/releases/latest)
 
 | 版本 | 说明 |
 |---|---|
-| **v0.8.0** | 首个包含安全加固、多渠道与汉化的正式版 |
+| **v0.8.0** | 首个包含安全加固与多渠道的正式版（三语界面，**部分分组标题与状态串仍待汉化**） |
 | v0.7.1 | 早前的 MCP 扩展试发版，**不含**本 fork 的安全修复 |
 
 > ⚠️ **升级说明**：v0.7.1 及更早的公开 APK 所用签名密钥已不在维护者手中。若两者签名不一致，Android 会拒绝覆盖安装，需要**先卸载旧版再安装新版本**——这会清空本地数据（本地模型缓存约 2.6 GB 需重新下载，记忆库与技能配置需重新配置）。流程与密钥约定见 [`RELEASING.md`](RELEASING.md)。
