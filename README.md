@@ -48,6 +48,8 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 
 完整审计报告见 [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md)。**该文档明确区分了「代码已修复」与「真机 E2E 已验证」**——SEC1–SEC11 目前全部尚未执行，请勿将代码修复等同于已通过安全测试。
 
+发现新漏洞请走[私有漏洞上报](https://github.com/nailoooog8/PokeClaw/security/advisories/new)，**不要开公开 issue**——修复落地前 issue 里的细节对所有人可见。报告范围、响应预期与转上游的边界见 [`SECURITY.md`](SECURITY.md)。
+
 ---
 
 ## 界面截图
