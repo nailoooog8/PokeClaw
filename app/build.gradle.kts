@@ -11,10 +11,33 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.21"
 }
 
-fun readLocalOrEnvString(key: String, defaultValue: String = ""): String {
-    val props = Properties().apply {
-        File("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+/**
+ * 逐行解析 local.properties，**不使用** java.util.Properties.load。
+ *
+ * Properties 把 "\" 当转义符，Windows 路径 `C:\Users\me\a.keystore`
+ * 会被读成 `C:Usersmea.keystore`，导致 Gradle 去找一个根本不存在的文件。
+ * 这里按字面量取值，反斜杠原样保留。
+ *
+ * 注意：AGP 自己解析 sdk.dir 仍走 Properties 语义，因此 sdk.dir 保持
+ * 原有写法不变（Android Studio 写出的双反斜杠）。
+ */
+fun loadLocalPropertiesLiterally(): Properties {
+    val props = Properties()
+    val f = rootProject.file("local.properties")
+    if (f.exists()) {
+        f.bufferedReader().forEachLine { line ->
+            val t = line.trim()
+            if (t.isEmpty() || t.startsWith("#") || t.startsWith("!")) return@forEachLine
+            val idx = t.indexOf('=')
+            if (idx <= 0) return@forEachLine
+            props.setProperty(t.substring(0, idx).trim(), t.substring(idx + 1).trim())
+        }
     }
+    return props
+}
+
+fun readLocalOrEnvString(key: String, defaultValue: String = ""): String {
+    val props = loadLocalPropertiesLiterally()
     return System.getenv(key)?.takeIf { it.isNotBlank() }
         ?: props.getProperty(key, defaultValue).trim()
 }
@@ -33,16 +56,16 @@ android {
 
     signingConfigs {
         create("release") {
-            val props = Properties().apply {
-                rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
-            }
+            val props = loadLocalPropertiesLiterally()
             fun readSigningValue(key: String): String {
                 return System.getenv(key)?.takeIf { it.isNotBlank() }
                     ?: props.getProperty(key, "").trim()
             }
             val keystorePath = readSigningValue("KEYSTORE_FILE")
             if (keystorePath.isNotEmpty()) {
-                storeFile = file(keystorePath)
+                // 用 File() 而非 Gradle 的 file()：后者会把相对路径解析到 project 目录。
+                // 绝对路径两者等价，但 File() 语义更明确，且不会因 project 目录变化而漂移。
+                storeFile = File(keystorePath)
                 storePassword = readSigningValue("KEYSTORE_PASSWORD")
                 keyAlias = readSigningValue("KEY_ALIAS")
                 keyPassword = readSigningValue("KEY_PASSWORD")
@@ -54,8 +77,8 @@ android {
         applicationId = "io.agents.pokeclaw"
         minSdk = 28
         targetSdk = 36
-        versionCode = readLocalOrEnvInt("POKECLAW_VERSION_CODE", 29)
-        versionName = readLocalOrEnvString("POKECLAW_VERSION_NAME", "0.7.1")
+        versionCode = readLocalOrEnvInt("POKECLAW_VERSION_CODE", 30)
+        versionName = readLocalOrEnvString("POKECLAW_VERSION_NAME", "0.8.0")
         buildConfigField("String", "VERSION_INFO", getVersionGit())
         buildConfigField("String", "APP_ORIGIN", "\"PokeClaw by agents.io | github.com/agents-io/PokeClaw\"")
         buildConfigField("String", "BUILD_FINGERPRINT", "\"${getBuildFingerprint()}\"")

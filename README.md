@@ -46,6 +46,29 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 
 完整用例见 [`QA_CHECKLIST.md`](QA_CHECKLIST.md) 的 `SEC` 段（SEC1–SEC11）。
 
+完整审计报告见 [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md)。**该文档明确区分了「代码已修复」与「真机 E2E 已验证」**——SEC1–SEC11 目前全部尚未执行，请勿将代码修复等同于已通过安全测试。
+
+---
+
+## 下载
+
+[**下载本 fork 的 APK**](https://github.com/nailoooog8/PokeClaw/releases/latest)
+
+| 版本 | 说明 |
+|---|---|
+| **v0.8.0** | 首个包含安全加固、多渠道与汉化的正式版 |
+| v0.7.1 | 早前的 MCP 扩展试发版，**不含**本 fork 的安全修复 |
+
+> ⚠️ **升级说明**：v0.7.1 及更早的公开 APK 所用签名密钥已不在维护者手中。若两者签名不一致，Android 会拒绝覆盖安装，需要**先卸载旧版再安装新版本**——这会清空本地数据（本地模型缓存约 2.6 GB 需重新下载，记忆库与技能配置需重新配置）。流程与密钥约定见 [`RELEASING.md`](RELEASING.md)。
+
+---
+
+## 上游状态
+
+上游 [`agents-io/PokeClaw`](https://github.com/agents-io/PokeClaw) 的 `main` 最后提交停在 **2026-06-02**，已有约 4 个月无更新。其 8 个 `feature/*` 分支中最新的停在 2026-05-26，其余均为 2026-04-13，相关改动已全部包含在本 fork 中，**无需合并**。
+
+本 fork 独立维护，不依赖上游合并节奏。
+
 ---
 
 ## 快速开始
@@ -513,6 +536,32 @@ PokeClaw is moving fast, and the roadmap is being shaped directly by real device
 Every star helps more people find the project. Every issue helps shape the next release.
 
 ## Changelog
+
+### v0.8.0 (2026-10-12) — 首个安全加固正式版
+
+本版本包含 5 笔改动，**是本 fork 第一个把安全修复、多渠道与中文界面一起交付的正式版本**。此前的 v0.7.1 只包含 MCP 扩展，不含以下任何一项。
+
+**安全（红队审计修复，完整报告见 [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md)）**
+
+- **PIN 暴力破解（Critical）** — 渠道配对与局域网控制台的 6 位 PIN 此前零限速，10⁶ 组合可自动化穷举。现改为失败计数 + 递增锁定 + 常量时间比较（`BruteForceGuard`）。
+- **凭据明文泄漏（Critical）** — 局域网控制台的 `GET /api/channels`、`GET /api/llm` 此前明文返回全部 bot token 与 LLM API Key。现读路径一律返回掩码，页面回存掩码不会清空真实值。
+- **MCP 工具投毒（High）** — 第三方 MCP 服务器的工具描述此前原样进入 system prompt，等于让恶意服务器向一个会点击、会输入、会发消息的模型下达指令。现加围栏包裹并剥离伪造闭合符（`McpDescriptionSanitizer`）。
+- **路径穿越（Medium）** — 调试文件接口用字符串前缀校验路径，不折叠 `..`。现两侧 canonicalize 后逐段比较。
+
+**渠道与稳定性**
+
+- 新增 **QQ**（OneBot v11 反向 WebSocket，断线自动重连）与**抖音**（Webhook / Gateway）渠道；微信渠道的 Base URL 与 Token 改为可配置。
+- 所有外部消息必须先通过 **PIN 配对 + 白名单**，未授权发送者无法触达任务编排器。
+- **任务看门狗**：120 秒无活动 / 600 秒总时长自动中止并释放任务锁，避免任务卡死。
+- **渠道分组此前被 `visibility="gone"` 隐藏**，Discord / Telegram / 微信 / QQ / 抖音 / 配对 PIN / 局域网配置七个入口实际不可达。现已恢复。
+
+**界面**
+
+- 界面汉化并新增 **QQ / 抖音图标**；MCP 服务器新增 Bearer / Basic / 自定义鉴权选择器，凭据经 Android Keystore 加密落盘。
+
+**升级提示**：v0.7.1 及更早版本的签名密钥已不在维护者手中，Android 可能拒绝覆盖安装。若提示签名冲突，请先卸载旧版再安装——本地模型缓存（约 2.6 GB）需重新下载。
+
+**验证边界（请注意）**：安全修复均有单元测试覆盖（共 30 个用例），但 **SEC1–SEC11 的真机 E2E 验证尚未执行**，阻塞原因为局域网配置服务在部分 OEM 上无法从 ADB 唤起，与代码无关。详见审计报告第 4 节。
 
 ### v0.7.1 (2026-05-26) — hotfix: global prompt actually flows now
 
