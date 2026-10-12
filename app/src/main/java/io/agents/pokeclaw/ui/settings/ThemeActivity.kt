@@ -50,7 +50,7 @@ class ThemeActivity : BaseActivity() {
         (contentFrame?.getChildAt(0) as? android.view.View)?.setBackgroundColor(tc.bg)
 
         findViewById<CommonToolbar>(R.id.toolbar).apply {
-            setTitle("Appearance")
+            setTitle(getString(R.string.settings_group_appearance))
             setTitleColor(tc.aiText)
             setBackgroundColor(tc.toolbarBg)
             showBackButton(true) { finish() }

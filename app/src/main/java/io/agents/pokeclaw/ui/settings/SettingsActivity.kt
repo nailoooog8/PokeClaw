@@ -43,6 +43,11 @@ import kotlinx.coroutines.withContext
  */
 class SettingsActivity : BaseActivity() {
 
+    /** Number of built-in tools advertised on the "管理工具" row. */
+    private companion object {
+        const val TOOLS_ENABLED_COUNT = 12
+    }
+
     // Poll permissions every second (same as original HomeActivity)
     private val handler = Handler(Looper.getMainLooper())
     private val permPoller = object : Runnable {
@@ -125,15 +130,41 @@ class SettingsActivity : BaseActivity() {
     /** Refreshes the trailing label on the MCP-servers row. */
     private fun refreshMcpServerCount(): String {
         val count = io.agents.pokeclaw.agent.mcp.McpConnectionManager.loadConfigs(this).size
-        return if (count == 0) "Not configured" else "$count configured"
+        return if (count == 0) {
+            getString(R.string.settings_status_not_configured)
+        } else {
+            getString(R.string.settings_count_configured, count)
+        }
     }
 
     /** Trailing label for the memory-bank row: off state wins over the count. */
     private fun refreshMemoryCount(): String {
         io.agents.pokeclaw.agent.memory.MemoryStore.init(this)
-        if (!io.agents.pokeclaw.agent.memory.MemoryStore.isEnabled()) return "已关闭"
+        if (!io.agents.pokeclaw.agent.memory.MemoryStore.isEnabled()) return getString(R.string.settings_off)
         val count = io.agents.pokeclaw.agent.memory.MemoryStore.count()
-        return if (count == 0) "空" else "$count 条"
+        return if (count == 0) {
+            getString(R.string.settings_count_empty)
+        } else {
+            getString(R.string.settings_count_items, count)
+        }
+    }
+
+    /**
+     * Display name for a theme id. The id itself is a storage key and must never
+     * be translated - only the label shown next to the Theme row is localized.
+     * Unknown ids fall back to the previous "Ember light"-style derivation so a
+     * newly added theme still renders something readable.
+     */
+    private fun themeDisplayName(themeId: String): String {
+        val resId = when (themeId) {
+            "ember_dark" -> R.string.theme_label_ember_dark
+            "ember_light" -> R.string.theme_label_ember_light
+            "abyss_dark" -> R.string.theme_label_abyss_dark
+            "abyss_light" -> R.string.theme_label_abyss_light
+            else -> 0
+        }
+        return if (resId != 0) getString(resId)
+        else themeId.replace("_", " ").replaceFirstChar { it.uppercase() }
     }
 
     private fun refreshPermissions() {
@@ -461,7 +492,7 @@ class SettingsActivity : BaseActivity() {
 
         // Appearance
         val appearanceGroup = findViewById<MenuGroup>(R.id.appearanceGroup)
-        appearanceGroup.setTitle("Appearance")
+        appearanceGroup.setTitle(getString(R.string.settings_group_appearance))
 
         appearanceGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_slideshow,
@@ -472,13 +503,12 @@ class SettingsActivity : BaseActivity() {
             showDivider = false
         ).apply {
             val themeId = KVUtils.getString("THEME_ID", "abyss_dark")
-            val label = themeId.replace("_", " ").replaceFirstChar { it.uppercase() }
-            setTrailingText(label)
+            setTrailingText(themeDisplayName(themeId))
         }
 
         // Tools
         val toolsGroup = findViewById<MenuGroup>(R.id.toolsGroup)
-        toolsGroup.setTitle("Tools")
+        toolsGroup.setTitle(getString(R.string.settings_group_tools))
 
         toolsGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_manage,
@@ -488,7 +518,7 @@ class SettingsActivity : BaseActivity() {
             },
             showDivider = true
         ).apply {
-            setTrailingText("12 enabled")
+            setTrailingText(getString(R.string.settings_count_enabled, TOOLS_ENABLED_COUNT))
         }
 
         // MCP server manager — in-app editor for mcp_servers.json
@@ -531,18 +561,23 @@ class SettingsActivity : BaseActivity() {
             onClick = {
                 val enabled = !ForegroundService.isPersistentKeepAliveEnabled()
                 ForegroundService.setPersistentKeepAliveEnabled(enabled)
-                keepAliveItem?.setTrailingText(if (enabled) "开启" else "关闭")
+                keepAliveItem?.setTrailingText(
+                    if (enabled) getString(R.string.settings_on) else getString(R.string.settings_off)
+                )
                 ForegroundService.syncToBackgroundState(this)
             },
             showDivider = false
         ).apply {
             setLeadingIconColor(getColor(R.color.colorTextPrimary))
-            setTrailingText(if (ForegroundService.isPersistentKeepAliveEnabled()) "开启" else "关闭")
+            setTrailingText(
+                if (ForegroundService.isPersistentKeepAliveEnabled()) getString(R.string.settings_on)
+                else getString(R.string.settings_off)
+            )
         }
 
         // Remote Control
         val remoteGroup = findViewById<MenuGroup>(R.id.remoteGroup)
-        remoteGroup.setTitle("Remote Control")
+        remoteGroup.setTitle(getString(R.string.settings_group_remote))
 
         remoteGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_send,
@@ -553,7 +588,10 @@ class SettingsActivity : BaseActivity() {
             showDivider = true
         ).apply {
             val token = KVUtils.getTelegramBotToken()
-            setTrailingText(if (token.isNotEmpty()) "Connected" else "Not connected")
+            setTrailingText(
+                if (token.isNotEmpty()) getString(R.string.settings_status_connected)
+                else getString(R.string.settings_status_not_connected)
+            )
         }
 
         externalAutomationItem = remoteGroup.addMenuItem(
@@ -562,7 +600,10 @@ class SettingsActivity : BaseActivity() {
             onClick = { toggleExternalAutomation() },
             showDivider = true
         ).apply {
-            setTrailingText(if (KVUtils.isExternalAutomationEnabled()) "Enabled" else "Disabled")
+            setTrailingText(
+                if (KVUtils.isExternalAutomationEnabled()) getString(R.string.settings_status_enabled)
+                else getString(R.string.settings_status_disabled)
+            )
         }
 
         remoteGroup.addMenuItem(
@@ -571,7 +612,7 @@ class SettingsActivity : BaseActivity() {
             onClick = { },
             showDivider = true
         ).apply {
-            setTrailingText("Coming soon")
+            setTrailingText(getString(R.string.settings_status_coming_soon))
         }
 
         remoteGroup.addMenuItem(
@@ -580,12 +621,12 @@ class SettingsActivity : BaseActivity() {
             onClick = { },
             showDivider = false
         ).apply {
-            setTrailingText("Coming soon")
+            setTrailingText(getString(R.string.settings_status_coming_soon))
         }
 
         // About
         val aboutGroup = findViewById<MenuGroup>(R.id.aboutGroup)
-        aboutGroup.setTitle("About")
+        aboutGroup.setTitle(getString(R.string.settings_group_about))
 
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_info_details,
@@ -598,31 +639,31 @@ class SettingsActivity : BaseActivity() {
 
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_send,
-            title = "报告问题",
+            title = getString(R.string.settings_about_report_bug),
             onClick = { reportBug() },
             showDivider = true
         ).apply {
-            setTrailingText("GitHub + ZIP")
+            setTrailingText(getString(R.string.settings_about_report_bug_desc))
         }
 
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_upload,
-            title = "Share Debug Report",
+            title = getString(R.string.settings_about_share_debug),
             onClick = { shareDebugReport() },
             showDivider = true
         ).apply {
-            setTrailingText("ZIP logs + state")
+            setTrailingText(getString(R.string.settings_about_share_debug_desc))
         }
 
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_share,
             title = "GitHub",
             onClick = {
-                startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/agents-io/PokeClaw".toUri()))
+                startActivity(Intent(Intent.ACTION_VIEW, io.agents.pokeclaw.BuildConfig.REPO_URL.toUri()))
             },
             showDivider = true
         ).apply {
-            setTrailingText("agents-io/PokeClaw")
+            setTrailingText(io.agents.pokeclaw.BuildConfig.REPO_SLUG)
         }
 
         aboutGroup.addMenuItem(
@@ -660,7 +701,7 @@ class SettingsActivity : BaseActivity() {
                         subject = "PokeClaw bug report ${io.agents.pokeclaw.BuildConfig.VERSION_NAME}",
                         body = """
                             Attach this ZIP to your GitHub issue:
-                            https://github.com/agents-io/PokeClaw/issues/new
+                            ${io.agents.pokeclaw.BuildConfig.ISSUES_URL}
                         """.trimIndent()
                     )
                 }
@@ -701,7 +742,7 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun openGitHubIssue(report: java.io.File) {
-        val issueUri = "https://github.com/agents-io/PokeClaw/issues/new".toUri()
+        val issueUri = io.agents.pokeclaw.BuildConfig.ISSUES_URL.toUri()
             .buildUpon()
             .appendQueryParameter(
                 "title",

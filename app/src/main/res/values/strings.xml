@@ -365,4 +365,34 @@
     <string name="channel_config_wechat_choose_mode">Choose how to configure WeChat channel:</string>
     <string name="channel_config_wechat_qr_mode">QR Code Scan</string>
     <string name="channel_config_wechat_manual_mode">Manual Config</string>
+    <!-- Settings groups and status labels. These used to be hardcoded English
+         literals in SettingsActivity.kt, which bypassed the resource system
+         and left the groups untranslated in zh/ja. -->
+    <string name="settings_group_appearance">Appearance</string>
+    <string name="settings_group_tools">Tools</string>
+    <string name="settings_group_remote">Remote Control</string>
+    <string name="settings_group_about">About</string>
+    <string name="settings_status_connected">Connected</string>
+    <string name="settings_status_not_connected">Not connected</string>
+    <string name="settings_status_enabled">Enabled</string>
+    <string name="settings_status_disabled">Disabled</string>
+    <string name="settings_status_coming_soon">Coming soon</string>
+    <string name="settings_status_not_configured">Not configured</string>
+    <string name="settings_count_configured">%1$d configured</string>
+    <string name="settings_count_enabled">%1$d enabled</string>
+    <string name="settings_count_empty">Empty</string>
+    <string name="settings_count_items">%1$d items</string>
+    <string name="settings_on">On</string>
+    <string name="settings_off">Off</string>
+    <string name="settings_about_report_bug">Report a problem</string>
+    <string name="settings_about_report_bug_desc">GitHub + ZIP</string>
+    <string name="settings_about_share_debug">Share Debug Report</string>
+    <string name="settings_about_share_debug_desc">ZIP logs + state</string>
+
+    <!-- Display names for theme ids. The ids themselves are storage keys and
+         must never be translated; only these labels are user-facing. -->
+    <string name="theme_label_ember_dark">Ember dark</string>
+    <string name="theme_label_ember_light">Ember light</string>
+    <string name="theme_label_abyss_dark">Abyss dark</string>
+    <string name="theme_label_abyss_light">Abyss light</string>
 </resources>

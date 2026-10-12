@@ -365,4 +365,31 @@
     <string name="channel_config_wechat_choose_mode">请选择微信通道的配置方式：</string>
     <string name="channel_config_wechat_qr_mode">扫码登录</string>
     <string name="channel_config_wechat_manual_mode">手动配置</string>
+    <!-- 设置分组标题与状态串 -->
+    <string name="settings_group_appearance">外观</string>
+    <string name="settings_group_tools">工具</string>
+    <string name="settings_group_remote">远程控制</string>
+    <string name="settings_group_about">关于</string>
+    <string name="settings_status_connected">已连接</string>
+    <string name="settings_status_not_connected">未连接</string>
+    <string name="settings_status_enabled">已启用</string>
+    <string name="settings_status_disabled">已停用</string>
+    <string name="settings_status_coming_soon">即将推出</string>
+    <string name="settings_status_not_configured">未配置</string>
+    <string name="settings_count_configured">已配置 %1$d 个</string>
+    <string name="settings_count_enabled">已启用 %1$d 个</string>
+    <string name="settings_count_empty">空</string>
+    <string name="settings_count_items">%1$d 条</string>
+    <string name="settings_on">开启</string>
+    <string name="settings_off">关闭</string>
+    <string name="settings_about_report_bug">报告问题</string>
+    <string name="settings_about_report_bug_desc">GitHub + ZIP</string>
+    <string name="settings_about_share_debug">分享调试报告</string>
+    <string name="settings_about_share_debug_desc">ZIP 日志 + 状态</string>
+
+    <!-- 主题显示名。id 本身是存储键，绝不能翻译，这里只翻显示名。 -->
+    <string name="theme_label_ember_dark">余烬·深色</string>
+    <string name="theme_label_ember_light">余烬·浅色</string>
+    <string name="theme_label_abyss_dark">深海·深色</string>
+    <string name="theme_label_abyss_light">深海·浅色</string>
 </resources>

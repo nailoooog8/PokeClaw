@@ -63,7 +63,7 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 >
 > **右图**：工具与远程控制分组，可见 MCP 鉴权选择器与记忆库入口。
 
-截图取自 fork 开发版真机（vivo X300 Pro BD，Android 16）。**注意右图中的分组标题（`Appearance` / `Tools` / `Remote Control`）与部分状态串（`Not connected`、`Coming soon`、`Ember light`）目前仍为英文**，汉化补齐尚未完成。
+截图取自 fork 开发版真机（vivo X300 Pro BD，Android 16），拍摄于汉化补齐与版本号提升之前，因此**右图中的分组标题（`Appearance` / `Tools` / `Remote Control`）与部分状态串仍为英文**。这些已在 [v0.8.1](#changelog) 修复——重新安装 v0.8.1 后即为中文。
 
 ---
 
@@ -73,7 +73,8 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 
 | 版本 | 说明 |
 |---|---|
-| **v0.8.0** | 首个包含安全加固与多渠道的正式版（三语界面，**部分分组标题与状态串仍待汉化**） |
+| **v0.8.1** | 修复 fork 专属的分发问题（issue 链接、更新检查指向上游）+ 汉化补齐 |
+| v0.8.0 | 首个包含安全加固与多渠道的正式版 |
 | v0.7.1 | 早前的 MCP 扩展试发版，**不含**本 fork 的安全修复 |
 
 > ⚠️ **升级说明**：v0.7.1 及更早的公开 APK 所用签名密钥已不在维护者手中。若两者签名不一致，Android 会拒绝覆盖安装，需要**先卸载旧版再安装新版本**——这会清空本地数据（本地模型缓存约 2.6 GB 需重新下载，记忆库与技能配置需重新配置）。流程与密钥约定见 [`RELEASING.md`](RELEASING.md)。
@@ -553,6 +554,32 @@ PokeClaw is moving fast, and the roadmap is being shaped directly by real device
 Every star helps more people find the project. Every issue helps shape the next release.
 
 ## Changelog
+
+### v0.8.1 (2026-10-12) — fork 自身的分发与汉化修复
+
+v0.8.0 把安全加固和多渠道发了出去，但漏了一类**只有 fork 才存在、只有 fork 用户才会踩到**的问题。上一版是不完整的。
+
+**Bug 报告被送错人（最要紧）**
+
+设置页的「GitHub」菜单、「报告问题」对话框、调试报告正文里的 issue 链接，**四处全部硬编码指向上游 `agents-io/PokeClaw`**。后果是这个 fork 的用户在替 fork 提交 bug，而 issue 落进了上游作者的队列。现在统一改为构建期可配置的仓库地址，默认指向本 fork。
+
+**更新分发通道此前是断的**
+
+应用内更新检查同样写死了上游仓库（`UpdateChecker`）。用户装的是本 fork 的 APK，App 每天问的却是上游最新版（停在 v0.7.1，2026-05-26）——**本 fork 之后发的任何版本，他们都不会收到通知**。已改为指向本 fork，可用 `POKECLAW_UPDATE_CHECK_URL` 覆盖。
+
+> 这两条**只存在于 fork 打包的构建中**，上游代码本身没有这个问题。
+
+**汉化补齐**
+
+v0.8.0 的设置页仍有大量英文。根因不是「没翻译」，而是 `SettingsActivity.kt` 里有一批英文字面量**绕过了已有的三语资源系统**。现已补齐资源键（EN / 中文 / 日本語各 +24 条）并改为资源引用：
+
+- 分组标题：`Appearance` / `Tools` / `Remote Control` / `About`
+- 状态串：`Not connected`、`Connected`、`Enabled`、`Disabled`、`Coming soon`、`Not configured`
+- 计数串：`12 enabled`、`2 configured`、`空`
+- 菜单项：`Share Debug Report`、`ZIP logs + state`
+- 主题显示名：`Ember light` → `余烬·浅色`（仅显示名，**主题 id 未改**，它同时是存储键和 `isDark()` 的判断依据）
+
+**验证边界**：149 个单元测试全部通过（新增 8 个覆盖版本比较与仓库地址）；**SEC1–SEC11 真机 E2E 仍未执行**。
 
 ### v0.8.0 (2026-10-12) — 首个安全加固正式版
 

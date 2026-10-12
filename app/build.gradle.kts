@@ -77,8 +77,8 @@ android {
         applicationId = "io.agents.pokeclaw"
         minSdk = 28
         targetSdk = 36
-        versionCode = readLocalOrEnvInt("POKECLAW_VERSION_CODE", 30)
-        versionName = readLocalOrEnvString("POKECLAW_VERSION_NAME", "0.8.0")
+        versionCode = readLocalOrEnvInt("POKECLAW_VERSION_CODE", 31)
+        versionName = readLocalOrEnvString("POKECLAW_VERSION_NAME", "0.8.1")
         buildConfigField("String", "VERSION_INFO", getVersionGit())
         buildConfigField("String", "APP_ORIGIN", "\"PokeClaw by agents.io | github.com/agents-io/PokeClaw\"")
         // Where the in-app update checker polls. Must point at THIS fork's releases:
@@ -88,6 +88,24 @@ android {
             "String",
             "UPDATE_CHECK_URL",
             "\"${readLocalOrEnvString("POKECLAW_UPDATE_CHECK_URL", "https://api.github.com/repos/nailoooog8/PokeClaw/releases/latest")}\""
+        )
+        // Links shown in About and used by the bug-report flow. Upstream defaults
+        // shipped in the UI would funnel this fork's users into agents-io's issue
+        // tracker, so a fork build must repoint them at itself.
+        buildConfigField(
+            "String",
+            "REPO_URL",
+            "\"${readLocalOrEnvString("POKECLAW_REPO_URL", "https://github.com/nailoooog8/PokeClaw")}\""
+        )
+        buildConfigField(
+            "String",
+            "REPO_SLUG",
+            "\"${readLocalOrEnvString("POKECLAW_REPO_SLUG", "nailoooog8/PokeClaw")}\""
+        )
+        buildConfigField(
+            "String",
+            "ISSUES_URL",
+            "\"${readLocalOrEnvString("POKECLAW_ISSUES_URL", "https://github.com/nailoooog8/PokeClaw/issues/new")}\""
         )
         buildConfigField("String", "BUILD_FINGERPRINT", "\"${getBuildFingerprint()}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
