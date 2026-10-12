@@ -54,7 +54,7 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 
 | 聊天首页 | 设置 · 通道分组 | 设置 · 工具与远程控制 |
 |:---:|:---:|:---:|
-| <img src="screenshots/fork-chat-home.jpg" width="250" alt="聊天首页"> | <img src="screenshots/fork-settings-channels.jpg" width="250" alt="设置页通道分组"> | <img src="screenshots/fork-settings-tools.jpg" width="250" alt="设置页工具与远程控制分组"> |
+| <img src="Screenshots/fork-chat-home.jpg" width="250" alt="聊天首页"> | <img src="Screenshots/fork-settings-channels.jpg" width="250" alt="设置页通道分组"> | <img src="Screenshots/fork-settings-tools.jpg" width="250" alt="设置页工具与远程控制分组"> |
 | 本地 / 云端双模式，<br>中文快捷任务模板 | 本 fork 恢复可达的**通道分组**：<br>Discord / Telegram / 微信 / QQ / 抖音<br>+ 安全配对 PIN + 局域网配置 | 技能管理、MCP 服务器、<br>记忆库、常驻后台、<br>外部自动化与 Web 控制台 |
 
 > **左图**：云端模式下接 MiniMax-M3.1-Flash-Preview 的实际对话界面，中文快捷任务模板直接可点。
