@@ -81,6 +81,14 @@ android {
         versionName = readLocalOrEnvString("POKECLAW_VERSION_NAME", "0.8.0")
         buildConfigField("String", "VERSION_INFO", getVersionGit())
         buildConfigField("String", "APP_ORIGIN", "\"PokeClaw by agents.io | github.com/agents-io/PokeClaw\"")
+        // Where the in-app update checker polls. Must point at THIS fork's releases:
+        // with the upstream URL, anyone who installed this fork's APK would be told
+        // about agents-io releases instead, and would never learn about fork releases.
+        buildConfigField(
+            "String",
+            "UPDATE_CHECK_URL",
+            "\"${readLocalOrEnvString("POKECLAW_UPDATE_CHECK_URL", "https://api.github.com/repos/nailoooog8/PokeClaw/releases/latest")}\""
+        )
         buildConfigField("String", "BUILD_FINGERPRINT", "\"${getBuildFingerprint()}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

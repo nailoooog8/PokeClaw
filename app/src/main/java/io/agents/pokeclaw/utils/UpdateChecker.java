@@ -25,7 +25,11 @@ import java.util.concurrent.Executors;
 public class UpdateChecker {
 
     private static final String TAG = "UpdateChecker";
-    private static final String GITHUB_API = "https://api.github.com/repos/agents-io/PokeClaw/releases/latest";
+    // Which repo's GitHub Releases to poll. This fork must poll its OWN releases -
+    // pointing at agents-io/PokeClaw means users of this fork's APK would be told
+    // about upstream versions instead, and would never learn about fork releases.
+    // Overridable at build time via POKECLAW_UPDATE_CHECK_URL.
+    private static final String GITHUB_API = io.agents.pokeclaw.BuildConfig.UPDATE_CHECK_URL;
     private static final long CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // Once per day
 
     public static void checkForUpdate(Activity activity) {
@@ -82,8 +86,12 @@ public class UpdateChecker {
 
     /**
      * Compare semantic versions. Returns true if remote > local.
+     *
+     * Package-private (not private) so {@code UpdateCheckerVersionTest} can cover it:
+     * this is pure logic with no Android dependencies, and the project requires
+     * unit tests for anything of that shape.
      */
-    private static boolean isNewer(String remote, String local) {
+    static boolean isNewer(String remote, String local) {
         try {
             String[] r = remote.split("\\.");
             String[] l = local.split("\\.");
