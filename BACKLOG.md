@@ -45,6 +45,11 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 
 ## QA Gaps
 
+- [ ] **P0** SEC1–SEC11 security E2E never executed. The red-team audit fixed 4 issues (PIN brute force, credential plaintext on read, MCP tool poisoning, path traversal), but **not one SEC case has been run on a real device**. Code-fixed is not security-tested — `docs/SECURITY_AUDIT.md` §4 states this boundary explicitly. Currently blocked by test-environment constraints, not by the code itself.
+- [ ] **P0** Fork CI has never run. This repository's `actions/runs` is empty while upstream has 665, so the 149 local unit tests have **never executed in CI**. Enabling requires a browser-side toggle — the REST `PUT actions/permissions` does not take effect. Until then all regression protection is nominal.
+- [ ] **P1** Enable GitHub private vulnerability reporting so the `SECURITY.md` intake path is reachable by outside reporters. There is no REST endpoint for this setting; it must be toggled in the browser.
+- [ ] **P1** Keep an offline backup of the release signing key. Without it, existing installs cannot be updated in place and users would have to uninstall and reinstall.
+
 - [ ] **P0** Missed-call follow-up E2E: missed-call notification / phone-state trigger reaches PokeClaw, follow-up message is sent to the caller, and the result/status is visible in the same chatroom
 - [ ] **P0** Production intent E2E: Tasker/MacroDroid-style explicit broadcast reaches PokeClaw in a release build, starts the requested task/chat, and never bypasses safety/global rules
 - [ ] **P1** Production intent callback E2E: when an external automation request includes `request_id` and `return_action`, PokeClaw broadcasts a completion/failure result that Tasker/MacroDroid can consume
