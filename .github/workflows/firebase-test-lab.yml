@@ -46,7 +46,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        # v3 defaults to `packages: tools platform-tools`; Google removed the
+        # legacy `tools` package from the SDK repo on 2026-09-15, so v3 now dies
+        # with "Warning: Failed to find package 'tools'" / sdkmanager exit 1.
+        # v4 defaults to `platform-tools` only. See android-actions/setup-android#537.
+        uses: android-actions/setup-android@v4
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
