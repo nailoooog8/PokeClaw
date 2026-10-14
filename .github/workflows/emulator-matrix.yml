@@ -14,7 +14,7 @@ on:
 jobs:
   build-apk:
     name: Build debug APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -55,8 +55,12 @@ jobs:
   smoke-test:
     name: Smoke test on API ${{ matrix.api-level }} (${{ matrix.target }})
     needs: build-apk
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    # scripts/emulator-smoke.sh now bounds every adb call (60s default) and
+    # polls sys.boot_completed (200s max), so a genuine failure surfaces in a
+    # couple of minutes as a `failed` job instead of burning the full budget and
+    # being reported as `cancelled` with no artifacts.
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
@@ -104,6 +108,9 @@ jobs:
           name: debug-apk
           path: apk
 
+      # Cache the AVD *definition* only (saves re-creating it per run).
+      # We deliberately do NOT cache/restore a booted snapshot: see the
+      # emulator-options note on the smoke-test step below.
       - name: Cache AVD
         uses: actions/cache@v4
         id: avd-cache
@@ -113,18 +120,6 @@ jobs:
             ~/.android/adb*
           key: avd-${{ matrix.api-level }}-${{ matrix.target }}
 
-      - name: Create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ matrix.api-level }}
-          target: ${{ matrix.target }}
-          arch: ${{ matrix.arch }}
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
-          script: echo "Generated AVD snapshot for caching."
-
       - name: Run smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -132,7 +127,17 @@ jobs:
           target: ${{ matrix.target }}
           arch: ${{ matrix.arch }}
           force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # -no-snapshot-load is mandatory, not an optimization. This workflow used
+          # to cache a pre-booted `default_boot` snapshot and pass only
+          # -no-snapshot-save, so the emulator restored memory state and logged
+          # "Boot completed in 4107 ms" while framework services were still
+          # unregistered. Run 38408447192 died with
+          #   ServiceManager$ServiceNotFoundException: No service published for: input
+          # and the job then hung until the workflow timeout. Cold-boot every run:
+          # the matrix exists to catch per-API-level regressions, and cross-run
+          # snapshot state only produces false results.
+          emulator-options: -no-snapshot-save -no-snapshot-load -wipe-data -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-boot-timeout: 300
           disable-animations: true
           # NOTE: reactivecircus/android-emulator-runner@v2 runs each LINE of the
           # `script:` block as a separate `sh -c <line>` call (variables and
@@ -154,7 +159,7 @@ jobs:
   matrix-summary:
     name: Compatibility matrix summary
     needs: smoke-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Summarize matrix results

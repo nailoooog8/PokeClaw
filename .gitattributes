@@ -1,0 +1,19 @@
+# 防止 shell 脚本被检出成 CRLF。带 CRLF 的 .sh 在 Linux runner 上会直接
+# 报 `\r: command not found`，而且失败点往往与真正的错误无关，很难排查。
+# 本机 core.autocrlf=true 且改动前没有 .gitattributes，属于裸奔状态。
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# workflow YAML 同样强制 LF
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# 明确标记为二进制，不做行尾转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.apk   binary
+*.aab   binary
+*.keystore binary
+*.jks   binary

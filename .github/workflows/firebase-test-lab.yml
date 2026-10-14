@@ -37,7 +37,7 @@ permissions:
 jobs:
   build-apk:
     name: Build debug APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 17
@@ -71,7 +71,7 @@ jobs:
   ftl-smoke:
     name: Firebase Test Lab smoke (real devices)
     needs: build-apk
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

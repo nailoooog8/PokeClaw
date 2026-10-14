@@ -1265,6 +1265,53 @@ adb shell run-as io.agents.pokeclaw strings /data/data/io.agents.pokeclaw/files/
 
 Format: `[date] [status] [test-id] description`
 
+### 2026-10-14 — CI: emulator matrix hardening (snapshot removal, adb timeouts, ubuntu pin)
+
+Triggered by run `38408447192` (2026-10-13T13:51Z) where `Smoke test on API 29 (default)` ran 30m6s and the whole matrix run was reported `cancelled`. **Not a code regression** — the identical code passed the same job in 2m6s nine minutes earlier (`38407226663`). All other four API levels passed in ~2m each in both runs.
+
+```
+[2026-10-14] [FIX]     CI.api29    Stale AVD snapshot produced a FALSE "Boot completed in 4107 ms" — framework services were still unregistered.
+                                    Evidence: ServiceManager$ServiceNotFoundException: No service published for: input
+                                              at android.hardware.input.InputManager.getInstance(InputManager.java:236)
+                                    Root cause: the "Create AVD and generate snapshot for caching" step saved a booted
+                                    `default_boot` snapshot, while the smoke step passed only `-no-snapshot-save` and NOT
+                                    `-no-snapshot-load` — so the snapshot was still restored every run. The emulator itself
+                                    warned "Feature QuickbootFileBacked is disabled due to stability issues". API 29
+                                    (Android 10) is the oldest level and the least reliable at snapshot restore.
+                                    Fix: deleted the snapshot-generation step entirely; smoke step now uses
+                                    `-no-snapshot-save -no-snapshot-load -wipe-data`. Cold boot on every run — the matrix
+                                    exists to catch per-API-level regressions and cross-run snapshot state only yields
+                                    false results.
+[2026-10-14] [FIX]     CI.timeout  A boot failure burned 27m49s of complete silence (13:56:04 → 14:23:53) because no adb call
+                                    was bounded, then got killed by timeout-minutes and reported `cancelled` instead of
+                                    `failed`, with zero artifacts ("No files were found with the provided path:
+                                    logcat-*.txt screen-*.png") — i.e. the run had no diagnostic value at all.
+                                    Fix: scripts/emulator-smoke.sh now wraps every adb call in `timeout` (ADB_TIMEOUT=60),
+                                    polls `getprop sys.boot_completed` (200s cap, 40×5s) instead of trusting the emulator's
+                                    log line, and dumps logcat + screenshot from an EXIT trap so an early bail-out still
+                                    produces artifacts. Job timeout-minutes 30 → 20.
+[2026-10-14] [FIX]     CI.ubuntu    `ubuntu-latest` migrates to Ubuntu 26 on 2026-10-19 (actions/runner-images#14748) — 5 days out.
+                                    Pinned all 5 workflows to `ubuntu-24.04`: build.yml, cla.yml, emulator-matrix.yml,
+                                    firebase-test-lab.yml, release.yml. (Ubuntu image version is independent of the Node
+                                    runtime the actions run in, so pinning alone covers the Oct 19 risk.)
+[2026-10-14] [FIX]     CI.eol       Added .gitattributes with `*.sh text eol=lf`. core.autocrlf=true with no .gitattributes meant
+                                    a CRLF shell script could reach the Linux runner and fail with
+                                    `\r: command not found`, failing at a point unrelated to the real error.
+[2026-10-14] [PASS]    CI.static    bash -n scripts/emulator-smoke.sh → exit 0. File is pure LF (135 LF / 0 CRLF).
+                                    All 5 workflow YAMLs parse clean via yaml.safe_load. No `ubuntu-latest` remaining.
+[2026-10-14] [NOTE]    CI.flaky     Known flakiness, now bounded: emulator boot on shared GitHub runners is not 100% reliable.
+                                    A boot failure now surfaces as `failed` within ~2-4 min WITH artifacts, instead of
+                                    `cancelled` at the job cap with none. If this recurs, read the `sys.boot_completed`
+                                    polling output in the job log first — it distinguishes "never booted" from
+                                    "booted but app crashed".
+[2026-10-14] [DEFERRED] CI.actions  Node 20 deprecation warnings (checkout/cache/setup-java/upload-artifact/download-artifact @v4).
+                                    Verified real majors exist: checkout v7, cache v6, setup-java v6, upload-artifact v7,
+                                    download-artifact v8 (latest releases 2026-06 to 2026-10). NOT bumped in this change:
+                                    upload/download-artifact v4 → v7/v8 crosses real breaking changes and deserves its own
+                                    change plus a verified run. Currently NON-BREAKING — GitHub forces v4 onto Node 24 and
+                                    the matrix passed on 2026-10-13 with all these warnings present. Tracked in BACKLOG.
+```
+
 ### 2026-05-28 — v0.7.1-debug W7 PromptUtils runtime verification (Pixel 8 Pro, Android 16)
 
 Clean install of `PokeClaw_v0.7.1-debug_20260526_114024.apk` after fresh uninstall. Configured Groq via Custom provider tab (uiautomator2 + Settings UI). Global prompt set via in-app dialog.
