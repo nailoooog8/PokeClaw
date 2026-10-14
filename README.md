@@ -87,7 +87,11 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 
 上游 [`agents-io/PokeClaw`](https://github.com/agents-io/PokeClaw) 的 `main` 最后提交停在 **2026-06-02**，已有约 4 个月无更新。其 8 个 `feature/*` 分支中最新的停在 2026-05-26，其余均为 2026-04-13，相关改动已全部包含在本 fork 中，**无需合并**。
 
-本 fork 独立维护，不依赖上游合并节奏。
+本 fork 独立维护，不依赖上游合并节奏。具体含义：
+
+- **不在上游排队的 PR。** 本仓库曾向 `agents-io/PokeClaw` 提交过 [PR #80](https://github.com/agents-io/PokeClaw/pull/80)（Windows 下 `local.properties` 路径被 `Properties` 吃掉反斜杠）与 [issue #81](https://github.com/agents-io/PokeClaw/issues/81)（CLA 工作流因 `signatures/cla.json` 是空对象而失败）。截至 2026-10-14 两者均无任何回复，该仓库最老的开放 PR 已等待 161 天。**上述两个问题在本 fork 内均已修复并合入 `main`**：PR #80 的改动见 `app/build.gradle.kts` 顶部注释，issue #81 的修复见 `signatures/cla.json`。**不再等待上游处理。**
+- **上游归属保持完整。** 依 [Apache-2.0 §4](https://www.apache.org/licenses/LICENSE-2.0)，本 fork 保留原 `LICENSE`、`NOTICE`（含 `Copyright 2026 agents.io`）与全部署名声明，本节即为改动说明。Apache-2.0 属宽松许可，既不要求回馈上游，也不限制本 fork 的分发方式。
+- **问题反馈请提在本仓库。** App 设置页、调试报告正文、issue 链接均已改为指向本 fork（见 [Changelog v0.8.1](#changelog)）。提在上游只会进入一个已停更四个多月的队列。
 
 ---
 
