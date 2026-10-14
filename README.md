@@ -3,6 +3,8 @@
 > 这是 [agents-io/PokeClaw](https://github.com/agents-io/PokeClaw) 的独立 fork。上游停在 2026-06-02，本分支在其基础上继续开发，重点解决**多渠道远程控制**、**安全边界收敛**和**中文本地化**三个上游未覆盖的方向。
 >
 > 下方「[上游原始 README](#upstream-readme)」之后是完整的官方文档、产品定位和基准数据，内容未经改动。
+>
+> 🟢 活跃维护中 · 最新 **v0.8.1** · CI 全绿 · 欢迎 [issue](https://github.com/nailoooog8/PokeClaw/issues) / [PR](https://github.com/nailoooog8/PokeClaw/pulls)
 
 [![fork](https://img.shields.io/badge/fork-of-agents--io%2FPokeClaw-3DDC84?style=flat-square)](https://github.com/agents-io/PokeClaw)
 [![branch](https://img.shields.io/badge/branch-fork%2Fpersonal--fork--release-8A2BE2?style=flat-square)](#)
