@@ -1310,6 +1310,19 @@ Triggered by run `38408447192` (2026-10-13T13:51Z) where `Smoke test on API 29 (
                                     upload/download-artifact v4 → v7/v8 crosses real breaking changes and deserves its own
                                     change plus a verified run. Currently NON-BREAKING — GitHub forces v4 onto Node 24 and
                                     the matrix passed on 2026-10-13 with all these warnings present. Tracked in BACKLOG.
+[2026-10-14] [PASS]    CI.verify    Post-fix verification, run 38567986605 on commit 494f49f — all 7 jobs green:
+                                    Build debug APK 1m35s / API 29 2m7s / API 33 2m16s / API 35 2m17s /
+                                    API 34 2m24s / API 31 2m47s / summary 5s. Total ~5min.
+                                    API 29 at 2m7s matches its last known-good run (2m6s, run 38407226663), so
+                                    cold-boot costs no wall-clock here: the AVD definition cache was already warm,
+                                    and `-wipe-data` resets a throwaway userdata image, not the system image.
+                                    CAVEAT: one green run does NOT prove the flake is gone. The original failure
+                                    was intermittent — the same commit passed at 13:42 (2m6s) and failed at 13:51
+                                    (30m6s). What this run proves is that the cold-boot path is correct and free.
+                                    What the fix guarantees for the FAILING case — `failed` within ~2-4min WITH
+                                    artifacts instead of a 30min `cancelled` hang with none — has not been
+                                    exercised, because that path cannot be triggered on demand.
+                                    Follow-up: re-run the matrix a few times before calling the flake closed.
 ```
 
 ### 2026-05-28 — v0.7.1-debug W7 PromptUtils runtime verification (Pixel 8 Pro, Android 16)
