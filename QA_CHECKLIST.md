@@ -1323,6 +1323,17 @@ Triggered by run `38408447192` (2026-10-13T13:51Z) where `Smoke test on API 29 (
                                     artifacts instead of a 30min `cancelled` hang with none — has not been
                                     exercised, because that path cannot be triggered on demand.
                                     Follow-up: re-run the matrix a few times before calling the flake closed.
+[2026-10-14] [PASS]    CI.verify-2  Second consecutive green matrix, run 38570236494 on commit c6ab05d:
+                                    Build debug APK 2m14s / API 33 2m13s / API 29 2m32s / API 31 2m43s /
+                                    API 34 2m51s / API 35 2m56s / summary 2s. Total ~5min. 2/2 green post-fix,
+                                    versus a 1-in-2 failure rate before. API 29 boots cleanly again and its
+                                    2m32s sits inside the normal band, so the cold-boot path has headroom.
+                                    Still not a statistical proof for an intermittent flake, but together with
+                                    the root-cause evidence in run 38408447192 — snapshot restore, then a false
+                                    "Boot completed", then ServiceNotFoundException — it is enough to treat the
+                                    snapshot path as the cause and keep the fix. What is left is only "how often
+                                    does it flake now", and the bounded-failure path will state that clearly the
+                                    next time it does: `failed` in minutes with logcat + screenshot attached.
 ```
 
 ### 2026-05-28 — v0.7.1-debug W7 PromptUtils runtime verification (Pixel 8 Pro, Android 16)
