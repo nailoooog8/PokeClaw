@@ -1,1 +1,15 @@
-github: ithiria894
+# 资助本项目的方式
+# 取消对应行前的 # 即可启用
+
+# GitHub Sponsors —— 申请中
+# github: [nailoooog8]
+
+# Ko-fi —— 暂未启用
+# ko_fi: nailoooog8
+
+# Open Collective —— 暂未启用
+# open_collective: pokeclaw
+
+# 微信支付 / 国内赞助 —— 已启用
+custom:
+  - "https://github.com/nailoooog8/PokeClaw/blob/main/docs/SPONSOR.md"
