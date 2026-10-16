@@ -666,15 +666,29 @@ class SettingsActivity : BaseActivity() {
             setTrailingText(io.agents.pokeclaw.BuildConfig.REPO_SLUG)
         }
 
+        // Sponsorship. This replaces a row that used to read "开发者 / ithiria894"
+        // and linked to the UPSTREAM author. On a fork build that is a misdirection:
+        // people holding this APK were sent to a repository that stopped receiving
+        // work, while the actual maintainer was one tap further away. Same class of
+        // bug as .github/FUNDING.yml shipping `github: ithiria894` (CLAUDE.local.md
+        // §10.2) — a reference inherited from upstream that silently routes people
+        // to someone else.
+        //
+        // Upstream attribution is NOT lost: NOTICE carries "Copyright 2026 agents.io"
+        // and the README has an explicit "上游状态" section. That is where
+        // Apache-2.0 §4 wants it — a credits screen that points at a dead repo is
+        // not attribution, it is a dead link.
         aboutGroup.addMenuItem(
-            leadingIcon = android.R.drawable.ic_menu_compass,
-            title = "开发者",
+            leadingIcon = R.drawable.ic_heart,
+            title = getString(R.string.settings_about_sponsor),
             onClick = {
-                startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/ithiria894".toUri()))
+                startActivity(Intent(Intent.ACTION_VIEW, io.agents.pokeclaw.BuildConfig.SPONSOR_URL.toUri()))
             },
             showDivider = false
         ).apply {
-            setTrailingText("ithiria894")
+            setTrailingText(getString(R.string.settings_about_sponsor_desc))
+            // ic_heart ships white; without this it disappears in the light theme.
+            setLeadingIconColor(getColor(R.color.colorTextPrimary))
         }
     }
 

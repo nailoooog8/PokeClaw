@@ -386,6 +386,8 @@
     <string name="settings_about_report_bug_desc">GitHub + ZIP</string>
     <string name="settings_about_share_debug">デバッグレポートを共有</string>
     <string name="settings_about_share_debug_desc">ZIP ログ + 状態</string>
+    <string name="settings_about_sponsor">スポンサー</string>
+    <string name="settings_about_sponsor_desc">WeChat Pay</string>
 
     <!-- テーマ表示名。id 自体は保存キーなので翻訳しない。 -->
     <string name="theme_label_ember_dark">エンバー ダーク</string>

@@ -77,8 +77,8 @@ android {
         applicationId = "io.agents.pokeclaw"
         minSdk = 28
         targetSdk = 36
-        versionCode = readLocalOrEnvInt("POKECLAW_VERSION_CODE", 32)
-        versionName = readLocalOrEnvString("POKECLAW_VERSION_NAME", "0.8.2")
+        versionCode = readLocalOrEnvInt("POKECLAW_VERSION_CODE", 33)
+        versionName = readLocalOrEnvString("POKECLAW_VERSION_NAME", "0.8.3")
         buildConfigField("String", "VERSION_INFO", getVersionGit())
         buildConfigField("String", "APP_ORIGIN", "\"PokeClaw by agents.io | github.com/agents-io/PokeClaw\"")
         // Where the in-app update checker polls. Must point at THIS fork's releases:
@@ -106,6 +106,16 @@ android {
             "String",
             "ISSUES_URL",
             "\"${readLocalOrEnvString("POKECLAW_ISSUES_URL", "https://github.com/nailoooog8/PokeClaw/issues/new")}\""
+        )
+        // Where the About group's sponsor row sends people. Mirrors the `custom:`
+        // target in .github/FUNDING.yml so the in-app button and the GitHub ❤
+        // button cannot drift apart. Upstream attribution is NOT here on purpose:
+        // it lives in NOTICE and the README's "upstream status" section, which is
+        // where Apache-2.0 §4 requires it.
+        buildConfigField(
+            "String",
+            "SPONSOR_URL",
+            "\"${readLocalOrEnvString("POKECLAW_SPONSOR_URL", "https://github.com/nailoooog8/PokeClaw/blob/main/docs/SPONSOR.md")}\""
         )
         buildConfigField("String", "BUILD_FINGERPRINT", "\"${getBuildFingerprint()}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

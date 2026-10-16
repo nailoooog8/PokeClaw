@@ -388,6 +388,8 @@
     <string name="settings_about_report_bug_desc">GitHub + ZIP</string>
     <string name="settings_about_share_debug">Share Debug Report</string>
     <string name="settings_about_share_debug_desc">ZIP logs + state</string>
+    <string name="settings_about_sponsor">Sponsor</string>
+    <string name="settings_about_sponsor_desc">WeChat Pay</string>
 
     <!-- Display names for theme ids. The ids themselves are storage keys and
          must never be translated; only these labels are user-facing. -->

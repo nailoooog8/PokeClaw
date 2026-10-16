@@ -386,6 +386,8 @@
     <string name="settings_about_report_bug_desc">GitHub + ZIP</string>
     <string name="settings_about_share_debug">分享调试报告</string>
     <string name="settings_about_share_debug_desc">ZIP 日志 + 状态</string>
+    <string name="settings_about_sponsor">赞助</string>
+    <string name="settings_about_sponsor_desc">微信支付</string>
 
     <!-- 主题显示名。id 本身是存储键，绝不能翻译，这里只翻显示名。 -->
     <string name="theme_label_ember_dark">余烬·深色</string>

@@ -1265,6 +1265,38 @@ adb shell run-as io.agents.pokeclaw strings /data/data/io.agents.pokeclaw/files/
 
 Format: `[date] [status] [test-id] description`
 
+### 2026-10-16 — v0.8.3: About group — remove the row that pointed at the upstream author
+
+UI-only change. No security impact. Follows up on v0.8.2's finding about references inherited from upstream routing people elsewhere (same class as the `FUNDING.yml` leak fixed in `aabaa00`, but inside the app instead of the repo).
+
+```
+[2026-10-16] [FIX]     about.misdirect  The last About row read "开发者 / ithiria894" and opened the UPSTREAM author's
+                                    GitHub profile. Anyone holding this fork's APK tapped the credits row and landed on a
+                                    repository that stopped receiving work in June, while the actual maintainer sat one
+                                    row above under "GitHub". Replaced with "赞助 / 微信支付" → BuildConfig.SPONSOR_URL
+                                    → docs/SPONSOR.md, the same target .github/FUNDING.yml already uses, so the in-app
+                                    button and the GitHub ❤ button cannot drift apart.
+                                    Attribution is NOT lost: NOTICE keeps "Copyright 2026 agents.io" and the README has a
+                                    dedicated 上游状态 section spelling out the fork relationship and Apache-2.0 §4.
+                                    A credits row pointing at a dead repo is not attribution, it is a dead link.
+[2026-10-16] [FIX]     about.locale     The old title was a hardcoded Chinese literal — switching the app to English or
+                                    Japanese still showed 开发者 while every other row in the group localised correctly.
+                                    Inverse of the class of bug fixed in v0.8.1 (which removed hardcoded ENGLISH). New
+                                    row goes through getString() with keys added to values/, values-zh/, values-ja/.
+[2026-10-16] [PASS]     about.icon       New ic_heart.xml uses a white fillColor (Material favorite silhouette), so
+                                    setLeadingIconColor(colorTextPrimary) is applied — matching the existing pattern at
+                                    SettingsActivity:395/407/440. Without it the heart would vanish in the light theme.
+                                    Single path only; the §2.2 solid-black-block regression does not apply.
+[2026-10-16] [PASS]     unit.all         165 cases / 23 suites / 0 failures — unchanged by this commit (no test touches
+                                    the About group; MenuItem/MenuGroup have no unit coverage today).
+[2026-10-16] [NOT VERIFIED] about.render   The new heart icon has NOT been seen on a device. Only compiled and
+                                    statically checked. Light-theme contrast and glyph size still need a human eye.
+[2026-10-16] [NOTE]     about.APP_ORIGIN BuildConfig.APP_ORIGIN still says "PokeClaw by agents.io |
+                                    github.com/agents-io/PokeClaw" (app/build.gradle.kts:83) but has ZERO consumers in
+                                    the codebase — a dead upstream-inherited field. Left in place deliberately: it
+                                    misdirects nobody, and per CLAUDE.local.md §9.3 a fork's judgement covers fixing
+                                    fork-specific problems, not deciding what upstream should have deleted.
+
 ### 2026-10-16 — v0.8.2 release: round-2 red-team fixes (F1/F2) + first unit tests in CI
 
 Covers `c938fd4` (F1), `0c82123` (F2), `f3900be` (CI test job), `ac6146a` (audit doc), plus the version bump and release packaging. Full findings table in [`docs/SECURITY_AUDIT_R2.md`](docs/SECURITY_AUDIT_R2.md).

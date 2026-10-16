@@ -4,7 +4,7 @@
 >
 > 下方「[上游原始 README](#upstream-readme)」之后是完整的官方文档、产品定位和基准数据，内容未经改动。
 >
-> 🟢 活跃维护中 · 最新 **v0.8.2** · CI 全绿 · 欢迎 [issue](https://github.com/nailoooog8/PokeClaw/issues) / [PR](https://github.com/nailoooog8/PokeClaw/pulls)
+> 🟢 活跃维护中 · 最新 **v0.8.3** · CI 全绿 · 欢迎 [issue](https://github.com/nailoooog8/PokeClaw/issues) / [PR](https://github.com/nailoooog8/PokeClaw/pulls)
 
 [![fork](https://img.shields.io/badge/fork-of-agents--io%2FPokeClaw-3DDC84?style=flat-square)](https://github.com/agents-io/PokeClaw)
 [![branch](https://img.shields.io/badge/branch-fork%2Fpersonal--fork--release-8A2BE2?style=flat-square)](#)
@@ -77,7 +77,8 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 
 | 版本 | 说明 |
 |---|---|
-| **v0.8.2** | 第二轮红队审计：Telegram 按 user id 授权 + 远程来源禁用高危工具 |
+| **v0.8.3** | 设置页 About：移除指向上游作者的「开发者」，改为指向本 fork 的赞助入口 |
+| v0.8.2 | 第二轮红队审计：Telegram 按 user id 授权 + 远程来源禁用高危工具 |
 | v0.8.1 | 修复 fork 专属的分发问题（issue 链接、更新检查指向上游）+ 汉化补齐 |
 | v0.8.0 | 首个包含安全加固与多渠道的正式版 |
 | v0.7.1 | 早前的 MCP 扩展试发版，**不含**本 fork 的安全修复 |
@@ -563,6 +564,22 @@ PokeClaw is moving fast, and the roadmap is being shaped directly by real device
 Every star helps more people find the project. Every issue helps shape the next release.
 
 ## Changelog
+
+### v0.8.3 (2026-10-16) — 设置页 About 组清理
+
+一处 UI 改动，无安全影响。
+
+**移除「开发者 → ithiria894」，改为「赞助 → 微信支付」**
+
+此前 About 组最后一行是「开发者 / ithiria894」，点击跳转到**上游作者**的个人主页。但用户手里装的是本 fork 的 APK —— 点「开发者」却被导向一个停更四个月的上游仓库，而真正的维护者就在同一页的「GitHub」那一行。这是 `FUNDING.yml` 隐性导流（`github: ithiria894`）的同一类问题，只是发生在 App 里。
+
+上游归属**没有因此丢失**：`NOTICE` 保留 `Copyright 2026 agents.io`，README 有独立的「上游状态」章节逐条说明 fork 关系与 Apache-2.0 §4 归属。这些才是署名该待的地方；一个指向已停更仓库的「开发者」按钮不是署名，是死链。
+
+**顺带修掉一处本地化遗漏**
+
+原来的「开发者」是硬编码中文 —— 切到英文或日文界面时这一行仍然是中文，而同组其他项都正确走三语资源。新项已补齐 EN / 中文 / 日本語。
+
+**验证**：165 个单元测试 / 23 套件 / 0 失败。**新增的 `ic_heart` 图标未做真机渲染验证**，其颜色已按项目既有模式绑定 `colorTextPrimary` 以适配浅色主题。
 
 ### v0.8.2 (2026-10-16) — 第二轮红队审计：Telegram 身份粒度 + 高危工具闸门
 
