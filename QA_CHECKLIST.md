@@ -1265,6 +1265,43 @@ adb shell run-as io.agents.pokeclaw strings /data/data/io.agents.pokeclaw/files/
 
 Format: `[date] [status] [test-id] description`
 
+### 2026-10-16 — v0.8.2 release: round-2 red-team fixes (F1/F2) + first unit tests in CI
+
+Covers `c938fd4` (F1), `0c82123` (F2), `f3900be` (CI test job), `ac6146a` (audit doc), plus the version bump and release packaging. Full findings table in [`docs/SECURITY_AUDIT_R2.md`](docs/SECURITY_AUDIT_R2.md).
+
+```
+[2026-10-16] [PASS]    F1.unit    Telegram whitelist now keys on message.from.id, not chat.id.
+                                    TelegramChannelHandler: added lastFromUserId, kept separate from lastChatId;
+                                    falls back to chat.id only when from is absent (channel posts).
+                                    ChannelSecurityGuardTest extended to cover per-channel whitelist scoping
+                                    (authorizing Telegram no longer authorizes Discord/WeChat/QQ/Douyin).
+[2026-10-16] [PASS]    F2.unit    ToolRiskPolicy: unclassified tools default to HIGH_IMPACT (fail-closed), so a newly
+                                    added tool cannot become remotely reachable by omission. mcp_* tools are high-impact.
+                                    ToolRegistry.executeTool refuses make_call / send_message / send_file / auto_reply /
+                                    input_text / system_key / clipboard for any Channel source; LOCAL and null-source
+                                    (cold start) still allowed. Read-only tools remain reachable.
+                                    ToolRiskPolicyTest: 10 cases.
+[2026-10-16] [PASS]    CI.test    `./gradlew testDebugUnitTest` was absent from all five workflows — 149 tests had
+                                    zero CI protection. build.yml now has a `test` job. This closes the gap that let
+                                    regressions reach main unnoticed.
+[2026-10-16] [PASS]    unit.all   165 cases / 23 suites / 0 failures (was 149 / 22). +16 from F1/F2.
+[2026-10-16] [PASS]    rel.sign   apksigner: CN=PokeClaw, O=nailoooog8; cert SHA-256 7c2d6dd5…4c667 — IDENTICAL to
+                                    v0.8.0 and v0.8.1, so v0.8.1 installs upgrade in place. Only pre-v0.8.0 APKs
+                                    (different key) still need uninstall-first.
+[2026-10-16] [SKIP]    SEC1-SEC11 Not executed. Still blocked three ways: ConfigServerManager.start() hard-requires
+                                    TRANSPORT_WIFI and is only reachable from the settings toggle; campus WiFi
+                                    (i_sicau_wifi6) hijacks the foreground with a Captive Portal; Clash hijacks the
+                                    phone's requests so the probe returns 502 / RemoteDisconnected — those are FALSE
+                                    results and must not be recorded as PASS or FAIL.
+                                    Unblock: phone on its own hotspot (not campus) → enable LAN config in settings →
+                                    turn OFF Clash → probe 172.22.249.38:9527 from the PC.
+[2026-10-16] [BEHAVIOR] F2.usage   INTENDED BREAKING CHANGE, documented in README v0.8.2 changelog: driving send_message
+                                    / make_call / input_text remotely over Telegram, Discord, WeChat, QQ or Douyin no
+                                    longer works. This is the security tradeoff, not a defect. Local in-app tasks and
+                                    read-only remote operations are unaffected. Not covered by F2 and still allowed:
+                                    get_notifications (deliberate — blocking it would break monitor/auto_reply).
+```
+
 ### 2026-10-14 — CI: emulator matrix hardening (snapshot removal, adb timeouts, ubuntu pin)
 
 Triggered by run `38408447192` (2026-10-13T13:51Z) where `Smoke test on API 29 (default)` ran 30m6s and the whole matrix run was reported `cancelled`. **Not a code regression** — the identical code passed the same job in 2m6s nine minutes earlier (`38407226663`). All other four API levels passed in ~2m each in both runs.

@@ -4,7 +4,7 @@
 >
 > 下方「[上游原始 README](#upstream-readme)」之后是完整的官方文档、产品定位和基准数据，内容未经改动。
 >
-> 🟢 活跃维护中 · 最新 **v0.8.1** · CI 全绿 · 欢迎 [issue](https://github.com/nailoooog8/PokeClaw/issues) / [PR](https://github.com/nailoooog8/PokeClaw/pulls)
+> 🟢 活跃维护中 · 最新 **v0.8.2** · CI 全绿 · 欢迎 [issue](https://github.com/nailoooog8/PokeClaw/issues) / [PR](https://github.com/nailoooog8/PokeClaw/pulls)
 
 [![fork](https://img.shields.io/badge/fork-of-agents--io%2FPokeClaw-3DDC84?style=flat-square)](https://github.com/agents-io/PokeClaw)
 [![branch](https://img.shields.io/badge/branch-fork%2Fpersonal--fork--release-8A2BE2?style=flat-square)](#)
@@ -77,7 +77,8 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 
 | 版本 | 说明 |
 |---|---|
-| **v0.8.1** | 修复 fork 专属的分发问题（issue 链接、更新检查指向上游）+ 汉化补齐 |
+| **v0.8.2** | 第二轮红队审计：Telegram 按 user id 授权 + 远程来源禁用高危工具 |
+| v0.8.1 | 修复 fork 专属的分发问题（issue 链接、更新检查指向上游）+ 汉化补齐 |
 | v0.8.0 | 首个包含安全加固与多渠道的正式版 |
 | v0.7.1 | 早前的 MCP 扩展试发版，**不含**本 fork 的安全修复 |
 
@@ -562,6 +563,42 @@ PokeClaw is moving fast, and the roadmap is being shaped directly by real device
 Every star helps more people find the project. Every issue helps shape the next release.
 
 ## Changelog
+
+### v0.8.2 (2026-10-16) — 第二轮红队审计：Telegram 身份粒度 + 高危工具闸门
+
+完整报告见 [`docs/SECURITY_AUDIT_R2.md`](docs/SECURITY_AUDIT_R2.md)。本轮共记录 10 条发现（F1–F10），**修复了 2 条**，其余 8 条仍然开放——下面如实列出。
+
+**F1（Critical）Telegram 白名单绑定到会话而非用户 ✅ 已修复**
+
+配对白名单此前绑的是 `chat.id`（会话 ID）而不是 `user.id`（用户 ID）。同一个群里，任何人都能借用「与机器人私聊的那次配对」通过白名单——**加了谁，等于给那个群开了门**。同时白名单是全局的，一个渠道授权不会因为你在另一个渠道没授权而失效。现改为传 `message.from.id`，并新增 `lastFromUserId` 与 `lastChatId` 明确分离。
+
+**F2（High）高危工具无任何人工确认闸门 ✅ 已修复（来源闸门）**
+
+拨号、发消息、任意输入、系统按键、剪贴板、自动回复——这些工具此前**没有一层确认**，渠道消息可以直接触发。本项目没有可用的确认 UI（远程任务前台可能没有 Activity），所以做的是**来源闸门**而非弹窗：
+
+| 任务来源 | 高危工具 | 读类工具 |
+|---|---|---|
+| App 内本人操作 / 会话未建立 | 允许 | 允许 |
+| Telegram / Discord / 微信 / QQ / 抖音 | **拒绝** | 允许 |
+
+未分类的工具默认按高危处理（fail-closed），新增工具不会因为「没来得及分类」而自动获得远程可达性。剪贴板的**读**侧也一并拦了——刚复制的一次性验证码同样要命。
+
+> 这一点会改变使用习惯：**通过聊天渠道远程让手机发消息、拨号，现已不可用**。这是有意的取舍，不是缺陷。需要的话请用 App 内的 monitor 模式。
+
+**F3–F10 未修复，如实公开**
+
+| ID | 等级 | 问题 |
+|---|---|---|
+| F3 | High | 导出的自动化组件无调用方认证，且 `return_action` 造成混淆代理广播（已改为默认关闭） |
+| F4 | High | `memory_recall` 返回值绕过记忆围栏，构成持久化间接注入 |
+| F5 | High | LAN 控制台明文 HTTP 传输真实凭据；PIN 走 URL query |
+| F6 | Medium | `SecretBox` 加密失败时静默降级为明文 |
+| F7 | Medium | 用户技能 `triggers` 正则每次调用重新编译，可触发 ReDoS |
+| F8 | Medium | 工具参数无条件落盘，并被打包进用户可分享的调试报告 ZIP |
+| F9 | Low | `isValidHost` 对空 Host fail-open |
+| F10 | Info | `WebActivity` 开启 JS 且无 scheme 白名单（当前无调用方，死代码） |
+
+**验证**：165 个单元测试 / 23 套件 / 0 失败（新增 16 个覆盖 F1/F2）。`./gradlew testDebugUnitTest` **首次接入 CI**（此前 149 个测试零 CI 保护）。**SEC1–SEC11 真机 E2E 仍未执行**，F5 的 LAN 控制台相关验证也仍被环境阻塞（校园网 Captive Portal + Clash 劫持，需手机热点并关闭 Clash）。
 
 ### v0.8.1 (2026-10-12) — fork 自身的分发与汉化修复
 
