@@ -104,6 +104,21 @@ object ToolRegistry {
 
     fun executeTool(name: String, params: Map<String, Any>): ToolResult {
         val tool = tools[name] ?: return ToolResult.error("Unknown tool: $name")
+
+        // Second defence layer. A task can arrive from a channel or an
+        // automation broadcast with nobody watching the screen, so tools that
+        // act on the world are refused there. See ToolRiskPolicy for why this
+        // is separate from the sender whitelist.
+        val sourceChannel = currentSourceChannel()
+        if (ToolRiskPolicy.isBlockedForChannel(name, sourceChannel)) {
+            val reason = ToolRiskPolicy.blockReason(name, sourceChannel)
+            io.agents.pokeclaw.utils.XLog.w(
+                "ToolRegistry",
+                "Refused '$name' for source=$sourceChannel risk=${ToolRiskPolicy.riskOf(name)}"
+            )
+            return ToolResult.error(reason)
+        }
+
         return try {
             val result = tool.executeWithWaitAfter(params)
             // Feed the "save as skill" capture pipeline (no-op unless armed by the agent loop)
@@ -112,6 +127,29 @@ object ToolRegistry {
         } catch (e: Exception) {
             io.agents.pokeclaw.utils.XLog.e("ToolRegistry", "Tool '$name' execution failed with params=$params", e)
             ToolResult.error("Tool execution failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Channel the running task arrived on, or null when the task is local /
+     * not associated with a session.
+     *
+     * Isolated here so the policy can be exercised without an app instance.
+     */
+    internal var sourceChannelProvider: () -> io.agents.pokeclaw.channel.Channel? = {
+        try {
+            io.agents.pokeclaw.appViewModel.inProgressTaskChannel
+        } catch (_: Throwable) {
+            // Before Application.onCreate there is no view model; treat as local.
+            null
+        }
+    }
+
+    private fun currentSourceChannel(): io.agents.pokeclaw.channel.Channel? {
+        return try {
+            sourceChannelProvider()
+        } catch (_: Throwable) {
+            null
         }
     }
 }
