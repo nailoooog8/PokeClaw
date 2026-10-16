@@ -21,6 +21,16 @@ object ChannelSecurityGuard {
     private const val KEY_CHANNEL_PAIR_PIN = "KEY_CHANNEL_PAIR_PIN"
     private const val KEY_CHANNEL_WHITELIST = "KEY_CHANNEL_WHITELIST"
 
+    /** Separates the channel name from the sender id inside one entry. */
+    private const val KEY_SEPARATOR = '|'
+
+    /** Separates entries in the persisted string. */
+    private const val ENTRY_SEPARATOR = ","
+
+    /** Guards the one-shot legacy migration; see [purgeLegacyEntries]. */
+    @Volatile
+    private var legacyPurgeDone = false
+
     interface Storage {
         fun getBool(key: String, defaultValue: Boolean): Boolean
         fun putBool(key: String, value: Boolean)
@@ -94,43 +104,130 @@ object ChannelSecurityGuard {
      * Get current whitelisted sender IDs.
      */
     @Synchronized
-    fun getWhitelist(): Set<String> {
+    fun getWhitelist(): Map<Channel, Set<String>> {
         val raw = storage.getString(KEY_CHANNEL_WHITELIST, "")
-        if (raw.isEmpty()) return emptySet()
-        return raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        if (raw.isEmpty()) return emptyMap()
+        val out = LinkedHashMap<Channel, MutableSet<String>>()
+        for (entry in raw.split(ENTRY_SEPARATOR)) {
+            val parsed = parseEntry(entry.trim()) ?: continue
+            out.getOrPut(parsed.first) { LinkedHashSet() }.add(parsed.second)
+        }
+        return out
     }
 
     /**
      * Add a sender ID to whitelist.
      */
     @Synchronized
-    fun addSenderToWhitelist(senderId: String) {
+    fun addSenderToWhitelist(channel: Channel, senderId: String) {
         if (senderId.isBlank()) return
-        val current = getWhitelist().toMutableSet()
-        current.add(senderId.trim())
-        storage.putString(KEY_CHANNEL_WHITELIST, current.joinToString(","))
-        XLog.i(TAG, "Added sender to whitelist: ${senderId.trim()}")
+        val current = getWhitelist().toMutableMap()
+        val existing = current[channel]?.toMutableSet() ?: LinkedHashSet()
+        existing.add(senderId.trim())
+        current[channel] = existing
+        persist(current)
+        XLog.i(TAG, "Added sender ${redactId(senderId)} to whitelist on ${channel.name}")
     }
 
     /**
      * Remove a sender ID from whitelist.
      */
     @Synchronized
-    fun removeSenderFromWhitelist(senderId: String) {
-        val current = getWhitelist().toMutableSet()
-        val removed = current.remove(senderId.trim())
-        if (removed) {
-            storage.putString(KEY_CHANNEL_WHITELIST, current.joinToString(","))
-            XLog.i(TAG, "Removed sender from whitelist: ${senderId.trim()}")
+    fun removeSenderFromWhitelist(channel: Channel, senderId: String) {
+        val current = getWhitelist().toMutableMap()
+        val existing = current[channel]?.toMutableSet() ?: return
+        if (existing.remove(senderId.trim())) {
+            current[channel] = existing
+            persist(current)
+            XLog.i(TAG, "Removed sender ${redactId(senderId)} from whitelist on ${channel.name}")
         }
     }
 
     /**
      * Check whether a sender ID is whitelisted.
      */
-    fun isSenderWhitelisted(senderId: String): Boolean {
+    fun isSenderWhitelisted(channel: Channel, senderId: String): Boolean {
         if (senderId.isBlank()) return false
-        return getWhitelist().contains(senderId.trim())
+        return getWhitelist()[channel]?.contains(senderId.trim()) == true
+    }
+
+    /** Raw `CHANNEL|senderId` entries, for display and migration checks. */
+    @Synchronized
+    fun getWhitelistEntries(): Set<String> = getWhitelist()
+        .flatMap { (channel, ids) -> ids.map { entryKey(channel, it) } }
+        .toSet()
+
+    private fun persist(map: Map<Channel, Set<String>>) {
+        val flat = map.entries
+            .filter { it.value.isNotEmpty() }
+            .flatMap { (channel, ids) -> ids.map { entryKey(channel, it) } }
+            .toMutableList()
+        if (flat.isEmpty()) {
+            storage.remove(KEY_CHANNEL_WHITELIST)
+        } else {
+            storage.putString(KEY_CHANNEL_WHITELIST, flat.joinToString(ENTRY_SEPARATOR))
+        }
+    }
+
+    /**
+     * Drop entries written before the whitelist was scoped per channel.
+     *
+     * They cannot be attributed to a channel, so keeping them would either
+     * preserve the cross-channel collision this change fixes, or guess. Guessing
+     * is the worse failure, so they are discarded and the affected sender must
+     * send /bind again. Runs at most once per process.
+     */
+    @Synchronized
+    fun purgeLegacyEntries() {
+        if (legacyPurgeDone) return
+        legacyPurgeDone = true
+        val raw = storage.getString(KEY_CHANNEL_WHITELIST, "")
+        if (raw.isEmpty()) return
+        val entries = raw.split(ENTRY_SEPARATOR).map { it.trim() }.filter { it.isNotEmpty() }
+        val kept = entries.filter { parseEntry(it) != null }
+        if (kept.size == entries.size) return
+        if (kept.isEmpty()) storage.remove(KEY_CHANNEL_WHITELIST)
+        else storage.putString(KEY_CHANNEL_WHITELIST, kept.joinToString(ENTRY_SEPARATOR))
+        XLog.w(
+            TAG,
+            "Discarded ${entries.size - kept.size} unscoped whitelist entr(ies) written before " +
+                "per-channel authorisation. Affected senders must send /bind again. Kept ${kept.size}."
+        )
+    }
+
+    /** Never log a full external id. */
+    private fun redactId(senderId: String): String =
+        if (senderId.length <= 4) "***" else "…${senderId.takeLast(4)}"
+
+    /**
+     * Test hook. [legacyPurgeDone] is process-global because the migration runs
+     * once per launch, so tests need a way to replay it against fresh storage.
+     */
+    internal fun resetLegacyPurgeForTesting() {
+        legacyPurgeDone = false
+    }
+
+    /**
+     * Key format for a whitelist entry: `<CHANNEL><SEP><senderId>`.
+     *
+     * Scoping by channel matters because sender ids are only unique *within* a
+     * channel. Telegram user ids, QQ open ids and Douyin open ids are all
+     * numeric, so a single flat set let an id authorised on one platform
+     * authorise the same id on another. Entries written before this was scoped
+     * carry no channel and are dropped by [purgeLegacyEntries].
+     */
+    private fun entryKey(channel: Channel, senderId: String): String =
+        "${channel.name}$KEY_SEPARATOR${senderId.trim()}"
+
+    /** Inverse of [entryKey]; null when the entry is not in scoped form. */
+    private fun parseEntry(entry: String): Pair<Channel, String>? {
+        val sep = entry.indexOf(KEY_SEPARATOR)
+        if (sep <= 0) return null
+        val channel = runCatching { Channel.valueOf(entry.substring(0, sep)) }.getOrNull()
+            ?: return null
+        val senderId = entry.substring(sep + 1).trim()
+        if (senderId.isEmpty()) return null
+        return channel to senderId
     }
 
     /**
@@ -155,6 +252,8 @@ object ChannelSecurityGuard {
             XLog.d(TAG, "Channel security check is disabled globally, allowing request on ${channel.displayName}")
             return Decision.Allow
         }
+
+        purgeLegacyEntries()
 
         val trimmedSenderId = senderId?.trim() ?: ""
         val trimmedMessage = message.trim()
@@ -185,7 +284,7 @@ object ChannelSecurityGuard {
                 BruteForceGuard.constantTimeEquals(inputPin, expectedPin)
             ) {
                 BruteForceGuard.onSuccess(guardKey)
-                addSenderToWhitelist(trimmedSenderId)
+                addSenderToWhitelist(channel, trimmedSenderId)
                 XLog.i(TAG, "Sender $trimmedSenderId successfully paired on ${channel.displayName}")
                 Decision.Reject("绑定成功！设备已授权，可正常接收与执行指令。")
             } else {
@@ -208,8 +307,8 @@ object ChannelSecurityGuard {
             return Decision.Reject("未授权设备。请在手机 PokeClaw 设置中查看配对码，并发送 /bind <配对码> 绑定")
         }
 
-        // 4. Check whitelist
-        if (isSenderWhitelisted(trimmedSenderId)) {
+        // 4. Check whitelist, scoped to the channel the message arrived on
+        if (isSenderWhitelisted(channel, trimmedSenderId)) {
             return Decision.Allow
         }
 

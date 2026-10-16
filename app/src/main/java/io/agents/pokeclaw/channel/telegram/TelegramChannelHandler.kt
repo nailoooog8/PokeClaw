@@ -27,6 +27,17 @@ class TelegramChannelHandler(
 
     @Volatile
     private var lastChatId: Long? = null
+
+    /**
+     * Telegram user id of the most recent sender.
+     *
+     * This is the identity that ChannelSecurityGuard authorises. It is
+     * deliberately NOT what [getLastSenderId] returns: replies and scheduled
+     * pushes must go to the conversation the message arrived in, which is
+     * [lastChatId]. Keep the two apart — using a chat id for authorisation is
+     * what let any group member drive the phone.
+     */
+    private var lastFromUserId: Long? = null
     @Volatile
     private var pollingActive = false
     private var pollingThread: Thread? = null
@@ -96,12 +107,23 @@ class TelegramChannelHandler(
                         val text = message.optString("text", "")
                         if (text.isEmpty()) continue
 
-                        val chatId = message.getJSONObject("chat").getLong("id")
+                        val chat = message.getJSONObject("chat")
+                        val chatId = chat.getLong("id")
                         val messageId = message.getInt("message_id")
                         lastChatId = chatId
 
-                        XLog.i(TAG, "[${channel.displayName}] Message received: $text, chatId=$chatId")
-                        ChannelManager.dispatchMessage(channel, text, messageId.toString(), chatId.toString())
+                        // Authorise the *person*, not the room. chat.id is the
+                        // conversation: in a group or channel it is shared by
+                        // every member, so pairing there would hand the whole
+                        // group permanent control of the phone. from.id is the
+                        // account that actually sent the message, and matches
+                        // what WeChat (fromUserId) and QQ (userId) already pass.
+                        val fromUserId = message.optJSONObject("from")?.optLong("id")
+                            ?: chatId  // channel posts carry no `from`
+                        lastFromUserId = fromUserId
+
+                        XLog.i(TAG, "[${channel.displayName}] Message received: $text, from=$fromUserId chatId=$chatId")
+                        ChannelManager.dispatchMessage(channel, text, messageId.toString(), fromUserId.toString())
                     }
                 } catch (_: java.net.SocketTimeoutException) {
                     XLog.d(TAG, "Telegram polling timeout, continuing to poll")
@@ -123,6 +145,7 @@ class TelegramChannelHandler(
         pollingThread?.interrupt()
         pollingThread = null
         lastChatId = null
+        lastFromUserId = null
         XLog.i(TAG, "Telegram Long Polling stopped")
     }
 
@@ -207,6 +230,13 @@ class TelegramChannelHandler(
         }
     }
 
+    /**
+     * Routing target for replies and scheduled pushes, not the authorising id.
+     *
+     * Telegram bots can only open a private chat with a user who has started
+     * them, so replying to the conversation is the reliable behaviour here.
+     * Authorisation uses the sender's user id instead.
+     */
     override fun getLastSenderId(): String? = lastChatId?.toString()
 
     override fun restoreRoutingContext(targetUserId: String) {

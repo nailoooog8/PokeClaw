@@ -30,10 +30,17 @@ interface ChannelHandler {
     fun flushMessages() {}
 
     /**
-     * Get the identifier of the most recent message sender.
-     * Each channel returns its own user identifier (Telegram→chatId, QQ→openId, Discord→channelId,
-     * DingTalk→staffId、WeChat→userId、FeiShu→messageId）。
-     * Used for scheduled task user targeting persistence.
+     * Get the routing target for replies and scheduled pushes.
+     *
+     * Each channel returns whatever its send API can actually address
+     * (Telegram→chatId, QQ→openId, Discord→channelId, DingTalk→staffId,
+     * WeChat→userId, FeiShu→messageId). Used for scheduled task targeting.
+     *
+     * ⚠️ This is **not** the identity to authorise against. In Telegram,
+     * `chatId` identifies a conversation, not a person, so pairing on it would
+     * authorise every member of a group. The authorising identity is the
+     * `senderId` passed to [ChannelManager.dispatchMessage], which every
+     * channel already sets to a per-person id.
      */
     fun getLastSenderId(): String? = null
 
