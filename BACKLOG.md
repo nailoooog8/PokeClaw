@@ -42,7 +42,19 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
   > 过程中我自己写错 4 条断言，均由测试而非阅读抓出，已全部改为描述真实契约（详见 `QA_CHECKLIST.md` 同日两条记录）。
   >
   > **设计决策留档**：选的是「两个可覆盖读取点」而非接口/子类/`Robolectric`。理由是接缝越小越不可能被误用，且两处默认值即生产路径，无需在测试外证明等价；`Robolectric` 方案虽然零生产改动，但要新增依赖且 MMKV 这类 native 库在 JVM 上是否可用未经验证，风险最高。
-- [ ] **P2** No import path for the memory bank. `grep import|merge|loadFrom|ingest` over `agent/memory/` returns nothing. Import **must** go through `remember()` / `restoreSuppression()` and never write `memories.json` directly, or it silently breaks three invariants: `hits`/`lastUsedAt` must be **reset** (they are device-local reinforcement — inheriting them fakes familiarity and hollows out the retention curve, turning "what got recalled" into "what got imported"); `pinned` **travels** (it is an explicit user decision); **suppression fingerprints must travel too** (otherwise facts deleted on device A get re-learned on device B). Pass `fromAgent = false`, matching the reasoning already documented in `restoreSuppression()`. Cap the entry count defensively — see the `deleteByContent` `q.length < 3` lesson about stray input doing irreversible damage.
+- [x] ~~**P1** ~~记忆之间没有「联想」——只有去重合并和矛盾标记~~ → **已完成 2026-10-17**。新增 `MemoryEntry.relatedIds`（单向），由模型在 `memory_save` 时通过 `related_ids` 参数产出。为了让模型能引用，简报与 `memory_recall` 每条结果现在都带 `#编号`。
+
+  **不是相似度算出来的，这是实测逼出来的**：一次性探针测 bigram Dice，相关对落在 0.11–0.42（摄影/Lightroom、Anki/背单词），矛盾对落在 0.50–0.71（Pixel/小米、杭州/上海、橘猫/黑猫）——**矛盾比相关还相似**，任何阈值或加权都分不开，「矛盾 ⟂ 关联」是正交不是程度。社区侧（mem0 v3）同样用「让模型填 `linked_memory_ids`」而非算相似度，取舍与来源见 `docs/MEMORY_DESIGN.md` §7。
+
+  写入时三条硬约束，任一不满足就丢这条关联（宁可没有，不要错的）：编号不存在 / 指向自己 / **两条矛盾**。三条删除路径（`delete` / `deleteByContent` / 淘汰）统一走 `pruneDanglingLocked` 剪掉悬垂引用。手动编辑正文后关联**重新判定**而非盲信。新增 `MemoryLinkTest`（16 例），全量 **225 / 26 suites / 0 失败**。
+
+  > **顺带修掉一个现存缺陷**：`deleteByContent()` 与 `evictLocked()` 此前**不修** `conflictsWith`，只在 `delete()` 里修——即批量删除和容量淘汰会留下指向已删记忆的悬垂冲突。新增关联若不统一处理，同一个洞会翻倍，故三条路径合并到一个 pruner。
+  >
+  > **过程中我又写错 5 条断言**（累计第 7–11 条）。其中一条是**重复了 §15.3 的同一个教训**：我断言数字型 `relatedIds` 会被丢弃，实际 GSON `asString()` 对 `7` 返回 `"7"`、保留为文本。另外 4 条分别把单向链接的方向写反、用 2 字符查询撞上 `deleteByContent` 的 `< 3` 守卫、用递增编号做填充数据被前缀包含合并掉。全部已改为描述真实契约。
+  >
+  > **未做**：管理页不展示关联（用户选的是「写入时自动建关联」，UI 是另一次范围）；导出 Markdown 丢关联（与 `conflictsWith` 同样丢，归入下方无损导出那条）。
+- [ ] **P2** No import path for the memory bank. `grep import|merge|loadFrom|ingest` over `agent/memory/` returns nothing. Import **must** go through `remember()` / `restoreSuppression()` and never write `memories.json` directly, or it silently breaks three invariants: `hits`/`lastUsedAt` must be **reset** (they are device-local reinforcement — inheriting them fakes familiarity and hollows out the retention curve, turning "what got recalled" into "what got imported"); `pinned` **travels** (it is an explicit user decision); **suppression fingerprints must travel too** (otherwise facts deleted on device A get re-learned on device B). Pass `fromAgent = false`, matching the reasoning already documented in `restoreSuppression()`. Cap the entry count defensively — see the `deleteByContent` `q.length < 3` lesson about stray input doing irreversible damage. **`relatedIds` / `conflictsWith` must be remapped on import**: a content-hash id does not survive a rewrite of the imported text, so links copied verbatim become dangling ids.
+- [ ] **P1** Lossless `exportJson()` for the memory bank — `exportMarkdown()` writes only content/tags/pinned, so it drops `hits`/`lastUsedAt` (retention state), `conflictsWith` and `relatedIds`. It is a human-readable share format, not a round-trip format, and should not be presented as one. Markdown export stays as-is.
 - [ ] **P3** Optional: contrast-bound evaluation for the bank. Community benchmark numbers are not comparable across frameworks (see `docs/MEMORY_DESIGN.md` §1.1), so a small local set of (query → expected entry) pairs would be the only honest way to judge a ranking change. Not blocking; useful before any tuning of the retention curve.
 
 ## Features

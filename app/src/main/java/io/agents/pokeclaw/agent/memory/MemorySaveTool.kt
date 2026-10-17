@@ -22,7 +22,9 @@ class MemorySaveTool : BaseTool() {
             "prefer things done, facts about their device/accounts, a mistake worth not repeating, or " +
             "the outcome of an important task. Store ONE fact per call, as a self-contained sentence. " +
             "Do NOT store transient state (what is on screen, today's to-dos, temporary errors). " +
-            "Near-duplicates are merged automatically. If the fact contradicts something already " +
+            "Near-duplicates are merged automatically. Pass related_ids when this fact is about the " +
+            "same thing as memories you can see in the briefing or memory_recall results. " +
+            "If the fact contradicts something already " +
             "stored, or restates something the user asked you to forget — including the same claim " +
             "with a different value — the result says so. Report that to the user instead of retrying; " +
             "if they do want it back, they can restore it under Settings > Tools > Memory bank."
@@ -31,6 +33,8 @@ class MemorySaveTool : BaseTool() {
         "把一条值得长期记住的事存入记忆库，跨会话保留。适用于：了解到的用户身份与习惯偏好、" +
             "设备/账号相关事实、踩过的坑、重要任务的结果。每次只存一条，写成能独立成立的短句。" +
             "不要存临时状态（当前屏幕内容、今天的待办、偶发报错）。相近的内容会自动合并。" +
+            "若要记的事和简报或 memory_recall 结果里某条记忆是同一件事，"+
+            "用 related_ids 带上它的编号（只连真正相关的）。" +
             "若与已有记忆矛盾、或与用户让你忘掉的内容相似（包括同一说法换了值：次数变了、型号变了），" +
             "返回结果会明说——请转告用户，不要重试；用户确实想加回来的，可在 设置 → 工具 → 记忆库 " +
             "的「遗忘抑制」里自行恢复。"
@@ -50,6 +54,13 @@ class MemorySaveTool : BaseTool() {
             "tags", "string",
             "Comma-separated labels, e.g. 'device,permissions'",
             false
+        ),
+        ToolParameter(
+            "related_ids", "string",
+            "Comma-separated #ids of existing memories (from the briefing or memory_recall) that this " +
+                "fact is about the same thing as. Link only genuinely related pairs — not merely a shared " +
+                "topic — and never one marked ⚠ as contradictory. Omit when nothing is related.",
+            false
         )
     )
 
@@ -64,8 +75,12 @@ class MemorySaveTool : BaseTool() {
             val kind = optionalString(params, "kind", MemoryKind.FACT)
             val tags = optionalString(params, "tags", "")
                 .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val proposed = optionalString(params, "related_ids", "")
+                .split(",").map { it.trim().removePrefix("#") }.filter { it.isNotEmpty() }
 
-            val entry = MemoryStore.remember(content, kind, tags, fromAgent = true)
+            val entry = MemoryStore.remember(
+                content, kind, tags, fromAgent = true, relatedIds = proposed
+            )
             val sb = StringBuilder()
             when (entry) {
                 is MemoryStore.RememberResult.Suppressed -> {
@@ -85,6 +100,17 @@ class MemorySaveTool : BaseTool() {
                         sb.append("\n⚠ 注意，这条与已有记忆矛盾：")
                         for (c in entry.conflicts) sb.append("\n  - ${c.content}")
                         sb.append("\n两条都已标记冲突，向用户确认哪个是对的，不要默默选一条。")
+                    }
+                    val kept = entry.entry.relatedIds
+                    if (kept.isNotEmpty()) {
+                        sb.append("\n已关联到 ${kept.size} 条已有记忆：${kept.joinToString("、")}")
+                    }
+                    val dropped = proposed.size - kept.size
+                    if (dropped > 0) {
+                        sb.append(
+                            "\n另有 $dropped 个 related_ids 没生效（编号不存在，或指向与本条矛盾的记忆）。" +
+                                "关联只是线索，不要依赖它判断两条记忆是否同真。"
+                        )
                     }
                     sb.append("\n（共 ${MemoryStore.count()} 条）")
                 }

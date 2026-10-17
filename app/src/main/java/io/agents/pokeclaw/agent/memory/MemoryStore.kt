@@ -202,7 +202,8 @@ object MemoryStore {
         tags: List<String> = emptyList(),
         pinned: Boolean = false,
         id: String? = null,
-        fromAgent: Boolean = false
+        fromAgent: Boolean = false,
+        relatedIds: List<String> = emptyList()
     ): RememberResult {
         val text = content.trim()
         require(text.isNotEmpty()) { "content is empty" }
@@ -224,7 +225,12 @@ object MemoryStore {
                         kind = cleanKind,
                         tags = (old.tags + cleanTags).distinct(),
                         pinned = pinned || old.pinned,
-                        updatedAt = now
+                        updatedAt = now,
+                        // The old links were asserted about the old wording.
+                        // Re-check them rather than trusting or blindly
+                        // dropping them — an edit can turn a link into a
+                        // contradiction just as easily as it can fix one.
+                        relatedIds = validLinksLocked(old.relatedIds, old.id, text, entries)
                     )
                     cache = entries
                     persistLocked()
@@ -267,6 +273,7 @@ object MemoryStore {
 
             // Contradiction: keep the new fact, but flag both sides so the model asks.
             val conflicts = entries.filter { MemorySimilarity.contradicts(it.content, text) }
+            val linked = validLinksLocked(relatedIds, idOf(norm), text, entries)
             val entry = MemoryEntry(
                 id = idOf(norm),
                 content = text,
@@ -275,7 +282,8 @@ object MemoryStore {
                 pinned = pinned,
                 createdAt = now,
                 updatedAt = now,
-                conflictsWith = conflicts.map { it.id }
+                conflictsWith = conflicts.map { it.id },
+                relatedIds = linked
             )
             if (conflicts.isNotEmpty()) {
                 // The older side keeps pointing at the new one.
@@ -307,15 +315,10 @@ object MemoryStore {
     fun delete(id: String): Boolean = synchronized(lock) {
         val entries = loadLocked()
         val victim = entries.firstOrNull { it.id == id } ?: return false
-        val kept = entries.filterNot { it.id == id }
+        entries.removeAll { it.id == id }
         addSuppressionLocked(victim.content, victim.kind)
-        // Point the other side of a conflict back into thin air.
-        val repaired = kept.map { e ->
-            if (e.conflictsWith.contains(id)) {
-                e.copy(conflictsWith = e.conflictsWith - id)
-            } else e
-        }
-        cache = repaired.toMutableList()
+        pruneDanglingLocked(entries)
+        cache = entries
         persistLocked()
         true
     }
@@ -335,8 +338,9 @@ object MemoryStore {
         }
         if (victims.isEmpty()) return 0
         for (v in victims) addSuppressionLocked(v.content, v.kind)
-        val kept = entries.filterNot { it in victims }
-        cache = kept.toMutableList()
+        val kept = entries.filterNot { it in victims }.toMutableList()
+        pruneDanglingLocked(kept)
+        cache = kept
         persistLocked()
         victims.size
     }
@@ -541,7 +545,7 @@ object MemoryStore {
                 // any fence a memory tries to smuggle in, so a poisoned memory
                 // cannot close the boundary and continue as an instruction.
                 val body = e.content.replace(OPEN_FENCE, "").replace(CLOSE_FENCE, "")
-                sb.append("- [${e.kindLabel}] $OPEN_FENCE$body$CLOSE_FENCE$tags$warn\n")
+                sb.append("- [${e.kindLabel}#${e.id}] $OPEN_FENCE$body$CLOSE_FENCE$tags$warn\n")
             }
             sb.append("共 ${entries.size} 条。\n")
         }
@@ -557,7 +561,11 @@ object MemoryStore {
                 "4. 需要更多历史时用 memory_recall 按主题检索；记忆确实作废时用 memory_forget 删除。\n" +
                 "   被用户删掉的记忆留有抑制指纹，memory_save 会拒绝写回相似内容——措辞相近或\n" +
                 "   同一个说法换了说法（次数变了、型号变了）都算。除非用户明确要求你重新记住，\n" +
-                "   此时请让用户在 设置 → 工具 → 记忆库 → 遗忘抑制 里自行恢复，不要反复重试。\n"
+                "   此时请让用户在 设置 → 工具 → 记忆库 → 遗忘抑制 里自行恢复，不要反复重试。\n" +
+                "5. 如果要记的事和已有记忆说的是同一件事、同一个东西，在 memory_save 里用\n" +
+                "   related_ids 带上它们的 #编号（见简报或 memory_recall 结果），两条就关联起来。\n" +
+                "   只连真正相关的那一两条：主题沾边不等于相关（都提到手机不算），\n" +
+                "   也不要连标了 ⚠ 的矛盾条目。确实没有相关记忆就留空，不要硬凑。\n"
         )
         return sb.toString()
     }
@@ -654,6 +662,8 @@ object MemoryStore {
             entries.remove(victim)
             XLog.d(TAG, "Evicted ${victim.id} (bank over $MAX_ENTRIES entries)")
         }
+        // An evicted entry must not leave links or conflicts pointing at it.
+        pruneDanglingLocked(entries)
         entries.sortByDescending { it.updatedAt }
     }
 
@@ -698,6 +708,62 @@ object MemoryStore {
     /** True when one normalized string contains the other — near-duplicate guard. */
     private fun overlaps(a: String, b: String): Boolean =
         a == b || (a.length >= 4 && b.contains(a)) || (b.length >= 4 && a.contains(b))
+
+    /**
+     * Keeps only the agent-proposed links that still make sense.
+     *
+     * The model names ids out of its own briefing, so three things routinely go
+     * wrong and every one of them must degrade to "no link" rather than to a
+     * wrong link — a wrong link is worse than a missing one, because the model
+     * reads a linked pair as corroboration:
+     *  - the id does not exist (hallucinated, or already deleted);
+     *  - the id is this entry itself;
+     *  - the two entries contradict each other.
+     *
+     * The third rule is the load-bearing one. Contradiction and relation are
+     * **different axes, not degrees of the same one**: measured over real
+     * sentence pairs, contradicted pairs ("手机的型号是Pixel" / "是小米") sit at
+     * Dice 0.50-0.59 while merely-related pairs ("是摄影师" / "用Lightroom修图")
+     * sit at 0.11-0.42. A similarity threshold cannot separate them. Keeping
+     * them apart in code is what stops a contradicted pair from also showing up
+     * as related.
+     */
+    private fun validLinksLocked(
+        proposed: List<String>,
+        selfId: String,
+        content: String,
+        entries: List<MemoryEntry>
+    ): List<String> {
+        if (proposed.isEmpty()) return emptyList()
+        val byId = entries.associateBy { it.id }
+        return proposed.asSequence()
+            .map { it.trim().lowercase() }
+            .filter { it.isNotEmpty() && it != selfId }
+            .filter { byId.containsKey(it) }
+            .filterNot { MemorySimilarity.contradicts(byId.getValue(it).content, content) }
+            .distinct()
+            .toList()
+    }
+
+    /**
+     * Drops references to entries that are no longer in the bank.
+     *
+     * A dangling id points the model at a memory that does not exist. There are
+     * three ways to lose an entry and all three must go through here — a repair
+     * wired into only one of them is the same bug waiting to come back.
+     */
+    private fun pruneDanglingLocked(entries: MutableList<MemoryEntry>) {
+        val live = entries.mapTo(HashSet()) { it.id }
+        for (i in entries.indices) {
+            val e = entries[i]
+            val conflicts = e.conflictsWith.filter { it in live }
+            val related = e.relatedIds.filter { it in live }
+            if (conflicts.size != e.conflictsWith.size || related.size != e.relatedIds.size) {
+                entries[i] = e.copy(conflictsWith = conflicts, relatedIds = related)
+                XLog.d(TAG, "Pruned dangling refs on ${e.id} (${e.conflictsWith.size}->${conflicts.size} conflicts, ${e.relatedIds.size}->${related.size} related)")
+            }
+        }
+    }
 
     private fun idOf(normalized: String): String = MemorySimilarity.idOf(normalized)
 

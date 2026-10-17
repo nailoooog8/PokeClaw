@@ -207,10 +207,68 @@ Debug 报告之所以没暴露这个问题：它写进 `cacheDir/debug_reports/`
 
 ---
 
-## 7. 资料来源
+## 7. 决策：关联由模型产出，不用相似度算
+
+> 实现见 [`MEMORY_BANK.md`](MEMORY_BANK.md)「关联（relatedIds）」。本节只记**为什么**。
+
+### 7.1 社区的答案是「让模型连」，不是「算相似度」
+
+查 mem0 v3 源码，三处指向同一个结构（[prompts.py](https://github.com/mem0ai/mem0/blob/main/mem0/configs/prompts.py) / [main.py](https://github.com/mem0ai/mem0/blob/main/mem0/memory/main.py)）：
+
+1. `ADDITIVE_EXTRACTION_PROMPT` 里的 `## Memory Linking` 段，要求模型在新记忆上填 `linked_memory_ids`，
+   并明确「Do NOT link memories that merely share a vague theme」。
+2. v3 已改成 **ADD-only**——不再让模型改写旧记忆，因此链接天然是**单向**的：新记忆指向旧记忆。
+3. 真正需要双向图谱的地方（entity store）另起一层，`_remove_memory_from_entity_store`
+   专门负责删除时把 `memory_id` 从所有实体的 `linked_memory_ids` 里摘掉。
+
+**关联和向量检索是两回事**：社区并没有用 embedding 算「像不像」，而是让模型顺手填一个字段。
+我们的矛盾检测之所以用词法，是因为它要**可单元测试**；关联不打算可测，所以允许模型参与。
+
+### 7.2 关键实测：词法相似度**分不开**相关和矛盾
+
+在本仓库跑了一次性探针（`MemorySimilarity.similarity`，CJK bigram Dice）：
+
+| 句子对 | Dice | 性质 |
+|---|---|---|
+| 用户是摄影师 ⟷ 用户用 Lightroom 修图 | **0.111** | 相关 |
+| 用户用 Anki 背单词 ⟷ 用户每天背 20 个单词 | **0.222** | 相关 |
+| 用户的手机是 Pixel ⟷ 用户的手机壳是蓝色的 | 0.421 | 相关 |
+| 用户在杭州出差 ⟷ 用户在上海出差 | **0.500** | **矛盾** |
+| 用户的手机是 Pixel ⟷ 用户的手机是小米 | **0.588** | **矛盾** |
+| 用户养了一只橘猫 ⟷ 用户养了一只黑猫 | **0.714** | **矛盾** |
+
+矛盾对全部落在相关对区间的**上沿之上**。任何单一阈值要么漏掉真关联，要么把矛盾算成关联——
+**加重权改变不了这件事**，因为「矛盾 ⟂ 关联」是**正交关系，不是程度关系**。
+
+这条实测推翻了我最初的设计（`relatedIds = f(bigram Dice, 标签重合, 保留度)`），
+也让「本地实体中介」这条路只能接住一部分：实体能接住「Pixel/手机壳」，接不住「摄影/Lightroom」。
+
+### 7.3 落到我们这里的三条
+
+1. **关联由模型填**，`memory_save` 加 `related_ids` 参数。**零额外 LLM 调用**——
+   模型本来就在工具循环里，多填一个字段不产生新的 round-trip，
+   因此不违反 §3「抽取即决策」那条结论。
+2. **矛盾优先于关联**：写入时若一条 `related_ids` 命中 `contradicts()`，直接丢掉。
+   这正是 7.2 那条实测的直接用途——词法不擅长分，就用一条明确的规则分。
+3. **单向**，与 mem0 v3 一致，也因为语义更对：
+   「用户用 Lightroom 修富士照片」关联「用户的相机是富士」，
+   反向并不等价（后者并不是因为前者才成立）。
+
+### 7.4 代价，明确承认
+
+- **关联的正确性无法靠单测保证**。`MemoryLinkTest` 能保证的是「错误的连线不会被存下来」
+  （未知编号、自指、矛盾三种情况），**不能**保证模型连得准。这部分只能靠真机 QA 观察。
+- **模型可能不连线**。宁可少连，不可错连。
+- **导出 Markdown 丢关联**（`exportMarkdown()` 只写正文/标签/置顶）。
+  和 `conflictsWith` 一样丢，一并等 BACKLOG 里那条无损 `exportJson()` 解决。
+
+---
+
+## 8. 资料来源
 
 | 来源 | 用途 |
 |---|---|
+| https://github.com/mem0ai/mem0 · `mem0/configs/prompts.py` · `mem0/memory/main.py` | 关联由模型产出、单向链接、entity store 分层（第 7 节） |
 | https://github.com/electricpipelines/barq | 对照对象（第 6 节） |
 | https://github.com/letta-ai/letta · mem0ai/mem0 · getzep/graphiti · langchain-ai/langmem | 四条路线的能力边界 |
 | https://adityakarnam.com/awesome-agentic-memory | star 量级与框架定位横评 |

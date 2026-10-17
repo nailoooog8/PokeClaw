@@ -19,11 +19,14 @@ class MemoryRecallTool : BaseTool() {
     override fun getDescriptionEN() =
         "Search the long-term memory bank by topic or keyword. Returns the most relevant remembered " +
             "facts (identity, preferences, device/account facts, past outcomes). " +
-            "A blank query lists the most relevant recent and pinned memories."
+            "A blank query lists the most relevant recent and pinned memories. " +
+            "Each result carries a #id you can pass to memory_save's related_ids to link a new " +
+            "memory to it."
 
     override fun getDescriptionCN() =
         "按主题或关键词检索长期记忆库，返回最相关的已记住事实（身份、偏好、设备/账号信息、" +
-            "过往结果）。query 留空则返回最近与置顶的记忆。"
+            "过往结果）。query 留空则返回最近与置顶的记忆。每条结果带 #编号，" +
+            "可用 memory_save 的 related_ids 把新记忆关联到它。"
 
     override fun getParameters() = listOf(
         ToolParameter(
@@ -61,7 +64,7 @@ class MemoryRecallTool : BaseTool() {
                 )
             }
             val body = results.joinToString("\n") { r ->
-                "- [${r.entry.kindLabel}] ${r.entry.content}  (命中 ${r.entry.hits + 1} 次)"
+                "- [${r.entry.kindLabel}#${r.entry.id}] ${r.entry.content}  (命中 ${r.entry.hits + 1} 次)"
             }
             ToolResult.success("记忆检索「${query.ifBlank { "全部" }}」：\n$body")
         } catch (e: Exception) {

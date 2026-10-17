@@ -37,6 +37,17 @@ data class MemoryEntry(
     val lastUsedAt: Long = 0L,
     /** Ids of entries this one appears to contradict. Surfaced, never auto-merged. */
     val conflictsWith: List<String> = emptyList(),
+    /**
+     * Ids this entry was linked to at write time because the agent said the
+     * two are about the same thing.
+     *
+     * One-sided on purpose, unlike [conflictsWith]: a link is a claim the agent
+     * made *about the new fact while writing it*, and it never gets to revise
+     * what it claimed about memories that already existed. Conflicts are the
+     * opposite — [MemorySimilarity.contradicts] is symmetric, so both sides
+     * can be updated without inventing anything.
+     */
+    val relatedIds: List<String> = emptyList(),
 ) {
     val kindLabel: String get() = MemoryKind.labelOf(kind)
 
@@ -78,6 +89,7 @@ data class MemoryEntry(
                 hits = o.num("hits").toInt(),
                 lastUsedAt = o.num("lastUsedAt"),
                 conflictsWith = o.arr("conflictsWith"),
+                relatedIds = o.arr("relatedIds"),
             )
         }
 

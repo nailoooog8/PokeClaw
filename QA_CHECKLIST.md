@@ -1401,6 +1401,41 @@ guessed at here.
 - [ ] **AA6. No-shareable-app path**: **manual only** — on a device with no app able to receive `text/markdown` → **Expected**: toast "没有可分享的应用", no crash.
 - [ ] **AA7. External-storage fallback covered**: **manual/inspect** — `storageDir()` can fall back to `ctx.filesDir` on devices without external storage; `<files-path>` must cover it. Verified structurally by code; a device without external storage is required to exercise the fallback for real.
 
+---
+
+## AB. 记忆关联（relatedIds） — 2026-10-17
+
+关联由模型在 `memory_save` 的 `related_ids` 里产出，单向挂在**后写**的那条上。
+设计取舍与「为什么不用相似度」见 `docs/MEMORY_DESIGN.md` §7；机制见 `docs/MEMORY_BANK.md`「关联」。
+
+**Build-type:** release（release 签名与线上包同密钥，故可覆盖安装，已绑定的微信 token 未丢）。
+**单测:** `MemoryLinkTest` 16 例，全量 **225 / 26 suites / 0 失败**。
+
+```text
+[2026-10-17] [PASS]    AB1        旧格式 memories.json（无 relatedIds 字段）在真机正常解析。
+[2026-10-17] [PASS]    AB2        字段类型全错的条目逐字段降级，同批兄弟条目不受影响。
+[2026-10-17] [PASS]    AB3        content 为空的条目被丢弃，且只丢这一条。
+[2026-10-17] [PASS]    AB4        悬垂引用（指向不存在的 id）在删除时被剪掉，磁盘文件可验证。
+[2026-10-17] [SKIP]    AB5/AB6    需要真实模型跑一轮对话才能观察，见下方说明。
+```
+
+- [x] **AB1. Old-format bank still parses**: push a hand-written `memories.json` whose entries have **no** `relatedIds` key → **Expected**: every entry renders, nothing dropped, no FATAL.
+  - ✅ 2026-10-17 release 真机：3 条无 `relatedIds` 的条目 + 2 条脏数据 = **4 条存活 / 1 条丢弃**，页脚 `共 4 条（置顶 0 条 · 矛盾 2 条 · 渐淡 3 条）`，无 FATAL
+- [x] **AB2. Wrong field types degrade per-field**: entries carrying `kind:"nonsense_kind"`, `tags:"not-an-array"`, `hits:"not-a-number"`, `createdAt:-5`, `updatedAt:0` → **Expected**: falls back to defaults, **entry survives**, siblings untouched.
+  - ✅ 真机：`kind` → 事实、`tags` → `[]`、`hits` → 0；`createdAt`/`updatedAt` 被替换为真实时间戳 `1792240074115`（落回 `now`），条目本身完整存活
+- [x] **AB3. A contentless entry is dropped alone**: one entry with `"content": ""` among four → **Expected**: only that entry disappears; the other four are untouched.
+  - ✅ 真机：注入 5 条 → 存活 4 条，被丢的那条正是 `content:""` 的；**没有任何兄弟条目被连带丢弃**
+- [x] **AB4. Dangling refs are pruned on device (the regression this fixes)**: seed `relatedIds:["gone000099zz","<real id>"]` and `conflictsWith:[..., "gone000088yy"]`, then delete the real target via the UI → **Expected**: the rewritten file shows both the stale id and the now-deleted id removed, while every still-valid ref survives.
+  - ✅ 真机（长按「用户的通勤方式是地铁」→ 删除，随后 `adb shell cat memories.json`）：
+    - `relatedIds:["gone000099zz","old0000001aa"]` → `[]`（**悬垂的与刚被删的都剪掉了**）
+    - `conflictsWith:["old0000002bb","gone000088yy"]` → `["old0000002bb"]`（只保留仍有效的）
+    - 矛盾对的两侧仍互相指向，未被误伤
+  - ⚠️ **这是本轮修掉的现存缺陷**：`deleteByContent()` 与 `evictLocked()` 此前**不修** `conflictsWith`，只有 `delete()` 修——批量删除和容量淘汰会留下悬垂冲突。新增关联会把这个洞翻倍，故三条路径统一到 `pruneDanglingLocked`
+- [ ] **AB5. The agent links two related memories**: with a local/cloud model configured, ask something that yields a follow-up fact about an existing memory → **Expected**: the model passes `related_ids` using a `#id` seen in the briefing; the entry is stored with that link; `memory_save` reports which links took effect.
+  - ⏸ **SKIP（无模型环境）**：`memory_save` 的 `related_ids` 参数、简报里的 `#编号`、以及返回值里的「已关联 N 条 / 另有 N 个没生效」三条提示**均未在真实对话中观察过**。`MemoryLinkTest` 只能保证错误的连线不会被存下来，**保证不了模型连得准**——这正是路线 A 的已知代价（`MEMORY_DESIGN.md` §7.4）。需在有模型的环境补跑
+- [ ] **AB6. The agent links nothing when nothing is related**: ask about an unrelated topic → **Expected**: `related_ids` left empty, no links stored, and the model does not manufacture a link to satisfy the instruction.
+  - ⏸ **SKIP（同 AB5）**：这条比 AB5 更重要——社区（mem0）专门为「不要因为主题沾边就连」写了提示词规则，说明**过度连线是实际会发生**的失败模式，而非理论风险
+
 ### ADB verification commands
 
 ```bash
