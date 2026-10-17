@@ -112,10 +112,18 @@ android {
         // button cannot drift apart. Upstream attribution is NOT here on purpose:
         // it lives in NOTICE and the README's "upstream status" section, which is
         // where Apache-2.0 §4 requires it.
+        //
+        // NOTE: the in-app sponsor row no longer uses this field -- it renders the
+        // bundled assets/sponsor-qr.jpg directly, because handing off to a Markdown
+        // file broke on any browser that does not render GitHub-flavored Markdown
+        // (Comet showed the raw markdown source instead of the payment code).
+        // This value is kept so FUNDING.yml-style overrides keep working and so
+        // there is still a link to fall back to; note it is now a *file* URL, not
+        // a page, so any browser will display the code itself rather than source.
         buildConfigField(
             "String",
             "SPONSOR_URL",
-            "\"${readLocalOrEnvString("POKECLAW_SPONSOR_URL", "https://github.com/nailoooog8/PokeClaw/blob/main/docs/SPONSOR.md")}\""
+            "\"${readLocalOrEnvString("POKECLAW_SPONSOR_URL", "https://raw.githubusercontent.com/nailoooog8/PokeClaw/main/docs/sponsor-qr.jpg")}\""
         )
         buildConfigField("String", "BUILD_FINGERPRINT", "\"${getBuildFingerprint()}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

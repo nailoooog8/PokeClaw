@@ -6,6 +6,7 @@ package io.agents.pokeclaw.ui.settings
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -26,6 +27,7 @@ import io.agents.pokeclaw.widget.CommonToolbar
 import io.agents.pokeclaw.widget.InputDialog
 import io.agents.pokeclaw.widget.MenuGroup
 import io.agents.pokeclaw.widget.MenuItem
+import io.agents.pokeclaw.widget.QRCodeDialog
 import io.agents.pokeclaw.AppCapabilityCoordinator
 import io.agents.pokeclaw.AppRequirement
 import io.agents.pokeclaw.appViewModel
@@ -46,6 +48,13 @@ class SettingsActivity : BaseActivity() {
     /** Number of built-in tools advertised on the "管理工具" row. */
     private companion object {
         const val TOOLS_ENABLED_COUNT = 12
+
+        /**
+         * Bundled copy of docs/sponsor-qr.jpg. Keep both in sync when rotating
+         * the payment code -- the repo copy is what FUNDING.yml links to, this
+         * one is what the app renders offline.
+         */
+        const val SPONSOR_QR_ASSET = "sponsor-qr.jpg"
     }
 
     // Poll permissions every second (same as original HomeActivity)
@@ -678,17 +687,61 @@ class SettingsActivity : BaseActivity() {
         // and the README has an explicit "上游状态" section. That is where
         // Apache-2.0 §4 wants it — a credits screen that points at a dead repo is
         // not attribution, it is a dead link.
+        //
+        // This used to hand off to SPONSOR_URL -> docs/SPONSOR.md on GitHub. That
+        // required the user's browser to render GitHub-flavored Markdown AND GitHub
+        // to rewrite the relative image path "sponsor-qr.jpg" into a blob/ URL. The
+        // Comet browser did neither: it fetched the .md over the raw channel and
+        // rendered the Markdown source, so the row opened a page full of code with a
+        // literal "![微信收款码](sponsor-qr.jpg)" instead of the payment code. Any
+        // second browser could fail the same two ways. Showing the bundled asset is
+        // the only variant that needs neither a network nor a specific browser.
         aboutGroup.addMenuItem(
             leadingIcon = R.drawable.ic_heart,
             title = getString(R.string.settings_about_sponsor),
-            onClick = {
-                startActivity(Intent(Intent.ACTION_VIEW, io.agents.pokeclaw.BuildConfig.SPONSOR_URL.toUri()))
-            },
+            onClick = { showSponsorQrCode() },
             showDivider = false
         ).apply {
             setTrailingText(getString(R.string.settings_about_sponsor_desc))
             // ic_heart ships white; without this it disappears in the light theme.
             setLeadingIconColor(getColor(R.color.colorTextPrimary))
+        }
+    }
+
+    /**
+     * Show the bundled WeChat payment code in-app.
+     *
+     * The image ships in assets/ rather than being fetched, so this works offline
+     * and cannot be broken by a markdown renderer or a CDN. Decoding a ~95 KB JPEG
+     * is not free, so it happens off the main thread; the dialog is only shown once
+     * the bitmap exists because QRCodeDialog takes the bitmap eagerly.
+     */
+    private fun showSponsorQrCode() {
+        XLog.i("SettingsActivity", "showSponsorQrCode: loading bundled asset")
+        lifecycleScope.launch {
+            val bitmap = withContext(Dispatchers.IO) {
+                runCatching {
+                    assets.open(SPONSOR_QR_ASSET).use { BitmapFactory.decodeStream(it) }
+                }.onFailure { error ->
+                    XLog.e("SettingsActivity", "Failed to decode sponsor QR asset", error)
+                }.getOrNull()
+            }
+            if (bitmap == null) {
+                // Never fail silently (CLAUDE.md): tell the user what happened.
+                Toast.makeText(
+                    this@SettingsActivity,
+                    R.string.sponsor_qr_load_failed,
+                    Toast.LENGTH_LONG
+                ).show()
+                return@launch
+            }
+            XLog.i("SettingsActivity", "showSponsorQrCode: showing dialog ${bitmap.width}x${bitmap.height}")
+            QRCodeDialog.show(
+                context = this@SettingsActivity,
+                title = getString(R.string.sponsor_qr_title),
+                subtitle = getString(R.string.sponsor_qr_subtitle),
+                qrBitmap = bitmap,
+            )
         }
     }
 

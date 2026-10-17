@@ -388,6 +388,9 @@
     <string name="settings_about_share_debug_desc">ZIP ログ + 状態</string>
     <string name="settings_about_sponsor">スポンサー</string>
     <string name="settings_about_sponsor_desc">WeChat Pay</string>
+    <string name="sponsor_qr_title">スキャンでスポンサー</string>
+    <string name="sponsor_qr_subtitle">WeChat Pay · コードはオフライン表示、ブラウザ不要</string>
+    <string name="sponsor_qr_load_failed">支払いコードを読み込めませんでした</string>
 
     <!-- テーマ表示名。id 自体は保存キーなので翻訳しない。 -->
     <string name="theme_label_ember_dark">エンバー ダーク</string>
