@@ -8,8 +8,10 @@ Simulates a real attacker on the same Wi-Fi:
   A3  Host-header / DNS-rebinding pre-auth
   A4  path traversal on /api/debug/file (debug builds)
 
-Usage:  python security_probe_configserver.py [base_url]
-        default base_url = http://127.0.0.1:9527   (via adb reverse)
+Usage:  python security_probe_configserver.py [base_url] [pin]
+        default base_url = http://127.0.0.1:9527   (via adb forward tcp:9527 tcp:9527)
+        pin: the real 6-digit console PIN, shown in Settings -> 局域网配置.
+             Required to verify the brute-force lockout (see A2).
 """
 import json
 import sys
@@ -17,6 +19,7 @@ import urllib.request
 import urllib.error
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:9527"
+PIN = sys.argv[2] if len(sys.argv) > 2 else None
 TIMEOUT = 5
 
 
@@ -83,23 +86,54 @@ else:
 
 # ---------------------------------------------------------------- A2
 hr("A2  PIN brute force (expect lockout, not 10^6 attempts)")
-status, _ = req("/api/channels", headers={"X-Config-PIN": "000000"})
-first = status
-attempts = 0
-locked_at = None
-for i in range(60):
-    attempts += 1
-    status, _ = req("/api/channels", headers={"X-Config-PIN": f"{i % 10}{i % 7}{i % 9}00"})
-    if status == 429 or status == 403:
-        locked_at = attempts
-        break
-print(f"  first guess      -> HTTP {first}")
-print(f"  attempts sent    -> {attempts}")
-print(f"  lockout observed -> {'yes at attempt %d' % locked_at if locked_at else 'NO'}")
-if locked_at and locked_at <= 20:
-    print(f"\n  >>> A2 PASS: locked out after {locked_at} guesses")
+# ConfigServer answers a locked-out client with the same 401 body as a plain
+# auth failure -- there is no 429/Retry-After. So "did we get a 429" is NOT a
+# valid lockout signal, and asserting on it reported a false FAIL against a
+# working guard. The guard's real contract is: once locked, the server stops
+# comparing the PIN entirely, so even the CORRECT pin is refused. Probe that
+# directly, which requires knowing the pin -> pass it in as argv[2].
+#
+# Side effect: this leaves the probing client locked out with an escalating
+# backoff (30s << strikes, capped at 30 min). BruteForceGuard is in-memory
+# only, so `adb shell am force-stop io.agents.pokeclaw` clears it; re-enable
+# LAN config in Settings afterwards. Run A2 last if you care about A1/A3/A4.
+
+if PIN is None:
+    print("  no --pin supplied; sending wrong guesses only")
+    for i in range(12):
+        req("/api/channels", headers={"X-Config-PIN": f"{i % 10}{i % 7}{i % 9}00"})
+    print("\n  >>> A2 INCONCLUSIVE: rerun with the correct pin to detect the")
+    print("      lockout. Asserting on 429/403 is wrong -- a locked client gets 401.")
 else:
-    print("\n  >>> A2 FAIL: no effective lockout, PIN is brute-forceable")
+    # Baseline: correct pin must work before we start guessing.
+    base_status, _ = req("/api/channels", headers={"X-Config-PIN": PIN})
+    print(f"  baseline (correct pin)  -> HTTP {base_status}")
+
+    # Probe in batches. You cannot interleave a correct-pin request after every
+    # single wrong guess: a successful auth calls onSuccess(), which deletes the
+    # whole entry, so the failure counter resets to 0 and the lockout threshold
+    # is unreachable. Correct PIN is therefore probed once per batch of
+    # MAX_FAILURES (5) guesses, and only while it still succeeds.
+    locked_at = None
+    wrong = 0
+    while wrong < 60:
+        for i in range(5):
+            wrong += 1
+            req("/api/channels", headers={"X-Config-PIN": f"{(i + 1) % 10}{(i + 7) % 10}{(i + 3) % 10}00"})
+        st, _ = req("/api/channels", headers={"X-Config-PIN": PIN})
+        if st != 200:
+            locked_at = wrong
+            break
+
+    print(f"  wrong guesses sent      -> {locked_at if locked_at else '>60'}")
+    print(f"  correct pin after that  -> {'REFUSED (locked out)' if locked_at else 'still HTTP 200'}")
+    if locked_at and locked_at <= 20:
+        print(f"\n  >>> A2 PASS: locked out after {locked_at} wrong guesses.")
+        print("      The correct pin was refused too, so the server stopped")
+        print("      comparing -- a brute force gains no information per attempt.")
+    else:
+        print("\n  >>> A2 FAIL: correct pin still accepted after 60 wrong")
+        print("      guesses -- no effective lockout, PIN is brute-forceable.")
 
 # ---------------------------------------------------------------- A3
 hr("A3  DNS-rebinding pre-auth (evil Host header)")

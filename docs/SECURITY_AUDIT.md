@@ -16,7 +16,7 @@
 | r3 | **Medium** | `handleServeFile` 用字符串前缀校验路径，不折叠 `..` | 同上文件 `handleServeFile` | 已修复 |
 | r4 | **High** | 远程 MCP 服务器的 `description` 原样进入 system prompt | [`McpDescriptionSanitizer`](../app/src/main/java/io/agents/pokeclaw/agent/mcp/McpDescriptionSanitizer.kt) | 已修复 |
 
-**必须诚实说明：以上「已修复」指的是代码层已修复且有单测覆盖。SEC1–SEC11 的真机 E2E 验证全部尚未执行**（见第 4 节），不要把本文当作「已通过安全测试」的证明。
+**必须诚实说明：以上「已修复」指的是代码层已修复且有单测覆盖。其中 r1 / r2 / r3 的 HTTP 层行为已于 2026-10-17 在真机上动态验证通过（SEC1 / SEC2 / SEC3 / SEC6），其余仍为静态走查**（见第 4 节），不要把本文当作「已通过完整安全测试」的证明。
 
 ---
 
@@ -33,7 +33,8 @@
 - 成功后 `onSuccess()` 清空记录
 - PIN 比较使用**常量时间**比较，避免时序侧信道
 
-**回归**：`BruteForceGuardTest`（6 用例）、`ChannelSecurityGuardTest`（8 用例）。
+**回归**：`BruteForceGuardTest`（6 用例）、`ChannelSecurityGuardTest`（8 用例）、
+**外加 2026-10-17 真机 A2 动态验证**（见第 4 节）。
 
 ### r2 — 凭据明文泄漏（Critical）
 
@@ -41,7 +42,7 @@
 
 **修复**：`maskIfPresent()` 在读路径返回掩码占位符。写路径的 POST handler 已能识别掩码值并忽略，因此「页面带着掩码回存」不会把真实凭据清空（`isMaskedValue`）。
 
-**回归**：E2E 用例 SEC1 / SEC2，**尚未执行**。
+**回归**：E2E 用例 SEC1 / SEC2，**已于 2026-10-17 真机验证通过**（见第 4 节）。
 
 ### r3 — 路径穿越（Medium）
 
@@ -81,13 +82,67 @@ if (!file.exists() || !file.toPath().startsWith(cacheDir.toPath())) { /* 404 */ 
 
 ## 4. 验证状态：诚实边界
 
-**SEC1–SEC11 全部未执行。** 状态是准确的，没有被标成通过。
+### 4.1 已真机执行：SEC1 / SEC2 / SEC3 / SEC6（2026-10-17）
 
-阻塞原因是环境而非代码：`ConfigServerManager.start()` 硬性要求 `TRANSPORT_WIFI` 且只能从设置页开关触发（无开机自启、无 adb 入口、无 broadcast 入口）；校园网 Captive Portal 会反复抢占前台。
+首次动态验证，设备 `10AG4J1THX00524` / V2502DA / Android 16 (API 36)，v0.8.3 release 构建：
 
-> ⚠️ **一条历史假结果的警告**：此前 A1–A4 探测返回的 `502` / `RemoteDisconnected` 来自本机 Clash VPN 劫持了对 `172.22.249.38:9527` 的请求，**不是 PokeClaw 的响应**。这些结果既不算 PASS 也不算 FAIL。重跑前请先关闭 Clash。
+| 用例 | 结果 | 实测证据 |
+|---|---|---|
+| SEC1 未认证凭据收集（A1） | ✅ PASS | `GET /api/channels` 与 `GET /api/llm` 均 `401 Unauthorized: Valid PIN/Token required` |
+| SEC2 PIN 限速（A2） | ✅ PASS | 5 次错误猜测后，**正确 PIN 亦被拒**；服务端停止比对 |
+| SEC3 DNS rebinding（A3） | ✅ PASS | `Host: evil.example.com` / `attacker.com` / `127.0.0.1.evil.com` 全部 `403` |
+| SEC6 调试端点（A4） | ✅ PASS | `/api/debug/file?path=/etc/passwd` 等返回 `401`，release 构建正确拒绝 |
 
-**跑通条件**：手机切到自己的热点（非校园网、无 Captive Portal）→ 设置中开启「局域网配置」→ 关闭 Clash → 从 PC 直连 `172.22.249.38:9527` 执行 `scripts/security_probe_configserver.py`。
+r2 的掩码在带凭据的真实数据上得到确认：`GET /api/channels` 返回
+`"wechatBotToken":"********"`（真值存在但被掩码），其余未配置项为空串。
+
+**§4 的阻塞条件已作废**：USB 调试可用后，改用 `adb forward tcp:9527 tcp:9527`
+让 PC 经 USB 隧道访问手机的 `ConfigServer`，**数据不经过 Wi-Fi、也不经过 Clash**。
+`ConfigServer` 绑定 `0.0.0.0`，因此手机只需连上**任意** Wi-Fi（含有 Captive Portal
+的校园网）以满足 `isWifiConnected()` 这道硬门即可，无需任何外网。
+
+### 4.2 仍未执行：SEC4 / SEC5 / SEC7–SEC11
+
+| 用例 | 阻塞原因 |
+|---|---|
+| SEC7 路径穿越 | `/api/debug/file` 是 debug-only 端点，release 构建不可达（A4 已确认）。需装 debug 构建复测 |
+| SEC9 MCP 描述投毒 | 需要配置一个可控 `description` 的恶意 MCP 服务器 |
+| SEC10 调试接收器 | 需 debug 构建才能触达入口 |
+| SEC4 / SEC5 / SEC8 / SEC11 | 需第三方渠道（Discord / Telegram / QQ / 抖音）凭据或双设备 |
+
+### 4.3 ⚠️ 探测脚本曾产生假 FAIL（已修）
+
+`scripts/security_probe_configserver.py` 的 A2 曾报 `FAIL: no effective lockout`，
+**这是脚本缺陷，不是产品漏洞**。两处原因叠加：
+
+1. **口径错**：脚本把 `429/403` 当作锁定信号，但 `ConfigServer.authenticate()`
+   锁定期返回的是与普通鉴权失败**完全相同的 `401`**（无 `Retry-After`）。
+2. **探测自毁**：即使改成「锁定期正确 PIN 也应被拒」，只要每次错误猜测后都插一次
+   正确 PIN 探测，成功认证会调用 `BruteForceGuard.onSuccess()` **删除整个条目**，
+   失败计数永远回到 0，锁定阈值不可达。
+
+修法：按 `MAX_FAILURES`(5) 分批打错误猜测，**每批结束后**才探一次正确 PIN；
+并接受 PIN 作为 `argv[2]` 传入。修正后 A2 如实 PASS。
+
+> **教训**：安全测试断言不能只看状态码。本例中「锁定生效」的表现与「鉴权失败」
+> 在 HTTP 层不可区分，必须用「已知正确凭据在锁定期被拒」这一语义信号来判定。
+
+### 4.4 一条历史假结果的警告
+
+此前 A1–A4 探测返回的 `502` / `RemoteDisconnected` 来自本机 Clash VPN 劫持了对
+`172.22.249.38:9527` 的请求，**不是 PokeClaw 的响应**。这些结果既不算 PASS 也不算 FAIL。
+改走 `adb forward` 隧道后该问题不再出现。
+
+### 4.5 复现步骤
+
+```powershell
+adb forward tcp:9527 tcp:9527
+# 手机端：Wi-Fi 连任意 AP → 设置 → 局域网配置 → 开启（记下 6 位 PIN）
+python scripts/security_probe_configserver.py http://127.0.0.1:9527 <PIN>
+```
+
+> A2 结束后该客户端会处于锁定退避中（30s << strikes，封顶 30min）。状态仅存内存，
+> `adb shell am force-stop io.agents.pokeclaw` 可清空，之后需重新开启局域网配置。
 
 ### 已执行的部分：单元测试
 
