@@ -1,15 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  This fork does not publish a GitHub Pages site. The docs/ directory is
+  inherited from upstream; its product page carries the upstream author's own
+  narrative, signature, and download links, so it must not be published under
+  this fork's domain.
+
+  The upstream project published its page at
+  https://agents-io.github.io/PokeClaw/ . That site belongs to the upstream
+  author and is intentionally left as-is.
+
+  See: https://github.com/nailoooog8/PokeClaw
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://agents-io.github.io/PokeClaw/</loc>
-    <lastmod>2026-04-10</lastmod>
+    <loc>https://github.com/nailoooog8/PokeClaw</loc>
+    <lastmod>2026-10-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://agents-io.github.io/PokeClaw/demo.html</loc>
-    <lastmod>2026-04-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <loc>https://github.com/nailoooog8/PokeClaw/releases/latest</loc>
+    <lastmod>2026-10-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
   </url>
 </urlset>

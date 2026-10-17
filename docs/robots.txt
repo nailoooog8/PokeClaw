@@ -1,4 +1,12 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://agents-io.github.io/PokeClaw/sitemap.xml
+# This fork does not publish a GitHub Pages site (the docs/ directory is
+# inherited from upstream, whose product page carries the upstream author's
+# own narrative and signature). Until or unless that is replaced with a page
+# written for this fork, do not advertise a Pages URL that does not exist.
+#
+# Upstream published its page at https://agents-io.github.io/PokeClaw/ ; that
+# site is the upstream author's and is intentionally left pointing there.
+#
+# See: https://github.com/nailoooog8/PokeClaw
