@@ -25,6 +25,8 @@ This is the repo map for coding agents. Keep canonical information in existing f
 | `scripts/` | QA and automation scripts |
 | `.github/workflows/` | CI, CLA check, signed release workflow |
 | `docs/` | GitHub Pages site and public site assets |
+| `docs/MEMORY_BANK.md` | How the memory bank works: retention curve, suppression fingerprints, contradiction detection, file format |
+| `docs/MEMORY_DESIGN.md` | Why the memory bank is built this way: community survey, rejected alternatives, known gaps |
 | `docs/screenshots/` | Screenshot assets used by the landing page |
 | `demo/` | Legacy demo GIF assets |
 | `Screenshots/` | Legacy screenshot assets |

@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Roots the FileProvider may hand out URIs for.
+
+  The memory bank writes `memories-export.md` into the getExternalFilesDir(null)
+  ROOT and can fall back to filesDir, so both need a root that actually covers
+  them. Without these two entries getUriForFile() throws "Failed to find
+  configured root" — which is why the memory export could not be shared.
+  Debug reports only worked because they land in cacheDir/debug_reports/.
+-->
 <paths>
     <external-files-path name="downloads" path="Download" />
     <cache-path name="cache" path="." />
+    <external-files-path name="external_files" path="." />
+    <files-path name="internal_files" path="." />
 </paths>

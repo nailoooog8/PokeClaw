@@ -1279,11 +1279,41 @@ Fix: `file_paths.xml` gains `<external-files-path path="." />` and
 **Build-type:** all `[RELEASE-OK]`. AA1/AA4/AA6 need a device with at least one
 memory stored (add one by hand first — no LLM required).
 
-- [ ] **AA1. Export produces a file**: Settings → 工具 → 记忆库 → "导出为 Markdown" with ≥1 memory → a file appears at `<ext-files>/memories-export.md`. **Expected**: logcat `MemoryStore: Exported N memories to <path>`, and `adb shell ls /sdcard/Android/data/io.agents.pokeclaw/files/` lists `memories-export.md`.
-- [ ] **AA2. Empty bank does not crash**: with the bank cleared, tap export → **Expected**: toast "没有可导出的记忆", no FATAL, no stray file written.
-- [ ] **AA3. Share sheet opens (the actual bug)**: with ≥1 memory, tap "导出并分享" → **Expected**: system share sheet appears. **This is the regression case** — before the fix this throws `IllegalArgumentException: Failed to find configured root` in `FileProvider.getUriForFile`.
+### 2026-10-17 — memory bank export could never leave the phone
+
+```
+[2026-10-17] [FIX]     AA3     "导出为 Markdown" wrote memories-export.md into the getExternalFilesDir(null)
+                                ROOT, but res/xml/file_paths.xml only declared external-files-path path="Download"
+                                plus cache-path. So FileProvider.getUriForFile() threw
+                                "Failed to find configured root" and the export was a dead end -- the old code
+                                even papered over it with a Toast printing a filesystem path the user cannot
+                                reach. file_paths.xml gains <external-files-path path="." /> and
+                                <files-path path="." /> (the latter covers MemoryStore.storageDir()'s
+                                filesDir fallback), and the action now goes through FileProvider + ACTION_SEND
+                                like SettingsActivity.shareReportFile() already did.
+                                Why debug reports never caught this: they land in cacheDir/debug_reports/,
+                                which IS covered by cache-path. Same code path, different directory, opposite
+                                outcome -- a coverage hole that only a second caller could expose.
+[2026-10-17] [FIX]     AA-title Menu title changed "导出为 Markdown" -> "导出并分享". The old title promised an
+                                export and delivered a Toast; the row now shares.
+[2026-10-17] [PASS]    AA1/AA2/AA3/AA5   Verified on device (release build, same keystore). Share sheet opens
+                                (ChooserActivityLauncher), empty bank neither crashes nor writes a stray file,
+                                cancelling returns to MemoryActivity with the bank unchanged.
+[2026-10-17] [SKIP]    AA4/AA6/AA7   AA4 needs a real share completed to a receiving app; AA6 needs a device
+                                with no markdown-capable share target; AA7 needs a device without external
+                                storage to exercise the filesDir fallback for real (verified structurally only).
+```
+
+- [x] **AA1. Export produces a file**: Settings → 工具 → 记忆库 → "导出并分享" with ≥1 memory → a file appears at `<ext-files>/memories-export.md`. **Expected**: logcat `MemoryStore: Exported N memories to <path>`, and `adb shell ls /sdcard/Android/data/io.agents.pokeclaw/files/` lists `memories-export.md`.
+  - ✅ 2026-10-17 release 真机：`memories-export.md` 108 B，内容为 `# 记忆库导出` / `> 共 1 条` / `## 事实` / `- <内容>`，分组格式符合预期
+- [x] **AA2. Empty bank does not crash**: with the bank cleared, tap export → **Expected**: toast "没有可导出的记忆", no FATAL, no stray file written.
+  - ✅ 2026-10-17 真机：清空后导出，焦点仍在 MemoryActivity，**无 FATAL**，`memories-export.md` 时间戳未变（未新增写入）
+- [x] **AA3. Share sheet opens (the actual bug)**: with ≥1 memory, tap "导出并分享" → **Expected**: system share sheet appears. **This is the regression case** — before the fix this throws `IllegalArgumentException: Failed to find configured root` in `FileProvider.getUriForFile`.
+  - ✅ 2026-10-17 真机：`mCurrentFocus=...ChooserActivityLauncher`，分享面板弹出；logcat **无** `Failed to find configured root`、**无** FATAL。**回归确认修复**
 - [ ] **AA4. Shared content is correct**: complete a share to any target (e.g. Files/Drive) → **Expected**: the received `.md` opens, header `共 N 条`, grouped under `## 身份` / `## 偏好` / `## 事实` / `## 事件`, matching on-screen entries.
-- [ ] **AA5. Cancelling the share sheet is safe**: open the share sheet → back → **Expected**: returns to the memory screen, no crash, bank unchanged.
+- [x] **AA5. Cancelling the share sheet is safe**: open the share sheet → back → **Expected**: returns to the memory screen, no crash, bank unchanged.
+  - ✅ 2026-10-17 真机：分享面板 → BACK → 回到 `MemoryActivity`，记忆库内容未变
+  - ⚠️ 一次观察到的偏差（**非本用例缺陷**）：若先误触其他入口改变过 Activity 栈，取消分享会落到 `SettingsActivity` 而非记忆库。重测时先确保是从记忆库页直接触发分享，结果正确
 - [ ] **AA6. No-shareable-app path**: **manual only** — on a device with no app able to receive `text/markdown` → **Expected**: toast "没有可分享的应用", no crash.
 - [ ] **AA7. External-storage fallback covered**: **manual/inspect** — `storageDir()` can fall back to `ctx.filesDir` on devices without external storage; `<files-path>` must cover it. Verified structurally by code; a device without external storage is required to exercise the fallback for real.
 

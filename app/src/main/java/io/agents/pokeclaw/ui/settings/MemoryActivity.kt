@@ -3,6 +3,8 @@
 
 package io.agents.pokeclaw.ui.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Editable
@@ -15,6 +17,7 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.FileProvider
 import io.agents.pokeclaw.R
 import io.agents.pokeclaw.agent.memory.MemoryEntry
 import io.agents.pokeclaw.agent.memory.MemoryKind
@@ -238,15 +241,11 @@ class MemoryActivity : BaseActivity() {
 
         actionsGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_save,
-            title = "导出为 Markdown",
-            onClick = {
-                val file = MemoryStore.exportMarkdown()
-                Toast.makeText(
-                    this,
-                    if (file == null) "没有可导出的记忆" else "已导出到 ${file.absolutePath}",
-                    Toast.LENGTH_LONG
-                ).show()
-            },
+            // Says "分享" because that is what it now does. The old title
+            // promised an export and delivered a Toast with a filesystem path
+            // the user cannot reach, which made the export useless.
+            title = "导出并分享",
+            onClick = { exportAndShare() },
             showDivider = true
         ).apply {
             setTitleColor(tc.aiText)
@@ -277,6 +276,43 @@ class MemoryActivity : BaseActivity() {
             setTitleColor(tc.aiText)
             setLeadingIconColor(tc.aiText)
             setTrailingIconColor(tc.aiText)
+        }
+    }
+
+    /**
+     * Exports the bank and hands it to the system share sheet.
+     *
+     * The export used to end at a Toast printing the path, which made it
+     * impossible to actually get the file off the phone — the whole point of
+     * exporting a memory bank. Sharing also needs a FileProvider root that
+     * covers the storage dir; see `res/xml/file_paths.xml`.
+     */
+    private fun exportAndShare() {
+        val file = MemoryStore.exportMarkdown()
+        if (file == null) {
+            Toast.makeText(this, "没有可导出的记忆", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val uri = try {
+            FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+        } catch (e: IllegalArgumentException) {
+            // Means file_paths.xml no longer covers MemoryStore.storageDir().
+            // Loud rather than silent: the export file exists but is unreachable.
+            android.util.Log.e("MemoryActivity", "export file not shareable: ${e.message}", e)
+            Toast.makeText(this, "导出成功，但无法分享：$e", Toast.LENGTH_LONG).show()
+            return
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/markdown"
+            putExtra(Intent.EXTRA_SUBJECT, "PokeClaw 记忆库导出")
+            putExtra(Intent.EXTRA_TEXT, "PokeClaw 记忆库导出，共 ${MemoryStore.count()} 条。")
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            startActivity(Intent.createChooser(intent, "分享记忆库导出"))
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "没有可分享的应用", Toast.LENGTH_LONG).show()
         }
     }
 
