@@ -1,3 +1,24 @@
+> [!IMPORTANT]
+> **This document belongs to the upstream project, not to this fork.**
+>
+> Authored by `ithiria894` (Nicole / agents.io) on 2026-05-26 and **never modified since**.
+> This is a private strategy thesis about **acquiring an exit** — the valuation ranges,
+> named acquisition targets, and "codebase + Nicole as founding engineer" framing describe
+> the upstream author's intentions only.
+>
+> **This fork does not inherit any of it.** We are an independent distribution
+> (`nailoooog8/PokeClaw`): Chinese localisation, security hardening, and our own signed
+> builds. We make no acquisition claim, assert no valuation, and pursue no acquirer
+> outreach. If you are reading this while evaluating either repository for M&A, the two
+> projects are **not** a single seller and must not be treated as one asset.
+>
+> Everything below is preserved verbatim from upstream because Apache-2.0 §4 requires it.
+> Treat it as a historical document, not as a roadmap for this repository.
+>
+> For this fork's actual scope and priorities, read [`README.md`](README.md) and
+> [`BACKLOG.md`](BACKLOG.md). For our own maintenance state, see `CLAUDE.local.md`
+> (not version-controlled).
+
 # PokeClaw — Moat, Window, Acquisition Thesis
 
 > 內部戰略文件。記錄 acquisition target、why-this-survives-AI、reframe community model。

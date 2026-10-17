@@ -1,3 +1,21 @@
+> [!IMPORTANT]
+> **This document belongs to the upstream project, not to this fork.**
+>
+> Authored by `ithiria894` (Nicole / agents.io) on 2026-05-26 and **never modified since**.
+> It is the phased execution plan for the acquisition thesis in [`STRATEGY.md`](STRATEGY.md).
+>
+> **This fork does not inherit any of it.** `nailoooog8/PokeClaw` is an independent
+> distribution focused on Chinese localisation, security hardening, and its own signed
+> builds. We do not pursue acquisition, do not run acquirer outreach, and do not adopt the
+> milestones below. Phases referencing "signals an acquirer reads", YC applications, or
+> outreach to Anthropic / Samsung / Xiaomi DevRel **do not apply here**.
+>
+> The checkboxes are also stale: they reflect upstream's state on 2026-05-26. Several
+> items were delivered by other means in this fork (for example the emulator matrix CI).
+>
+> Everything below is preserved verbatim because Apache-2.0 §4 requires it. Treat it as a
+> historical document. For this fork's live priorities, read [`BACKLOG.md`](BACKLOG.md).
+
 # PokeClaw — Execution Plan to Acquisition Target
 
 > Bridges STRATEGY.md (where + why) and BACKLOG.md (what).
