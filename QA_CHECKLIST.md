@@ -1279,6 +1279,45 @@ Fix: `file_paths.xml` gains `<external-files-path path="." />` and
 **Build-type:** all `[RELEASE-OK]`. AA1/AA4/AA6 need a device with at least one
 memory stored (add one by hand first — no LLM required).
 
+### 2026-10-17 — memory bank: unit tests for the untested boundary
+
+Pure-logic change, no E2E case needed (per CLAUDE.md, pure functions with no Android
+dependency are tested with unit tests, not ADB).
+
+```
+[2026-10-17] [PASS]    mem-test   MemoryEntryTest, 18 cases, all pass. Full suite now 183 tests / 24 suites /
+                                0 failures (was 165 / 23).
+```
+
+**The BACKLOG entry that prompted this was wrong about its own premise.** It said the
+memory bank "has zero unit tests". That is not true: `MemorySimilarityTest` (31 cases)
+and `MemoryRetentionTest` (22 cases) already exist and cover suppression, contradiction
+detection and the retention curve. What was genuinely untested was the seam those helpers
+sit on — `MemoryEntry.parseList` and the `MemoryKind` weight table.
+
+`parseList` is the only thing between a hand-typed typo in `memories.json` (adb-pushable
+by design) and losing the whole bank, so it degrades **per field**: a missing `content`
+drops that one entry and keeps its siblings; a wrong-typed `kind`/`pinned`/`hits` falls
+back to a default; a non-positive timestamp is replaced rather than trusted; tags and
+conflicts are trimmed, lowercased and de-duplicated.
+
+**Two of my first-draft assertions were wrong about the code, and the tests caught it**
+— worth recording because the tempting move is to edit the test to match:
+
+- I asserted a numeric tag would be dropped. It is not: Gson's `asString()` on `7`
+  returns `"7"`, so the tag survives as text. Harmless, since tags only feed grouping
+  and the next write normalises it.
+- I asserted an unknown kind outranks FACT. It does not — `MemoryKind.weight("nonsense")`
+  is `0.5`, sitting between EVENT (0.3) and FACT (0.7), which is what the code comment
+  says it should do. My assertion had the comparison backwards.
+
+Both were fixed to state the real contract rather than the contract I assumed.
+
+**Still untested: `MemoryStore` itself.** Its invariants live in private methods and it
+reaches `storageDir()` through `Context`, so testing them means introducing an injectable
+storage location first — a code change, not just a test. Recorded in BACKLOG rather than
+guessed at here.
+
 ### 2026-10-17 — memory bank export could never leave the phone
 
 ```
