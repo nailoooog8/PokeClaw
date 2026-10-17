@@ -33,7 +33,15 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 ## Memory bank (see `docs/MEMORY_DESIGN.md` for the rationale behind each call)
 
 - [x] ~~**P1** Memory export cannot be shared off-device~~ ✅ 2026-10-17. `file_paths.xml` now declares `<external-files-path path="." />` + `<files-path path="." />`, and the export action routes through `FileProvider` + `ACTION_SEND`. Verified on device (QA AA1/AA2/AA3/AA5): share sheet opens, empty bank neither crashes nor writes a stray file, cancelling returns to `MemoryActivity`. `MemoryStore` has an injectable `clock`, so the suggested unit tests below are straightforward. Menu retitled 导出为 Markdown → 导出并分享. Still open from the original item: a lossless `exportJson()` — Markdown is for humans, machine re-import needs JSON.
-- [ ] **P1** ~~`MemoryStore` has zero unit tests~~ → **部分完成 2026-10-17，已修正本条的错误前提**。原描述说记忆库「零单测」，实际不成立：`MemorySimilarityTest`（31 例）与 `MemoryRetentionTest`（22 例）早已存在并覆盖了抑制/矛盾判定与保留曲线。本轮补的是真正缺口 —— `MemoryEntryTest`（18 例）覆盖 `parseList` 的防御性解析（手改 JSON 必须**逐字段降级**，不能整库丢弃）与 `MemoryKind` 的权重/标签契约。**仍缺 `MemoryStore` 本身**，因其不变量集中在私有方法且依赖 `Context`：抑制检查须**先于**近似去重合并（否则被遗忘的事实会被悄悄合并回来，正是抑制要阻止的唯一结果）；`conflictsWith` 须双向维护且删除时修存活侧；`evictLocked()` 故意**不留**指纹（满员不等于用户不再需要）；`id` 是内容哈希（改内容即改身份）。要测需先给 `storageDir()` 一个可注入的测试落点。
+- [x] ~~**P1** ~~`MemoryStore` has zero unit tests~~~~ → **已完成 2026-10-17**，且原描述的前提是错的。记忆库并非「零单测」：`MemorySimilarityTest`（31 例）与 `MemoryRetentionTest`（22 例）早已存在。真正缺口分两块，均已补齐：
+  - `MemoryEntryTest`（18 例）：`parseList` 的防御性解析 + `MemoryKind` 权重/标签契约
+  - `MemoryStoreTest`（27 例）：四个顺序敏感不变量 —— 抑制检查**先于**近似去重合并、`conflictsWith` 双向维护且删除时修存活侧、`evictLocked()` **不留**抑制指纹、`deleteByContent` 拒绝 <3 字符查询
+
+  为此给 `MemoryStore` 加了两个 `@VisibleForTesting` 接缝：`storageDirOverride: File?` 与 `clock: () -> Long`（5 处 `System.currentTimeMillis()` + 1 处目录分支改走接缝）。**两者默认值即生产路径，未重写任何逻辑**，真机已回归验证。全量 **209 / 25 suites / 0 失败**。
+
+  > 过程中我自己写错 4 条断言，均由测试而非阅读抓出，已全部改为描述真实契约（详见 `QA_CHECKLIST.md` 同日两条记录）。
+  >
+  > **设计决策留档**：选的是「两个可覆盖读取点」而非接口/子类/`Robolectric`。理由是接缝越小越不可能被误用，且两处默认值即生产路径，无需在测试外证明等价；`Robolectric` 方案虽然零生产改动，但要新增依赖且 MMKV 这类 native 库在 JVM 上是否可用未经验证，风险最高。
 - [ ] **P2** No import path for the memory bank. `grep import|merge|loadFrom|ingest` over `agent/memory/` returns nothing. Import **must** go through `remember()` / `restoreSuppression()` and never write `memories.json` directly, or it silently breaks three invariants: `hits`/`lastUsedAt` must be **reset** (they are device-local reinforcement — inheriting them fakes familiarity and hollows out the retention curve, turning "what got recalled" into "what got imported"); `pinned` **travels** (it is an explicit user decision); **suppression fingerprints must travel too** (otherwise facts deleted on device A get re-learned on device B). Pass `fromAgent = false`, matching the reasoning already documented in `restoreSuppression()`. Cap the entry count defensively — see the `deleteByContent` `q.length < 3` lesson about stray input doing irreversible damage.
 - [ ] **P3** Optional: contrast-bound evaluation for the bank. Community benchmark numbers are not comparable across frameworks (see `docs/MEMORY_DESIGN.md` §1.1), so a small local set of (query → expected entry) pairs would be the only honest way to judge a ranking change. Not blocking; useful before any tuning of the retention curve.
 

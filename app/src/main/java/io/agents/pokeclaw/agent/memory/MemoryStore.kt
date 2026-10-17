@@ -4,6 +4,7 @@
 package io.agents.pokeclaw.agent.memory
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import io.agents.pokeclaw.utils.KVUtils
@@ -59,6 +60,28 @@ object MemoryStore {
 
     @Volatile
     private var cache: MutableList<MemoryEntry>? = null
+
+    // ── Test seams ────────────────────────────────────────────────────────────
+    //
+    // The invariants this class holds (suppression before merge, two-sided
+    // conflictsWith, eviction leaving no fingerprint, id derived from content)
+    // all live in private methods, so without these two hooks none of them can
+    // be unit-tested. Both default to the production path, so behaviour with
+    // no test present is byte-identical: storageDir() returns null and falls
+    // back to Context.getExternalFilesDir, and the clock is the system clock.
+    //
+    // Deliberately not a new abstraction layer: two overridable reads, no
+    // interface, no subclass.
+
+    /** Overrides the directory [storageDir] resolves to. Test-only. */
+    @VisibleForTesting
+    @JvmStatic
+    internal var storageDirOverride: File? = null
+
+    /** Overrides every `System.currentTimeMillis()` in this class. Test-only. */
+    @VisibleForTesting
+    @JvmStatic
+    internal var clock: () -> Long = { System.currentTimeMillis() }
 
     data class Scored(val entry: MemoryEntry, val score: Double)
 
@@ -127,7 +150,7 @@ object MemoryStore {
     @JvmStatic
     fun recall(query: String, limit: Int = 5, kind: String? = null): List<Scored> {
         val qTerms = terms(query)
-        val now = System.currentTimeMillis()
+        val now = clock()
         return synchronized(lock) {
             val entries = loadLocked()
             val pool = if (kind.isNullOrBlank() || !MemoryKind.isValid(kind)) {
@@ -183,7 +206,7 @@ object MemoryStore {
     ): RememberResult {
         val text = content.trim()
         require(text.isNotEmpty()) { "content is empty" }
-        val now = System.currentTimeMillis()
+        val now = clock()
         val cleanTags = tags.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.distinct()
         val cleanKind = kind.lowercase().let { if (MemoryKind.isValid(it)) it else MemoryKind.FACT }
         val norm = normalize(text)
@@ -323,7 +346,7 @@ object MemoryStore {
         val entries = loadLocked().toMutableList()
         val idx = entries.indexOfFirst { it.id == id }
         if (idx < 0) return false
-        entries[idx] = entries[idx].copy(pinned = pinned, updatedAt = System.currentTimeMillis())
+        entries[idx] = entries[idx].copy(pinned = pinned, updatedAt = clock())
         cache = entries
         persistLocked()
         true
@@ -439,7 +462,7 @@ object MemoryStore {
         list.add(0, MemorySimilarity.Trace(
             id = MemorySimilarity.idOf(normalize(clean)),
             text = clean,
-            at = System.currentTimeMillis(),
+            at = clock(),
             kind = if (MemoryKind.isValid(kind)) kind else MemoryKind.FACT
         ))
         while (list.size > MemorySimilarity.Traces.MAX_TRACES) list.removeAt(list.size - 1)
@@ -542,7 +565,7 @@ object MemoryStore {
     /** Pinned entries first, then the best-scoring others, within the char budget. */
     private fun pick(query: String, entries: List<MemoryEntry>): List<Scored> {
         val qTerms = terms(query)
-        val scored = entries.map { Scored(it, score(it, qTerms, System.currentTimeMillis())) }
+        val scored = entries.map { Scored(it, score(it, qTerms, clock())) }
             .sortedByDescending { it.score }
         val out = mutableListOf<Scored>()
         var chars = 0
@@ -560,6 +583,10 @@ object MemoryStore {
     // ── Storage ───────────────────────────────────────────────────────────────
 
     private fun storageDir(): File {
+        storageDirOverride?.let { dir ->
+            if (!dir.exists()) dir.mkdirs()
+            return dir
+        }
         val ctx = appContext
         val dir = ctx?.getExternalFilesDir(null) ?: ctx?.filesDir
             ?: throw IllegalStateException("MemoryStore.init(context) was never called")

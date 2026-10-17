@@ -1313,6 +1313,51 @@ conflicts are trimmed, lowercased and de-duplicated.
 
 Both were fixed to state the real contract rather than the contract I assumed.
 
+### 2026-10-17 — memory bank: the invariants themselves, now testable
+
+Follow-up to the entry above. `MemoryStore` was the last untested piece: all four of
+its order-sensitive invariants live in private methods, and it reached both its
+storage path and the wall clock directly, so nothing about them could be asserted
+without a device.
+
+```
+[2026-10-17] [FIX]     mem-seam   MemoryStore gains two @VisibleForTesting hooks: storageDirOverride (File?)
+                                and clock (() -> Long). Five System.currentTimeMillis() call sites and one
+                                storageDir() branch were routed through them. Both default to the production
+                                path, so behaviour with no test running is unchanged — no logic was rewritten.
+[2026-10-17] [PASS]    mem-test   MemoryStoreTest, 27 cases, all pass. Full suite now 209 tests / 25 suites /
+                                0 failures (was 183 / 24).
+[2026-10-17] [PASS]    mem-prod   Production path re-verified on device: built release, installed over the
+                                previous build, added a memory through the UI, confirmed it landed in
+                                memories.json with a real system-clock createdAt (i.e. the clock seam was
+                                inert), then cleared it. Test data removed.
+```
+
+The four invariants now have teeth:
+
+- **suppression is checked before the near-duplicate merge** — a forgotten fact that
+  overlaps a live sibling is still refused, and the sibling's `hits` is not bumped.
+  Reordering those two blocks would silently reinstate every deleted memory.
+- **`conflictsWith` is maintained on both sides** and the survivor is repaired when
+  either side is deleted, so no dangling id points the model at a memory that is gone.
+- **eviction leaves no suppression fingerprint** — filling the bank past `MAX_ENTRIES`
+  suppresses nothing, and the agent can still learn an evicted fact. A fingerprint
+  here would permanently forbid facts the user never asked to forget.
+- **`deleteByContent` refuses a query shorter than 3 characters**, because each victim
+  leaves a permanent fingerprint and a stray "forget 工" would wipe the bank for good.
+
+**Two more of my assumptions were wrong, both caught by tests rather than by reading:**
+
+- I used "用户在杭州工作。" → "用户在上海工作。" to trigger contradiction detection.
+  It does not fire. `contradicts` needs a *value slot* the lexical matcher can see —
+  a number, version or quoted span — and a bare place name reads as a word swap. That
+  is the documented lexical limit, already pinned in `MemorySimilarityTest`; I verified
+  with a throwaway probe before changing anything. Switched to "用户的手机是Pixel。" →
+  "用户的手机是小米。", which does fire.
+- I asserted a manual re-add clears the suppression fingerprint. It does not, and it
+  should not: the fingerprint records that the user asked for this to be forgotten
+  once, and only `restoreSuppression()` / `clearSuppressions()` lift it.
+
 **Still untested: `MemoryStore` itself.** Its invariants live in private methods and it
 reaches `storageDir()` through `Context`, so testing them means introducing an injectable
 storage location first — a code change, not just a test. Recorded in BACKLOG rather than
