@@ -8,7 +8,7 @@
 
 [![fork](https://img.shields.io/badge/fork-of-agents--io%2FPokeClaw-3DDC84?style=flat-square)](https://github.com/agents-io/PokeClaw)
 [![branch](https://img.shields.io/badge/branch-fork%2Fpersonal--fork--release-8A2BE2?style=flat-square)](#)
-[![license](https://img.shields.io/badge/license-Apache--2.0-3DDC84?style=flat-square)](https://github.com/agents-io/PokeClaw/blob/main/LICENSE)
+[![license](https://img.shields.io/badge/license-Apache--2.0-3DDC84?style=flat-square)](https://github.com/nailoooog8/PokeClaw/blob/main/LICENSE)
 [![android](https://img.shields.io/badge/Android-9%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 
 **为什么 Android 需要一个 OEM 中立的 agent 中间层**
@@ -94,7 +94,10 @@ Google 的移动 agent 永远是 Pixel-first 的；Samsung 的 Galaxy AI 战略�
 本 fork 独立维护，不依赖上游合并节奏。具体含义：
 
 - **不在上游排队的 PR。** 本仓库曾向 `agents-io/PokeClaw` 提交过 [PR #80](https://github.com/agents-io/PokeClaw/pull/80)（Windows 下 `local.properties` 路径被 `Properties` 吃掉反斜杠）与 [issue #81](https://github.com/agents-io/PokeClaw/issues/81)（CLA 工作流因 `signatures/cla.json` 是空对象而失败）。截至 2026-10-14 两者均无任何回复，该仓库最老的开放 PR 已等待 161 天。**上述两个问题在本 fork 内均已修复并合入 `main`**：PR #80 的改动见 `app/build.gradle.kts` 顶部注释，issue #81 的修复见 `signatures/cla.json`。**不再等待上游处理。**
+- **贡献者保留版权。** 上游用的是 CLA（要求把版权**转让**给 Nicole / agents.io）。本 fork 改用 [DCO 1.1](CLA.md)——贡献者只确认作品是自己的，不转让任何权利。这既是 Apache-2.0 项目的通行做法，也是本 fork 独立维护的必然结果：我们无权授予自己不具备的权利。
 - **上游归属保持完整。** 依 [Apache-2.0 §4](https://www.apache.org/licenses/LICENSE-2.0)，本 fork 保留原 `LICENSE`、`NOTICE`（含 `Copyright 2026 agents.io`）与全部署名声明，本节即为改动说明。Apache-2.0 属宽松许可，既不要求回馈上游，也不限制本 fork 的分发方式。
+- **不继承上游的商业目标。** 上游仓库中的 [`STRATEGY.md`](STRATEGY.md) 与 [`EXECUTION_PLAN.md`](EXECUTION_PLAN.md) 是一份**以出售为目标的退出计划**（含估值区间与潜在买家名单），由原作者于 2026-05-26 撰写，此后未再修改。本 fork 依 Apache-2.0 §4 原样保留它们，仅为满足归属要求，**并在文件顶部加了声明**。本 fork 不主张任何估值、不寻求任何收购、不继承其中的里程碑与外联清单。**两个仓库不是同一卖方，不应被视为同一项资产。**
+- **产品叙事仍属上游。** `docs/index.html` 是上游作者的产品主页（含其署名与多语言文案），本 fork 未启用 GitHub Pages，也不修改该文件。发布它并改掉里面的链接等同于冒名，与本 fork 的定位相悖。
 - **问题反馈请提在本仓库。** App 设置页、调试报告正文、issue 链接均已改为指向本 fork（见 [Changelog v0.8.1](#changelog)）。提在上游只会进入一个已停更四个多月的队列。
 
 ---

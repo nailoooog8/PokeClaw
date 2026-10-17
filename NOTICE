@@ -4,3 +4,33 @@ Copyright 2026 agents.io
 This product includes software developed at agents.io (https://github.com/agents-io).
 
 Licensed under the Apache License, Version 2.0.
+
+--------------------------------------------------------------------------------
+
+This distribution is an independent fork, maintained separately from the
+upstream project and not affiliated with, endorsed by, or a substitute for it.
+
+Fork of:      https://github.com/agents-io/PokeClaw
+This fork:    https://github.com/nailoooog8/PokeClaw
+
+Modifications made in this fork, summarised (full list in git history):
+
+  - Security hardening: brute-force protection on channel and LAN pairing PINs,
+    credential masking in the LAN control server, path-traversal fix in file
+    serving, MCP tool-description sanitisation, Telegram authorisation by user
+    id rather than chat id, and a high-impact-tool gate for remote sources.
+    Audit reports: docs/SECURITY_AUDIT.md and docs/SECURITY_AUDIT_R2.md.
+    Real-device end-to-end verification for these is NOT complete; see
+    QA_CHECKLIST.md sections SEC1-SEC11.
+  - Localisation: complete English / Simplified Chinese / Japanese interface.
+  - Additional remote-control channels (WeChat, QQ, Douyin) and restored
+    access to a channel settings group that was unreachable upstream.
+  - Continuous integration: Android emulator matrix, and unit tests wired into
+    the build workflow.
+  - Distribution: independent signing key, and issue/update links retargeted
+    from the upstream repository to this one.
+
+The upstream copyright notice above is retained unchanged, as required by
+Apache License 2.0 section 4(d). Upstream authored STRATEGY.md,
+EXECUTION_PLAN.md, and docs/index.html; those files are preserved as-is and any
+statements inside them describe upstream's intentions only.
