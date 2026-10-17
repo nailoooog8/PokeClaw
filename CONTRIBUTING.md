@@ -9,6 +9,22 @@
 3. 看 [`BACKLOG.md`](BACKLOG.md) 找能做的事；或自己提一个 issue 讨论
 4. 带 `good first issue` 标签的 issue 适合首次贡献
 
+## 版权与签署
+
+本 fork 使用 **DCO（Developer Certificate of Origin, v1.1）**，全文见 [`CLA.md`](CLA.md)。
+
+**要点：你保留自己的版权。** 上游用的是 CLA（要求把版权转让给 Nicole / agents.io）；
+本 fork 不沿用，因为上游协议不属于我们、我们也无法授予自己不具备的权利。仓库本身已经是
+Apache-2.0，DCO 只让你确认贡献是自己的、并以 Apache-2.0 授权，不需要任何转让。
+
+CI 会在你的 PR 下留言提醒，回复这一句即可（**必须全小写**，这是检查脚本的正则限制）：
+
+```
+i have read the dco document and i hereby sign the dco
+```
+
+不要往 `agents-io/PokeClaw` 提 PR —— 那里用的是上游那份转让版权的 CLA。
+
 ## 本地构建
 
 ```bash

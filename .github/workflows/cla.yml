@@ -1,10 +1,38 @@
-name: CLA Assistant
+# DCO signature check.
+#
+# This fork switched from the upstream CLA to a DCO (Developer Certificate of
+# Origin, v1.1) on 2026-10-17. The upstream CLA required contributors to ASSIGN
+# their copyright to Nicole (agents.io). That is not ours to collect, and this
+# fork is maintained independently — see CLA.md for the full rationale.
+#
+# Note on mechanics (verified against contributor-assistant/github-action
+# v2.6.1, src/pullrequest/signatureComment.ts:65): `use-dco-flag: true` does NOT
+# switch to per-commit `Signed-off-by:` trailers. It only changes the signature
+# phrase the bot accepts in a PR comment, from
+#   "I have read the CLA document and I hereby sign the CLA"
+# to
+#   "I have read the DCO document and I hereby sign the DCO"
+# Signatures are still collected as a PR comment and persisted in
+# signatures/cla.json (src/setupClaCheck.ts:121).
+#
+# The real substance of the change is therefore in CLA.md itself: the document
+# no longer assigns copyright. The flag keeps the bot's wording consistent with
+# the document it points contributors at.
+#
+# Known upstream defect (both branches, lines 67 and 69): the regexes are
+# hard-coded with a LOWERCASE leading "i" and a lowercase "dco", with no
+# case-insensitive flag. The conventional "I have read the DCO document and I
+# hereby sign the DCO" does NOT match — only the fully lowercase form does.
+# Verified by replaying the upstream regex; see scripts/check_dco_consistency.py.
+# Do not "fix" the casing in these strings without also forking the action's
+# bundled dist/ — it silently stops accepting signatures.
+name: DCO Assistant
 
 on:
   issue_comment:
     types: [created]
   pull_request_target:
-    types: [opened, closed, synchronize]
+    types: [opened, closed, synchronize, reopened, ready_for_review]
 
 permissions:
   actions: write
@@ -13,28 +41,39 @@ permissions:
   statuses: write
 
 jobs:
-  cla-check:
+  dco-check:
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     runs-on: ubuntu-24.04
     steps:
-      - name: CLA Assistant
+      - name: DCO Assistant
         uses: contributor-assistant/github-action@v2.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_TOKEN }}
         with:
+          # Accepts the DCO signature phrase instead of the CLA one.
+          use-dco-flag: true
+          # Signatures are still persisted here by the action.
           path-to-signatures: signatures/cla.json
-          path-to-document: https://github.com/agents-io/PokeClaw/blob/main/CLA.md
+          # Point at THIS fork's document, not the upstream one.
+          path-to-document: https://github.com/nailoooog8/PokeClaw/blob/main/CLA.md
           branch: main
           allowlist: bot*
 
           custom-notsigned-prcomment: |
-            Thank you for your contribution to PokeClaw!
+            Thanks for contributing! :wave:
 
-            Before we can merge this PR, please sign our [Contributor License Agreement](https://github.com/agents-io/PokeClaw/blob/main/CLA.md).
+            This fork uses a **DCO (Developer Certificate of Origin, v1.1)** rather than a CLA, so
+            **you keep your copyright** — you are only certifying that the contribution is yours and
+            that you have the right to submit it under Apache-2.0.
 
-            To sign, add a comment on this PR with exactly:
-            > I have read the CLA and I agree
+            To sign, comment on this PR with exactly this line. It must be
+            entirely lowercase — the checker's regex is case-sensitive and rejects
+            the conventional capitalisation (upstream quirk).
+
+            > i have read the dco document and i hereby sign the dco
+
+            Full text: https://github.com/nailoooog8/PokeClaw/blob/main/CLA.md
 
           custom-pr-sign-comment: |
-            :white_check_mark: Thank you for signing the CLA! Your contribution is now ready for review.
+            :white_check_mark: DCO signature recorded. Your contribution is ready for review.
