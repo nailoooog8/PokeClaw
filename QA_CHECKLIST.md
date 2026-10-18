@@ -805,11 +805,28 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - **本条最值钱的证据**：`replaceTypingIndicator` 走的是「无指示器则补一条」这条**非默认**契约。若当初图省事让 `ChatSessionSink` 继承 `ChatSink`（no-op 语义），这条回复会被**整个吞掉** —— 用户发完消息界面永远停在「思考中」。真机这一轮把该设计选择验实了。
   - ⚠️ **token/费用计数未取到数值**（**不计入 PASS**）：`XLog` 在 release 下只有 `e` 级进 logcat（§18.12），计数走的是 `XLog.d`；且当次 logcat 缓冲区仅剩 64 行、无 pokeclaw 记录。计数是纯读改写（`sink.sessionTokens += n` ↔ 原 `MutableState.value += n`），`ChatSessionUiStateTest` 已钉住往返，但**真机未观测**。要补验需 debug 包，而设备上是 release 签名、debug 无法覆盖安装（§13.2）。
   - ✅ 附带确认：`onPause` 的 `ConversationCompactor.compact(engine!!, sink.snapshotMessages(), ...)`（§19.6 记的既有越线程隐患，本次未改）本轮未被触发，无 snapshot 异常。
-- [ ] **H18. The preview page drives a real task [PARTIAL — 2026-10-18]**: 设置 → 关于 →「Claude UI 设计稿」→ 在输入框发一条真实指令 → 确认①用户气泡立即出现②先出现「正在思考…」指示器③随后被真实回复替换④整个过程无 `FATAL` / `ANR`。
+- [ ] **H18. The preview page drives a real task [PARTIAL — 2026-10-18]**: 设置 → 关于 →「Claude UI 设计稿」→ 在输入框发一条真实指令 → 确认①用户气泡立即出现②先出现「正在思考…」指示器③随后被真实回复替换④**任务完成后仍停留在该页**。
   - 这是 B 方案（把设计稿接上真实任务流）的验收用例。设计稿此前是**硬编码 HTML**，`cds.js` 只有 `renderBackoff()` 一个渲染函数、全项目零 JS 桥。现在由 `WebChatSink` 实现 `ChatSink`，Kotlin 侧把整份快照 `evaluateJavascript` 给页面，页面按 role 重建 turn。
   - ✅ **已验（构建侧）**：`compileDebugKotlin` 通过；全量单测 **260 / 29 suites / 0 失败**（新增 `WebChatSinkTest` 13 例）；`assembleRelease` 产出 `PokeClaw_v0.8.3_20261018_165142.apk`，`adb install -r` **Success**（证书 `7c2d6dd5…4c667`，与设备同密钥）；**解包核对** `assets/claude-ui/cds.js` = 27,771 B，与 `mockup/claude-ui/cds.js` 字节数一致，且含 `renderLiveRaw` 与 `PokeClawChat` 两处新代码。
-  - ❌ **未验（阻塞：无法自动进入该页）**：`ClaudeUiPreviewActivity` 是 `exported="false"`（**这是正确的安全设计**，非缺陷），`adb shell am start` 报 `SecurityException: … not exported from uid 10395`。尝试从聊天页点设置图标导航，`adb input tap` 连续 3 次无效果（§18.7 记录的 Compose tap 不送达），其中一次误触跳到了第三方 app。**故本条不得记 PASS** —— 现象未观测到。
-  - **人工验法（约 1 分钟）**：应用内 设置 → 关于 →「Claude UI 设计稿」→ 输入框发一句「现在几点」→ 看气泡与「正在思考…」是否出现并被替换。logcat 过滤 `ClaudeUiPreview` 或 `[chat]`。
+  - ❌ **未验（阻塞：无法自动进入该页）**：`ClaudeUiPreviewActivity` 是 `exported="false"`（**这是正确的安全设计**，非缺陷），`adb shell am start` 报 `SecurityException: … not exported from uid 10395`。
+  - ✅ **2026-10-18 人工验证 ①②③**：用户手动进入并发出指令，确认气泡出现、「正在思考…」指示器出现并被真实回复替换。**接线是通的** —— 桥、`WebChatSink`、页面渲染三层全部工作。
+  - ❌ **判据 ④ 当时不成立**：任务完成后页面被顶到聊天页。根因见下方 **H20**。
+  - **人工验法（约 1 分钟）**：应用内 设置 → 关于 →「Claude UI 设计稿」→ 输入框发一句「现在几点」→ 看气泡与「正在思考…」是否出现并被替换。logcat 过滤 `ClaudeUiPreview`、`onComplete: auto-returning`。
+- [ ] **H20. A finished task returns to the surface that started it [PARTIAL — 2026-10-18]**: 从**非聊天页**（如 Claude UI 预览页）发起的任务，完成后必须回到**该页**，而不是聊天页。
+  - **起因（已定性的真 bug）**：`TaskOrchestrator.onComplete` 把回跳目标**硬编码**为 `ComposeChatActivity`。聊天页恰好是被硬编码的目标，所以它「看起来正常」；任何其他发起的任务都会被误送回聊天页。
+  - ⚠️ **先数一遍：硬编码共有四处，语义各不相同**，只有第一处是真问题：
+    | 位置 | 语义 | 处置 |
+    |---|---|---|
+    | `TaskOrchestrator.onComplete` | 任务完成 → 回发起点 | ✅ **本次修复** |
+    | `TaskOrchestrator` watchdog 超时 | `GLOBAL_ACTION_HOME` 回桌面 | ❌ 不动（回桌面 ≠ 回某页） |
+    | `AppViewModel.bringAppToForeground` | 浮动球点击 → 拉前台 | ❌ 不动（用户主动行为；且 `showFloatingCircle()` **零调用方**，是死代码） |
+    | `ForegroundService` 通知 PendingIntent | 点通知 → 打开主界面 | ❌ 不动（通知就该指主界面） |
+  - ✅ **修复方式**：`TaskSessionState` 新增 `originActivity: String?`（存**类名字符串**，不存 Activity 引用 —— 任务可能比界面活得久，存引用会泄漏）。`TaskFlowController` 传入 `activity.javaClass.name`；`onComplete` 优先回该 Activity。
+  - ⚠️ **降级路径在 `returnTargetComponent()` 里，不能靠调用方自觉**：类名解析失败（旧版本残留类名、类已删除、非 Activity）→ 回落到聊天页。绝不能在完成回调里抛异常 —— 任务已经结束，抛了也只会被日志记一笔。
+  - ⚠️ **爆炸半径有限**：`autoReturnToChat` 仅在 `Channel.LOCAL` 时为 true，远程渠道（Telegram / 微信 / Discord 等）不受影响。
+  - ✅ **已验**：`compileDebugKotlin` 通过；全量 **264 / 29 suites / 0 失败**（`TaskSessionStoreTest` 新增 4 例，含「release 后 origin 必须清空」这条防泄漏用例）；`assembleRelease` → `..._171735.apk`，`adb install -r` **Success**。
+  - ❌ **未验**：真机跑一轮任务，确认完成后回到预览页。**待人工**。
+  - ⚠️ **已知降级场景（选了 B 方案的代价）**：`originActivity` 存在**进程内存**里。若任务执行中进程被杀 / Activity 被回收，回跳时 `SINGLE_TOP` 会**新建**实例而非复用 —— 用户观感是「预览页被重新打开，消息全空」。少数情况，未做持久化。
   - ⚠️ **预期不动的部分**：工具卡片 / MCP 确认卡 / 记忆 chips **接入后仍是静态示例**。`ChatMessage.toolSteps` 在 `TaskFlowController` 里从未被赋值（grep 零命中），`cds.js` 的 `buildTurn` 已能画工具卡，但**生产侧没有数据源**。这不是渲染缺口，是产生侧缺口。
 - [ ] **H19. Assistant text is never injected as HTML [PASS by construction — 2026-10-18]**: 助手正文必须经 `textContent` 写入，不得用 `innerHTML` 拼字符串。
   - `cds.js` 的 `buildTurn` 只用 `innerHTML` 拼**静态骨架**（class 名与标签），消息正文一律 `.textContent = m.content`。助手内容是模型生成的，拼字符串就是注入面。Kotlin 侧的 `appendJsonString` 另行转义 `"` `\` 与控制字符。

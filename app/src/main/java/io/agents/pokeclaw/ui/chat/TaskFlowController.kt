@@ -229,10 +229,14 @@ class TaskFlowController(
 
             activity.runOnUiThread {
                 try {
-                    appViewModel.startTask(text, taskId, agentPromptOverride = agentPromptOverride) { event ->
+                    appViewModel.startTask(
+                        task = text,
+                        taskId = taskId,
+                        agentPromptOverride = agentPromptOverride,
+                        originActivity = activity.javaClass.name,
+                    ) { event ->
                         activity.runOnUiThread { handleTaskEvent(event) }
-                    }
-                } catch (e: Exception) {
+                    }                } catch (e: Exception) {
                     XLog.e(TAG, "sendTask failed: ${e.message}", e)
                     addSystem("Error: ${e.message}")
                     cleanupAfterTask()

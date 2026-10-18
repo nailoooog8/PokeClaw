@@ -52,6 +52,7 @@ class AppViewModel : ViewModel() {
         task: String,
         taskId: String,
         agentPromptOverride: String? = null,
+        originActivity: String? = null,
         onEvent: (TaskEvent) -> Unit,
     ) {
         onBeforeTask?.invoke()
@@ -60,7 +61,13 @@ class AppViewModel : ViewModel() {
             onEvent(TaskEvent.Failed("AI service not ready"))
             return
         }
-        taskOrchestrator.startNewTask(Channel.LOCAL, task, taskId, agentPromptOverride = agentPromptOverride)
+        taskOrchestrator.startNewTask(
+            Channel.LOCAL,
+            task,
+            taskId,
+            agentPromptOverride = agentPromptOverride,
+            originActivity = originActivity,
+        )
     }
 
     fun stopTask() {

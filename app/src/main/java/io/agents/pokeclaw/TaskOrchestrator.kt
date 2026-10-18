@@ -37,6 +37,39 @@ class TaskOrchestrator(
 
     companion object {
         private const val TAG = "TaskOrchestrator"
+
+        /** Where to return when the task did not record an origin surface. */
+        private const val DEFAULT_RETURN_ACTIVITY =
+            "io.agents.pokeclaw.ui.chat.ComposeChatActivity"
+
+        /**
+         * Resolve a recorded Activity class name to a Component.
+         *
+         * Returns null for anything that is not a real Activity class in this
+         * app — a stale name from an older build, a typo, or a class that has
+         * since been removed. The caller then falls back to
+         * [DEFAULT_RETURN_ACTIVITY], so a bad name degrades to the historical
+         * behaviour instead of throwing inside a completion callback (where the
+         * task is already finished and an exception would only be logged).
+         */
+        private fun returnTargetComponent(className: String?): android.content.ComponentName? {
+            if (className.isNullOrBlank()) return null
+            return try {
+                val cls = Class.forName(className)
+                val isActivity = android.app.Activity::class.java.isAssignableFrom(cls)
+                if (!isActivity) {
+                    XLog.w(TAG, "originActivity is not an Activity: $className")
+                    null
+                } else {
+                    android.content.ComponentName(ClawApplication.instance, cls)
+                }
+            } catch (e: Throwable) {
+                // ClassNotFoundException on a class from a previous install, or
+                // NoClassDefFoundError if the class failed to initialise.
+                XLog.w(TAG, "originActivity could not be resolved: $className", e)
+                null
+            }
+        }
     }
 
     private lateinit var agentService: AgentService
@@ -122,11 +155,17 @@ class TaskOrchestrator(
 
     // ==================== Task Lock ====================
 
-    fun tryAcquireTask(messageId: String, channel: Channel, taskText: String = ""): Boolean {
+    fun tryAcquireTask(
+        messageId: String,
+        channel: Channel,
+        taskText: String = "",
+        originActivity: String? = null,
+    ): Boolean {
         return taskSessionStore.tryAcquire(
             messageId = messageId,
             channel = channel,
             taskText = taskText,
+            originActivity = originActivity,
         )
     }
 
@@ -158,13 +197,14 @@ class TaskOrchestrator(
         messageID: String,
         agentPromptOverride: String? = null,
         isFallback: Boolean = false,
+        originActivity: String? = null,
     ) {
         currentWatchdog?.disarm()
         currentWatchdog = null
 
         // Acquire task lock if not already held
         if (!isTaskRunning()) {
-            if (!tryAcquireTask(messageID, channel, task)) {
+            if (!tryAcquireTask(messageID, channel, task, originActivity)) {
                 XLog.w(TAG, "Failed to acquire task lock for: $task")
                 taskEventCallback?.invoke(TaskEvent.Failed("Another task is running"))
                 return
@@ -441,12 +481,18 @@ class TaskOrchestrator(
                 flushRoundBuffer()
                 ChannelManager.flushMessages(completedSession.channel ?: channel)
                 FloatingCircleManager.setSuccessState()
-                // Auto-return to PokeClaw after in-app task completes
+                // Auto-return to the surface that started the task
                 if (completedSession.autoReturnToChat) {
-                    XLog.i(TAG, "onComplete: auto-returning to PokeClaw chatroom")
+                    XLog.i(
+                        TAG,
+                        "onComplete: auto-returning to ${completedSession.originActivity ?: "chat (default)"}"
+                    )
                     try {
                         val context = ClawApplication.instance
-                        val intent = android.content.Intent(context, io.agents.pokeclaw.ui.chat.ComposeChatActivity::class.java).apply {
+                        val target = returnTargetComponent(completedSession.originActivity)
+                            ?: returnTargetComponent(DEFAULT_RETURN_ACTIVITY)
+                        val intent = android.content.Intent().apply {
+                            component = target
                             flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
                                     android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
                         }

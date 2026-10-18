@@ -21,6 +21,24 @@ data class TaskSessionState(
     val startedAtMillis: Long = 0L,
     val stopRequested: Boolean = false,
     val autoReturnToChat: Boolean = false,
+
+    /**
+     * Fully-qualified class name of the Activity that started the task, or null
+     * to return to the chat screen (the historical behaviour).
+     *
+     * Tasks open other apps, so something has to bring the user back. That used
+     * to be hardcoded to [io.agents.pokeclaw.ui.chat.ComposeChatActivity], which
+     * is correct for the chat screen and wrong for every other surface that can
+     * start a task — the WebView preview page got yanked to the chat screen when
+     * its own task finished.
+     *
+     * Held as a String rather than an Activity reference on purpose: this state
+     * outlives the Activity (a task can outlive its own screen), and holding an
+     * Activity here would leak it. A String cannot be resolved to a live
+     * instance — see [TaskOrchestrator] for the degraded path when the task
+     * outlives the process.
+     */
+    val originActivity: String? = null,
 ) {
     val isRunning: Boolean
         get() = phase != TaskSessionPhase.IDLE && messageId.isNotEmpty()
@@ -47,6 +65,7 @@ class TaskSessionStore {
         channel: Channel,
         taskText: String = "",
         autoReturnToChat: Boolean = channel == Channel.LOCAL,
+        originActivity: String? = null,
     ): Boolean {
         synchronized(lock) {
             if (_state.value.isRunning) return false
@@ -58,6 +77,7 @@ class TaskSessionStore {
                 startedAtMillis = System.currentTimeMillis(),
                 stopRequested = false,
                 autoReturnToChat = autoReturnToChat,
+                originActivity = originActivity,
             )
             return true
         }
