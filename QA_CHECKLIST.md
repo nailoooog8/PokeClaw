@@ -786,9 +786,13 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **PASS，且推翻了此前「持久化失败」的结论。** 判定依据是三个独立证据同时成立：`loads` 计数跨 `force-stop` 从 1 涨到 2、`roundTrip.ok=true`、`applied == stored`。`localStorage` 在 `appassets` 来源下**完全正常**。
   - **真实根因**：当初那次点击**根本没落到 `applyAccent`**，所以 clay 默认值被原样读回，看起来像「存不住」。不是存储问题。
   - ⚠️ **曾经的错误结论（勿重犯）**：曾断言「CSS 变量表缺某个 key，导致静默回落」。核对 `cds.css:322-463` 后证实**7 个配色 + 7 个底色规则齐全**，该推断错误。教训：先数一遍再下结论。
-  - **新增护栏**：QA 面板把状态画进页面（截图即可读，不依赖 uiautomator——它看不见 WebView 内部）。面板里 `自检 写/读/一致` 与 `原生记住 accent=` 是对照组，后者走 SharedPreferences（一定持久），用于区分「没写」与「写丢了」。
+  - **新增护栏**：诊断状态**不再渲染到页面**。曾加过一个顶端 QA 面板，排查结束后必须移除（2026-10-18 commit `db4cab8`）。诊断改走编程接口：`window.__cds.qa()` 返回同一份状态对象，仍经 `PokeClawQA` 桥镜像进 SharedPreferences 作对照组。
   - **新增校验**：`validAccent` / `validBase` 现在读**解析后的计算值**（`getComputedStyle`），不再只查 DOM。只查 DOM 会放过「色块还在、CSS 变量没了」这类静默回落。
-  - 验证方法：`assembleRelease` → 覆盖安装 → 选非默认配色 → `adb shell am force-stop` → 重开 → 面板 `loads` 必须 ≥2 且 `stored` 等于所选 key。
+  - 验证方法：`assembleRelease` → 覆盖安装 → 选非默认配色 → `adb shell am force-stop` → 重开 → 读 `window.__cds.qa()`：`loads` 必须 ≥2 且 `stored` 等于所选 key。
+- [x] **H16. The preview surface has NO diagnostic UI [PASS — 2026-10-18]**: 打开预览页 → 页面顶端**不得有任何调试面板、按钮或源码文本**。
+  - 起因：QA 面板在设备上把自身源码当纯文本渲染在页面顶部。我先当渲染 bug 修了两轮（改写 `innerHTML` → `createElement`、加 DOM 探针），**全错** —— 那是我自己的诊断脚手架，本就不该留在成品里。第三轮才整体移除。
+  - ✅ 验证：release 包 `..._160448.apk` 冷启动后面板消失，深青 + 米黄配色完整保留。
+  - **防复发**：任何为排查临时加的页面 UI，生命周期必须与排查同生共死。需要长期数据就写日志，不要常驻在页面上。
 - [ ] **H14. Back leaves the mockup and does not crash**: on the mockup → BACK → returns to Settings.
   - ⚠️ **第一次返回可能只关掉配色面板**（若主题面板正开着），第二次才退出 —— 别误判成返回键坏了。
   - ✅ 2026-10-17 release 包真机确认：无 `FATAL` / `ANR`，第二次返回确实回到 `SettingsActivity`，`dumpsys activity` 中已无 `ClaudeUiPreview` 残留。
