@@ -67,15 +67,15 @@ class ComposeChatActivity : ComponentActivity() {
         ChatSessionController(
             activity = this,
             executor = executor,
-            uiState = ChatSessionUiState(
+            sink = ChatSessionUiState(
                 messages = _messages,
-                modelStatus = _modelStatus,
-                isAwaitingReply = _isAwaitingReply,
-                inputEnabled = _inputEnabled,
-                isDownloading = _isDownloading,
-                downloadProgress = _downloadProgress,
-                sessionTokens = _sessionTokens,
-                sessionCost = _sessionCost,
+                modelStatusState = _modelStatus,
+                awaitingReplyState = _isAwaitingReply,
+                inputEnabledState = _inputEnabled,
+                downloadingState = _isDownloading,
+                downloadProgressState = _downloadProgress,
+                sessionTokensState = _sessionTokens,
+                sessionCostState = _sessionCost,
             ),
             onPersistConversation = { saveChat() },
             onRefreshSidebarHistory = { refreshSidebarHistory() },

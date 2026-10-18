@@ -77,7 +77,9 @@ section is not empty, the release is not ready.
   (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`, CLAUDE.local.md §13.2). A DEBUG gate would
   hide the entry on the only build that can be tested. This entry is the guard.
 
-- [ ] **P1** Promote the Claude UI mockup to a real screen. The user wants the design live, not just viewable. `ChatSink` (`ui/chat/ChatSink.kt`, commit `86e4719`) is the seam that makes this possible: a WebView surface implements it and forwards to `evaluateJavascript` instead of re-implementing the task flow. **Blocked on a second seam** — `ChatSessionController` has the identical Compose coupling (`ChatSessionUiState` holds a `SnapshotStateList`, written in 40+ places inside `loadModelIfReady`, spanning model loading, conversation compaction and billing). Extract `ChatSessionSink` first; that is the fragile part and belongs in its own change. Do not shortcut by duplicating the flow — that is exactly the anti-pattern this extraction exists to remove.
+- [ ] **P1** Promote the Claude UI mockup to a real screen. The user wants the design live, not just viewable. **Both seams are now extracted**: `ChatSink` (`ui/chat/ChatSink.kt`, commit `86e4719`) for the task flow, and `ChatSessionSink` (`ui/chat/ChatSessionSink.kt`) for the session path — a WebView surface implements them and forwards to `evaluateJavascript` instead of re-implementing either flow. Do not shortcut by duplicating the flow — that is exactly the anti-pattern these extractions exist to remove.
+  - ⚠️ The two sinks are **deliberately separate types**. `replaceTypingIndicator` has opposite contracts (task flow no-ops when the indicator is gone; session appends so the user's reply is never swallowed). Do not merge them without changing one caller's behaviour on purpose — `TaskFlowUiStateTest` and `ChatSessionUiStateTest` will each break, which is the intended alarm.
+  - ⚠️ Still unverified on device: the extraction is compile- and unit-proven only. Run `QA_CHECKLIST.md` **H17** on the flagship chat path before trusting it.
   Same class of leak as `.github/FUNDING.yml` shipping `github: ithiria894` (§10.2).
 
 ## Features

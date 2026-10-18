@@ -799,6 +799,11 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ⚠️ **内存泄漏项仍未验证**：连续 3 轮开关的 PSS 在 170–334 MB 间振荡（GC 抖动，非单调增长），但当时 `adb input tap` 未能可靠进入预览（滚动惯性导致点错行，见 §13.4），**故该轮数据不作数**。重测请用 `scripts/ui_cycle_test.py`，并确认每轮 `entered=OK`。
 - [ ] **H15. Mockup loads from the generated assets dir, not a stale committed copy**: the mockup must render the file under `mockup/claude-ui/`. Edit a visible string there, `./gradlew assembleDebug`, reinstall → the edit is visible.
   - Guards the dedup: the three runtime files used to be duplicated byte-for-byte into `app/src/main/assets/claude-ui/`. Now `syncClaudeUiMockup` copies them into `build/generated/claudeUiAssets` at build time. Confirm `build/generated/claudeUiAssets/claude-ui/` contains exactly `index.html`, `cds.css`, `cds.js` — the nine `preview-*.png` (~740 KB) and `README.md` must NOT be in the APK.
+- [ ] **H17. Chat path unchanged after the ChatSessionSink extraction [NOT RUN — device pass required]**: 旗舰聊天页发一条消息 → 等待真实回复 → 确认①只出现**一条**助手气泡（无重复）②顶部模型状态行与 token/费用计数同步更新。
+  - 这是 `ChatSessionController` 抽出 `ChatSessionSink` 后的回归用例（2026-10-18）。改动**声称**是纯类型改动：`ChatSessionUiState` 仍写同一批 Compose state。
+  - 已有证据：`ChatSessionUiStateTest` 13 例把搬走的逻辑钉住（指示器识别、补一条而非丢弃、`lastMessage` 去重、快照不可变）；`assembleDebug` 与 247 个单测全绿。
+  - ⚠️ **但真机一条都没跑** —— 编译通过 ≠ 行为不变。上面第 ② 条尤其只有真机能验：token/费用走的是 `sink.sessionTokens += n` 的读改写，与原来的 `MutableState.value +=` 同构，这一点是推理不是实测。
+  - 附带风险点：`onPause` 的 `ConversationCompactor.compact(engine!!, sink.snapshotMessages(), ...)` 仍在 executor 线程上取快照（**与改动前一致，不是新引入的**）。若真机报 snapshot 异常，优先怀疑这里。
 
 ## SEC. Security — Adversarial Verification (red-team)
 

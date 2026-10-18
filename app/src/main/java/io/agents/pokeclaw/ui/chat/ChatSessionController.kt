@@ -25,21 +25,84 @@ import com.google.ai.edge.litertlm.SamplerConfig
 import java.io.File
 import java.util.concurrent.ExecutorService
 
-data class ChatSessionUiState(
+/**
+ * Compose adapter for [ChatSessionSink].
+ *
+ * Every member delegates to the same Compose state the controller wrote before
+ * the extraction, so the chat screen is behaviour-preserving by construction —
+ * this is a type change, not a logic change.
+ */
+class ChatSessionUiState(
     val messages: SnapshotStateList<ChatMessage>,
-    val modelStatus: MutableState<String>,
-    val isAwaitingReply: MutableState<Boolean>,
-    val inputEnabled: MutableState<Boolean>,
-    val isDownloading: MutableState<Boolean>,
-    val downloadProgress: MutableState<Int>,
-    val sessionTokens: MutableState<Int>,
-    val sessionCost: MutableState<Double>,
-)
+    private val modelStatusState: MutableState<String>,
+    private val awaitingReplyState: MutableState<Boolean>,
+    private val inputEnabledState: MutableState<Boolean>,
+    private val downloadingState: MutableState<Boolean>,
+    private val downloadProgressState: MutableState<Int>,
+    private val sessionTokensState: MutableState<Int>,
+    private val sessionCostState: MutableState<Double>,
+) : ChatSessionSink {
+
+    // Names deliberately differ from the [ChatSessionSink] members: an `override
+    // var modelStatus` next to a `MutableState<String> modelStatus` parameter
+    // would be the same identifier twice with different meanings. Hence the
+    // `…State` suffix, matching `TaskFlowUiState`.
+
+    override var modelStatus: String
+        get() = modelStatusState.value
+        set(value) { modelStatusState.value = value }
+
+    override var awaitingReply: Boolean
+        get() = awaitingReplyState.value
+        set(value) { awaitingReplyState.value = value }
+
+    override var inputEnabled: Boolean
+        get() = inputEnabledState.value
+        set(value) { inputEnabledState.value = value }
+
+    override var downloading: Boolean
+        get() = downloadingState.value
+        set(value) { downloadingState.value = value }
+
+    override var downloadProgress: Int
+        get() = downloadProgressState.value
+        set(value) { downloadProgressState.value = value }
+
+    override var sessionTokens: Int
+        get() = sessionTokensState.value
+        set(value) { sessionTokensState.value = value }
+
+    override var sessionCost: Double
+        get() = sessionCostState.value
+        set(value) { sessionCostState.value = value }
+
+    override fun append(message: ChatMessage) {
+        messages.add(message)
+    }
+
+    override fun replaceTypingIndicator(text: String, modelName: String?) {
+        val idx = messages.indexOfLast { isTypingIndicator(it) }
+        if (idx >= 0) {
+            messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelName)
+        } else {
+            // Append, unlike `ChatSink`. The controller clears `awaitingReply`
+            // before this runs, so dropping the reply here would strand the user.
+            messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelName))
+        }
+    }
+
+    override fun lastMessage(): ChatMessage? = messages.lastOrNull()
+
+    override fun snapshotMessages(): List<ChatMessage> = messages.toList()
+
+    private fun isTypingIndicator(m: ChatMessage) =
+        m.role == ChatMessage.Role.ASSISTANT && m.content == ChatSink.TYPING_INDICATOR
+}
 
 class ChatSessionController(
     private val activity: ComponentActivity,
     private val executor: ExecutorService,
-    private val uiState: ChatSessionUiState,
+    private val sink: ChatSessionSink,
     private val onPersistConversation: () -> Unit,
     private val onRefreshSidebarHistory: () -> Unit,
     private val isTaskRunning: () -> Boolean,
@@ -76,7 +139,7 @@ class ChatSessionController(
                 val previousModel = cloudModelName
                 cloudClient = LlmSessionManager.createCloudClient(temperature = 0.7)
                 if (cloudClient == null) {
-                    uiState.modelStatus.value = "No model selected"
+                    sink.modelStatus = "No model selected"
                     isModelReady = false
                     setButtonsEnabled(false)
                     return
@@ -97,11 +160,11 @@ class ChatSessionController(
                     }
                 }
                 isModelReady = true
-                uiState.modelStatus.value = "● ${cloudConfig.modelName} · Cloud"
+                sink.modelStatus = "● ${cloudConfig.modelName} · Cloud"
                 setButtonsEnabled(true)
                 XLog.i(TAG, "Cloud chat ready: ${cloudConfig.modelName} via ${cloudConfig.resolvedBaseUrl}")
             } else {
-                uiState.modelStatus.value = "No model selected"
+                sink.modelStatus = "No model selected"
                 isModelReady = false
                 setButtonsEnabled(false)
             }
@@ -111,7 +174,7 @@ class ChatSessionController(
         cloudClient = null
         val modelPath = resolvedConfig.local.modelPath
         if (isTaskRunning()) {
-            uiState.modelStatus.value = "● Local task using model"
+            sink.modelStatus = "● Local task using model"
             isModelReady = false
             setButtonsEnabled(false)
             return
@@ -140,17 +203,17 @@ class ChatSessionController(
             val deviceSupport = LocalModelManager.deviceSupport(activity)
             val defaultModel = deviceSupport.bestSupportedModel
             if (defaultModel == null) {
-                uiState.modelStatus.value = "Local model unavailable on this device"
-                uiState.isDownloading.value = false
+                sink.modelStatus = "Local model unavailable on this device"
+                sink.downloading = false
                 setButtonsEnabled(false)
                 addSystem(
                     "This device reports ${deviceSupport.deviceRamGb}GB RAM. Current built-in local models need at least ${deviceSupport.minimumBuiltInRamGb}GB."
                 )
                 return
             }
-            uiState.modelStatus.value = "Downloading ${defaultModel.displayName}..."
-            uiState.isDownloading.value = true
-            uiState.downloadProgress.value = 0
+            sink.modelStatus = "Downloading ${defaultModel.displayName}..."
+            sink.downloading = true
+            sink.downloadProgress = 0
             setButtonsEnabled(false)
 
             executor.submit {
@@ -158,8 +221,8 @@ class ChatSessionController(
                     override fun onProgress(bytesDownloaded: Long, totalBytes: Long, bytesPerSecond: Long) {
                         val pct = if (totalBytes > 0) (bytesDownloaded * 100 / totalBytes).toInt() else 0
                         postToMain {
-                            uiState.downloadProgress.value = pct
-                            uiState.modelStatus.value = "Downloading: $pct%"
+                            sink.downloadProgress = pct
+                            sink.modelStatus = "Downloading: $pct%"
                         }
                     }
 
@@ -169,15 +232,15 @@ class ChatSessionController(
                             ModelConfigRepository.activateLocal(modelPath, defaultModel.id)
                         }
                         postToMain {
-                            uiState.isDownloading.value = false
+                            sink.downloading = false
                             loadModelIfReady()
                         }
                     }
 
                     override fun onError(error: String) {
                         postToMain {
-                            uiState.isDownloading.value = false
-                            uiState.modelStatus.value = "Download failed"
+                            sink.downloading = false
+                            sink.modelStatus = "Download failed"
                             addSystem("Download failed: $error")
                         }
                     }
@@ -187,7 +250,7 @@ class ChatSessionController(
         }
 
         val restoredSystemPrompt = buildRestoredSystemPrompt(conversationId, visibleMessages)
-        uiState.modelStatus.value = "Loading..."
+        sink.modelStatus = "Loading..."
         setButtonsEnabled(false)
         val generation = ++localUiGeneration
         executor.submit { loadModel(modelPath, generation, restoredSystemPrompt) }
@@ -230,14 +293,14 @@ class ChatSessionController(
                     val isSessionConflict = e.message?.contains("session already exists") == true
                     postToMain {
                         if (isSessionConflict) {
-                            uiState.modelStatus.value = "⚠ Model busy — tap model to retry"
+                            sink.modelStatus = "⚠ Model busy — tap model to retry"
                             Toast.makeText(
                                 activity,
                                 "Model is being used by a task. Wait for it to finish, then tap the model name to retry.",
                                 Toast.LENGTH_LONG
                             ).show()
                         } else {
-                            uiState.modelStatus.value = "⚠ Model load failed — tap to retry"
+                            sink.modelStatus = "⚠ Model load failed — tap to retry"
                             Toast.makeText(
                                 activity,
                                 "Failed to load model: ${e.message?.take(80)}",
@@ -254,14 +317,14 @@ class ChatSessionController(
     }
 
     fun onPause(conversationId: String) {
-        if (engine != null && ConversationCompactor.needsCompaction(uiState.messages)) {
+        if (engine != null && ConversationCompactor.needsCompaction(sink.snapshotMessages())) {
             executor.submit {
                 try {
                     conversation?.close()
                 } catch (_: Exception) {
                 }
                 conversation = null
-                ConversationCompactor.compact(engine!!, uiState.messages, activity, conversationId)
+                ConversationCompactor.compact(engine!!, sink.snapshotMessages(), activity, conversationId)
                 isModelReady = false
             }
         }
@@ -307,8 +370,8 @@ class ChatSessionController(
 
     fun sendChat(text: String) {
         addUser(text)
-        uiState.isAwaitingReply.value = true
-        uiState.messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
+        sink.awaitingReply = true
+        sink.append(ChatMessage(ChatMessage.Role.ASSISTANT, ChatSink.TYPING_INDICATOR))
 
         executor.submit {
             try {
@@ -326,9 +389,9 @@ class ChatSessionController(
                     XLog.d(TAG, "sendChat: cloud response modelName='${llmResponse.modelName}', fallback='$fallbackModelName'")
                     postToMain {
                         replaceTypingIndicator(responseText, modelTag)
-                        uiState.isAwaitingReply.value = false
-                        uiState.sessionTokens.value += inputTokens + outputTokens
-                        uiState.sessionCost.value += ModelPricing.estimateCost(modelTag, inputTokens, outputTokens)
+                        sink.awaitingReply = false
+                        sink.sessionTokens += inputTokens + outputTokens
+                        sink.sessionCost += ModelPricing.estimateCost(modelTag, inputTokens, outputTokens)
                         onPersistConversation()
                     }
                 } else {
@@ -344,8 +407,8 @@ class ChatSessionController(
                     val localModelTag = localModelTag(modelPath)
                     postToMain {
                         replaceTypingIndicator(responseText, localModelTag)
-                        uiState.isAwaitingReply.value = false
-                        uiState.sessionTokens.value += inputTokensEst + outputTokensEst
+                        sink.awaitingReply = false
+                        sink.sessionTokens += inputTokensEst + outputTokensEst
                         onPersistConversation()
                     }
                 }
@@ -360,8 +423,8 @@ class ChatSessionController(
                         val cpuModelTag = localModelTag(modelPath)
                         postToMain {
                             replaceTypingIndicator(responseText, cpuModelTag)
-                            uiState.isAwaitingReply.value = false
-                            uiState.sessionTokens.value += inputTokensEst + outputTokensEst
+                            sink.awaitingReply = false
+                            sink.sessionTokens += inputTokensEst + outputTokensEst
                             updateLocalModelStatus(modelPath)
                             onPersistConversation()
                         }
@@ -373,7 +436,7 @@ class ChatSessionController(
                 XLog.e(TAG, "Chat error", e)
                 postToMain {
                     replaceTypingIndicator("Error: ${e.message}")
-                    uiState.isAwaitingReply.value = false
+                    sink.awaitingReply = false
                 }
             }
         }
@@ -381,7 +444,7 @@ class ChatSessionController(
 
     fun switchModel(modelId: String, displayName: String) {
         if (modelId == "NONE") {
-            uiState.modelStatus.value = "No model selected"
+            sink.modelStatus = "No model selected"
             isModelReady = false
             setButtonsEnabled(false)
             XLog.i(TAG, "switchModel: NONE — no model configured for current tab")
@@ -390,14 +453,14 @@ class ChatSessionController(
         if (modelId == "LOCAL") {
             val localConfig = ModelConfigRepository.snapshot().local
             if (!localConfig.isConfigured) {
-                uiState.modelStatus.value = "No model selected"
+                sink.modelStatus = "No model selected"
                 isModelReady = false
                 setButtonsEnabled(false)
                 XLog.i(TAG, "switchModel: LOCAL requested but no local default configured")
                 return
             }
             ModelConfigRepository.activateLocal(localConfig.modelPath, localConfig.modelId)
-            uiState.modelStatus.value = "● ${localConfig.displayName} · On-device"
+            sink.modelStatus = "● ${localConfig.displayName} · On-device"
             addSystem("Switched to local model")
             loadModelIfReady()
         } else {
@@ -517,7 +580,7 @@ class ChatSessionController(
                 || e.message?.contains("5 retries") == true
             postToMain {
                 if (isSessionConflict) {
-                    uiState.modelStatus.value = "⚠ Model busy — tap model to retry"
+                    sink.modelStatus = "⚠ Model busy — tap model to retry"
                     addSystem("Model is being used by a background task. Wait for it to finish, then tap the model name above to reload.")
                     Toast.makeText(
                         activity,
@@ -525,7 +588,7 @@ class ChatSessionController(
                         Toast.LENGTH_LONG
                     ).show()
                 } else {
-                    uiState.modelStatus.value = "⚠ Load failed — tap model to retry"
+                    sink.modelStatus = "⚠ Load failed — tap model to retry"
                     addSystem("Failed to load model: ${e.message?.take(100)}")
                     Toast.makeText(
                         activity,
@@ -586,7 +649,7 @@ class ChatSessionController(
     private fun rebuildCloudHistoryFromVisibleMessages() {
         cloudHistory.clear()
         cloudHistory.add(SystemMessage.from(BASE_SYSTEM_PROMPT))
-        uiState.messages.forEach { msg ->
+        sink.snapshotMessages().forEach { msg ->
             when (msg.role) {
                 ChatMessage.Role.USER -> cloudHistory.add(UserMessage.from(msg.content))
                 ChatMessage.Role.ASSISTANT -> cloudHistory.add(AiMessage.from(msg.content))
@@ -603,37 +666,32 @@ class ChatSessionController(
 
     private fun replaceTypingIndicator(text: String, actualModelName: String? = null) {
         val modelTag = actualModelName
-            ?: uiState.modelStatus.value.removePrefix("● ").split(" ·").firstOrNull()?.trim()
+            ?: sink.modelStatus.removePrefix("● ").split(" ·").firstOrNull()?.trim()
             ?: ""
-        val idx = uiState.messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
-        if (idx >= 0) {
-            uiState.messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelTag)
-        } else {
-            uiState.messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelTag))
-        }
+        sink.replaceTypingIndicator(text, modelTag)
     }
 
     private fun addUser(text: String) {
-        uiState.messages.add(ChatMessage(ChatMessage.Role.USER, text))
+        sink.append(ChatMessage(ChatMessage.Role.USER, text))
     }
 
     private fun addSystem(text: String) {
-        val last = uiState.messages.lastOrNull()
+        val last = sink.lastMessage()
         if (last?.role == ChatMessage.Role.SYSTEM && last.content.equals(text, ignoreCase = true)) {
             return
         }
-        uiState.messages.add(ChatMessage(ChatMessage.Role.SYSTEM, text))
+        sink.append(ChatMessage(ChatMessage.Role.SYSTEM, text))
     }
 
     private fun updateLocalModelStatus(modelPath: String?) {
         if (modelPath.isNullOrEmpty()) {
-            uiState.modelStatus.value = "No model selected"
+            sink.modelStatus = "No model selected"
             return
         }
         val modelInfo = LocalModelManager.AVAILABLE_MODELS.find { modelPath.endsWith(it.fileName) }
         val modelName = modelInfo?.displayName ?: modelPath.substringAfterLast('/').substringBeforeLast('.')
         val backendLabel = LocalModelRuntime.currentBackendLabel(modelPath) ?: "On-device"
-        uiState.modelStatus.value = "● $modelName · $backendLabel"
+        sink.modelStatus = "● $modelName · $backendLabel"
     }
 
     fun syncUiToActiveModel() {
@@ -641,7 +699,7 @@ class ChatSessionController(
         if (config.isLocalActive()) {
             val modelPath = config.local.modelPath
             if (modelPath.isNullOrBlank()) {
-                uiState.modelStatus.value = "No model selected"
+                sink.modelStatus = "No model selected"
                 setButtonsEnabled(false)
                 return
             }
@@ -656,7 +714,7 @@ class ChatSessionController(
 
         val cloud = config.activeCloud
         if (!cloud.isConfigured) {
-            uiState.modelStatus.value = "No model selected"
+            sink.modelStatus = "No model selected"
             setButtonsEnabled(false)
             return
         }
@@ -673,7 +731,7 @@ class ChatSessionController(
             loadModelIfReady()
             return
         }
-        uiState.modelStatus.value = "● ${cloud.modelName} · Cloud"
+        sink.modelStatus = "● ${cloud.modelName} · Cloud"
         setButtonsEnabled(true)
     }
 
@@ -695,7 +753,7 @@ class ChatSessionController(
     }
 
     private fun setButtonsEnabled(enabled: Boolean) {
-        uiState.inputEnabled.value = enabled
+        sink.inputEnabled = enabled
     }
 
     private fun postToMain(action: () -> Unit) {
