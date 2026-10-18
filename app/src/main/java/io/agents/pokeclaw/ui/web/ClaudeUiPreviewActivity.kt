@@ -19,21 +19,160 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.webkit.WebViewAssetLoader
+import io.agents.pokeclaw.appViewModel
 import io.agents.pokeclaw.base.BaseActivity
+import io.agents.pokeclaw.ui.chat.ChatSessionController
+import io.agents.pokeclaw.ui.chat.ChatSessionUiState
+import io.agents.pokeclaw.ui.chat.ConversationStore
+import io.agents.pokeclaw.ui.chat.TaskFlowController
 import io.agents.pokeclaw.utils.XLog
+import java.util.concurrent.Executors
 
 /**
- * Claude UI design mockup viewer.
+ * Claude UI chat surface, backed by the real task flow.
  *
- * Renders `assets/claude-ui/index.html` from the packaged APK.
- * This is a design-review surface, not a product feature — it hosts static
- * files only and is deliberately not exported, so no other app can reach it.
+ * Renders `assets/claude-ui/index.html` from the packaged APK and drives it
+ * from [io.agents.pokeclaw.ui.chat.TaskFlowController] through a
+ * [WebChatSink]. The orchestration is *not* reimplemented here — the same
+ * controller backs the Compose chat screen; this is the second sink.
+ *
+ * Also a design-review surface, so the static sample turns (tool card, MCP
+ * confirm card, memory chips) stay in `index.html` as markup samples. Those
+ * have no live data source because `ChatMessage.toolSteps` is never populated
+ * by the controller today.
+ *
+ * Not exported, so no other app can reach it.
  */
 class ClaudeUiPreviewActivity : BaseActivity() {
 
     private lateinit var webView: WebView
     private var qaReceiver: BroadcastReceiver? = null
+    private val executor = Executors.newSingleThreadExecutor()
+
+    private val conversationStore by lazy { ConversationStore(this) }
+
+    private val sink by lazy {
+        WebChatSink { messages -> publish(messages) }
+    }
+
+    private val taskFlowController by lazy {
+        TaskFlowController(
+            activity = this,
+            executor = executor,
+            appViewModel = appViewModel,
+            chatSessionController = chatSessionController,
+            currentConversationId = { conversationStore.currentConversationId },
+            sink = sink,
+            onPersistConversation = { saveChat() },
+        )
+    }
+
+    private val chatSessionController by lazy {
+        ChatSessionController(
+            activity = this,
+            executor = executor,
+            sink = ChatSessionUiState(
+                messages = mutableStateListOf(),
+                modelStatusState = mutableStateOf("No model loaded"),
+                awaitingReplyState = mutableStateOf(false),
+                inputEnabledState = mutableStateOf(true),
+                downloadingState = mutableStateOf(false),
+                downloadProgressState = mutableStateOf(0),
+                sessionTokensState = mutableStateOf(0),
+                sessionCostState = mutableStateOf(0.0),
+            ),
+            onPersistConversation = { saveChat() },
+            onRefreshSidebarHistory = {},
+            isTaskRunning = { appViewModel.isTaskRunning() },
+        )
+    }
+
+    private fun saveChat() {
+        // No conversation picker on this surface, so there is nothing to write
+        // back to. The controller requires the hook; keep it inert rather than
+        // inventing a storage policy this page does not have a UI for.
+    }
+
+    /**
+     * JS → Kotlin: the composer hands us the text and we run a real task.
+     *
+     * Called on the WebView's JavaScript thread, so everything the task flow
+     * touches is marshalled to the main thread first.
+     */
+    private val chatBridge = object {
+        @JavascriptInterface
+        fun send(text: String?) {
+            val payload = text?.trim().orEmpty()
+            if (payload.isEmpty()) return
+            XLog.e(TAG, "[chat] send(${payload.length} chars)")
+            runOnUiThread { taskFlowController.sendTask(payload) }
+        }
+    }
+
+    /**
+     * Kotlin → JS: hand the page a full snapshot to draw.
+     *
+     * A snapshot rather than a diff. The message count per task is small, and a
+     * missed delta desyncs the page with no way to recover — a full redraw can
+     * always be re-derived from [WebChatSink]'s list.
+     */
+    private fun publish(messages: List<WebChatSink.WebMessage>) {
+        if (!::webView.isInitialized) return
+        val json = buildString {
+            append('[')
+            messages.forEachIndexed { i, m ->
+                if (i > 0) append(',')
+                appendJsonObject(m)
+            }
+            append(']')
+        }
+        // The snapshot is spliced in as a literal rather than handed over as a
+        // string: evaluateJavascript takes source text, so a quoted string
+        // would have to be unquoted and re-parsed on the far side anyway.
+        // No result callback — renderLiveRaw returns undefined; if the page
+        // throws, the error surfaces via the console bridge instead.
+        webView.post {
+            webView.evaluateJavascript("window.__cds && window.__cds.renderLiveRaw($json);", null)
+        }
+    }
+
+    /** Minimal JSON writer — messages are plain strings, never user-supplied HTML. */
+    private fun StringBuilder.appendJsonObject(m: WebChatSink.WebMessage) {
+        append("{\"role\":"); appendJsonString(m.role)
+        append(",\"content\":"); appendJsonString(m.content)
+        append(",\"isTypingIndicator\":").append(m.isTypingIndicator)
+        append(",\"modelName\":"); if (m.modelName == null) append("null") else appendJsonString(m.modelName)
+        append(",\"toolSteps\":[")
+        m.toolSteps.forEachIndexed { i, s ->
+            if (i > 0) append(',')
+            append("{\"name\":"); appendJsonString(s.name)
+            append(",\"summary\":"); appendJsonString(s.summary)
+            append(",\"success\":").append(s.success).append('}')
+        }
+        append("]}")
+    }
+
+    private fun StringBuilder.appendJsonString(value: String) {
+        append('"')
+        value.forEach { c ->
+            when (c) {
+                '"' -> append("\\\"")
+                '\\' -> append("\\\\")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> if (c < ' ' || c == ' ' || c == ' ') {
+                    append("\\u%04x".format(c.code))
+                } else {
+                    append(c)
+                }
+            }
+        }
+        append('"')
+    }
 
     /**
      * JS 桥，唯一目的是给 localStorage 配一个**已知为真**的对照组。
@@ -90,6 +229,7 @@ class ClaudeUiPreviewActivity : BaseActivity() {
             // localStorage-backed theme persistence needs DOM storage enabled
             settings.domStorageEnabled = true
             addJavascriptInterface(qaBridge, "PokeClawQA")
+            addJavascriptInterface(chatBridge, "PokeClawChat")
             isFocusable = true
             isFocusableInTouchMode = true
             requestFocus()

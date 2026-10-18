@@ -805,6 +805,15 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - **本条最值钱的证据**：`replaceTypingIndicator` 走的是「无指示器则补一条」这条**非默认**契约。若当初图省事让 `ChatSessionSink` 继承 `ChatSink`（no-op 语义），这条回复会被**整个吞掉** —— 用户发完消息界面永远停在「思考中」。真机这一轮把该设计选择验实了。
   - ⚠️ **token/费用计数未取到数值**（**不计入 PASS**）：`XLog` 在 release 下只有 `e` 级进 logcat（§18.12），计数走的是 `XLog.d`；且当次 logcat 缓冲区仅剩 64 行、无 pokeclaw 记录。计数是纯读改写（`sink.sessionTokens += n` ↔ 原 `MutableState.value += n`），`ChatSessionUiStateTest` 已钉住往返，但**真机未观测**。要补验需 debug 包，而设备上是 release 签名、debug 无法覆盖安装（§13.2）。
   - ✅ 附带确认：`onPause` 的 `ConversationCompactor.compact(engine!!, sink.snapshotMessages(), ...)`（§19.6 记的既有越线程隐患，本次未改）本轮未被触发，无 snapshot 异常。
+- [ ] **H18. The preview page drives a real task [PARTIAL — 2026-10-18]**: 设置 → 关于 →「Claude UI 设计稿」→ 在输入框发一条真实指令 → 确认①用户气泡立即出现②先出现「正在思考…」指示器③随后被真实回复替换④整个过程无 `FATAL` / `ANR`。
+  - 这是 B 方案（把设计稿接上真实任务流）的验收用例。设计稿此前是**硬编码 HTML**，`cds.js` 只有 `renderBackoff()` 一个渲染函数、全项目零 JS 桥。现在由 `WebChatSink` 实现 `ChatSink`，Kotlin 侧把整份快照 `evaluateJavascript` 给页面，页面按 role 重建 turn。
+  - ✅ **已验（构建侧）**：`compileDebugKotlin` 通过；全量单测 **260 / 29 suites / 0 失败**（新增 `WebChatSinkTest` 13 例）；`assembleRelease` 产出 `PokeClaw_v0.8.3_20261018_165142.apk`，`adb install -r` **Success**（证书 `7c2d6dd5…4c667`，与设备同密钥）；**解包核对** `assets/claude-ui/cds.js` = 27,771 B，与 `mockup/claude-ui/cds.js` 字节数一致，且含 `renderLiveRaw` 与 `PokeClawChat` 两处新代码。
+  - ❌ **未验（阻塞：无法自动进入该页）**：`ClaudeUiPreviewActivity` 是 `exported="false"`（**这是正确的安全设计**，非缺陷），`adb shell am start` 报 `SecurityException: … not exported from uid 10395`。尝试从聊天页点设置图标导航，`adb input tap` 连续 3 次无效果（§18.7 记录的 Compose tap 不送达），其中一次误触跳到了第三方 app。**故本条不得记 PASS** —— 现象未观测到。
+  - **人工验法（约 1 分钟）**：应用内 设置 → 关于 →「Claude UI 设计稿」→ 输入框发一句「现在几点」→ 看气泡与「正在思考…」是否出现并被替换。logcat 过滤 `ClaudeUiPreview` 或 `[chat]`。
+  - ⚠️ **预期不动的部分**：工具卡片 / MCP 确认卡 / 记忆 chips **接入后仍是静态示例**。`ChatMessage.toolSteps` 在 `TaskFlowController` 里从未被赋值（grep 零命中），`cds.js` 的 `buildTurn` 已能画工具卡，但**生产侧没有数据源**。这不是渲染缺口，是产生侧缺口。
+- [ ] **H19. Assistant text is never injected as HTML [PASS by construction — 2026-10-18]**: 助手正文必须经 `textContent` 写入，不得用 `innerHTML` 拼字符串。
+  - `cds.js` 的 `buildTurn` 只用 `innerHTML` 拼**静态骨架**（class 名与标签），消息正文一律 `.textContent = m.content`。助手内容是模型生成的，拼字符串就是注入面。Kotlin 侧的 `appendJsonString` 另行转义 `"` `\` 与控制字符。
+  - 建议补一条真机用例：让模型回一段含 `<script>` 的文本，确认页面原样显示而不执行。
 
 ## SEC. Security — Adversarial Verification (red-team)
 

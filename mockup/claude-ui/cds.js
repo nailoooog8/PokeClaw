@@ -161,13 +161,24 @@
 
   sendBtn.addEventListener('click', submit);
 
+  // 有 Kotlin 桥 → 真实任务流；没有（纯浏览器打开）→ 本地模拟。
+  // 用 typeof 判存在性而不是布尔标志：桥是 addJavascriptInterface 注入的
+  // 对象，标志位可能在桥注入前就被读到。
+  function hasNativeBridge() {
+    return typeof PokeClawChat !== 'undefined' && PokeClawChat && PokeClawChat.send;
+  }
+
   function submit() {
     var text = ta.value.trim();
     if (!text) return;
     ta.value = '';
     syncAutoGrow();
-    appendUser(text);
-    runAssistant(text);
+    if (hasNativeBridge()) {
+      PokeClawChat.send(text);
+    } else {
+      appendUser(text);
+      runAssistant(text);
+    }
   }
 
   /* ------------------------------------------------------- 滚动底部钉住
@@ -383,7 +394,64 @@
     t.querySelector('.bubble').textContent = text;
   }
 
-  // 模拟助手回合：思考状态 → 工具调用 → 正文。仅为演示动效，不连后端。
+  /* -------------------------------------------- 真实消息流（Kotlin → 页面）
+     TaskFlowController 经 WebChatSink 把消息推过来，这里负责按 role 画出对应的
+     turn。全部走 createElement + textContent，不用 innerHTML 拼消息正文 ——
+     助手内容是模型生成的，拼字符串就是注入面。
+
+     整表重建而不是增量 diff：消息量以「一轮任务」计（个位数到几十），重建成本
+     远低于维护一套 key 对齐的 diff；而增量一旦漏掉一次就会错位，且错位之后
+     没有任何自愈路径。滚动钉住由 repin() 负责，重建不丢滚动位置。 */
+  function renderLive(messages) {
+    feed.textContent = '';
+    (messages || []).forEach(function (m) { feed.appendChild(buildTurn(m)); });
+    toBottom(false);
+  }
+
+  // Kotlin 侧已经把 JSON 字面量拼进调用点，所以这里拿到的是已解析的数组，
+  // 不再 parse 一次。两条入口共用 renderLive 的实现。
+  function renderLiveRaw(messages) { renderLive(messages); }
+
+  function buildTurn(m) {
+    if (m.isTypingIndicator) {
+      return turn('turn-assistant',
+        '<div class="status-row"><span class="timeline-quiet-dots">' +
+        '<span></span><span></span><span></span></span>' +
+        '<span class="status-text">正在思考…</span></div>');
+    }
+    if (m.role === 'USER') {
+      var t = turn('turn-user', '<div class="bubble"></div>');
+      t.querySelector('.bubble').textContent = m.content;
+      return t;
+    }
+
+    var parts = [];
+    if (m.content) {
+      parts.push('<div class="body"><p></p></div>');
+    }
+    (m.toolSteps || []).forEach(function () {
+      parts.push('<div class="tool-card"><div class="tool-head">' +
+        '<span class="status-dot" data-kind="ready"></span>' +
+        '<span class="tool-name"></span>' +
+        '<span class="tool-kind">工具调用</span></div>' +
+        '<div class="tool-body"></div></div>');
+    });
+    var node = turn('turn-assistant', parts.join(''));
+
+    if (m.content) {
+      node.querySelector('.body p').textContent = m.content;
+    }
+    var steps = node.querySelectorAll('.tool-card');
+    (m.toolSteps || []).forEach(function (step, i) {
+      if (!steps[i]) return;
+      steps[i].querySelector('.tool-name').textContent = step.name;
+      steps[i].querySelector('.tool-body').textContent = step.summary;
+      steps[i].querySelector('.status-dot').setAttribute('data-kind', step.success ? 'ready' : 'error');
+    });
+    return node;
+  }
+
+  // 演示用的模拟回合，保留给纯浏览器预览；接入后走 renderLive。
   function runAssistant(prompt) {
     var status = turn('turn-assistant',
       '<div class="status-row"><span class="timeline-quiet-dots">' +
@@ -579,6 +647,8 @@
 
   // 暴露给调试 / 自动化验证
   window.__cds = {
+    renderLive: renderLive,
+    renderLiveRaw: renderLiveRaw,
     rateLimit: triggerBackoff,
     resetRateLimit: function () {
       clearInterval(backoff.timer); backoff.timer = null;

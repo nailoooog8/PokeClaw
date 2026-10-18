@@ -62,24 +62,23 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 Anything here is reachable by users right now. If a release is being cut and this
 section is not empty, the release is not ready.
 
-- [ ] **P1** Claude UI design-review surface. A Settings > About row ("Claude UI mockup" / 「Claude UI 设计稿」) opens `ClaudeUiPreviewActivity`, a WebView showing the static `mockup/claude-ui/` mockup. **No product value — pure design review.** Must not ship. Removal checklist:
-  - `ClaudeUiPreviewActivity.kt` (whole file)
-  - `SettingsActivity.kt` — the `aboutGroup.addMenuItem` block + the `ClaudeUiPreviewActivity` import
-  - `AndroidManifest.xml` — the `.ui.web.ClaudeUiPreviewActivity` `<activity>`
-  - `res/values*/strings.xml` — `settings_about_claude_ui_preview` (all three locales)
-  - `app/build.gradle.kts` — `claudeUiMockup` / `claudeUiAssetsDir` / `syncClaudeUiMockup` / the `sourceSets` assets entry
-  - `mockup/claude-ui/` can stay; it is a design artefact and never entered the APK
-  - `NOTICE` keeps the MIT attribution either way (see below) — removing the
-    surface does not remove the licence obligation once it has shipped in a build
+> **2026-10-18 变更**：Claude UI 预览页**已不再是「临时面」** —— 它接上了真实任务流
+> （`WebChatSink` → `TaskFlowController`），是有产品功能的入口。原先「发布前必删」
+> 的判据随之作废。下面剩下的条目才仍适用这条规则。
 
-  Not gated on `BuildConfig.DEBUG` **on purpose**: the QA device carries the
-  release-signed build and a debug APK cannot overwrite it
-  (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`, CLAUDE.local.md §13.2). A DEBUG gate would
-  hide the entry on the only build that can be tested. This entry is the guard.
+- [x] ~~Claude UI design-review surface~~ **已转为功能入口**。原先记为「无产品价值、纯设计评审、
+  不得随发布」，但 B 方案落地后它驱动的是真实任务流（见下方「Promote」条）。
+  唯一残留的临时痕迹是 `index.html` 里的静态示例 turn（工具卡 / MCP 卡 / 记忆 chips），
+  它们在 `toolSteps` 喂上数据前应视为示例而非缺陷。
 
-- [ ] **P1** Promote the Claude UI mockup to a real screen. The user wants the design live, not just viewable. **Both seams are now extracted**: `ChatSink` (`ui/chat/ChatSink.kt`, commit `86e4719`) for the task flow, and `ChatSessionSink` (`ui/chat/ChatSessionSink.kt`) for the session path — a WebView surface implements them and forwards to `evaluateJavascript` instead of re-implementing either flow. Do not shortcut by duplicating the flow — that is exactly the anti-pattern these extractions exist to remove.
+- [x] **P1** Promote the Claude UI mockup to a real screen. The user wants the design live, not just viewable. **Both seams are now extracted**: `ChatSink` (`ui/chat/ChatSink.kt`, commit `86e4719`) for the task flow, and `ChatSessionSink` (`ui/chat/ChatSessionSink.kt`) for the session path — a WebView surface implements them and forwards to `evaluateJavascript` instead of re-implementing either flow. Do not shortcut by duplicating the flow — that is exactly the anti-pattern these extractions exist to remove.
   - ⚠️ The two sinks are **deliberately separate types**. `replaceTypingIndicator` has opposite contracts (task flow no-ops when the indicator is gone; session appends so the user's reply is never swallowed). Do not merge them without changing one caller's behaviour on purpose — `TaskFlowUiStateTest` and `ChatSessionUiStateTest` will each break, which is the intended alarm.
   - ✅ 已验证：`QA_CHECKLIST.md` **H17** 于 2026-10-18 真机 PASS（单条助手气泡、模型状态行、无 FATAL）。**唯一例外**：token/费用计数的真实数值未取证 —— `XLog` 在 release 下只有 `e` 级进 logcat，计数走 `XLog.d`，而设备上是 release 签名、debug 包无法覆盖安装。
+  - ✅ **2026-10-18 已实现第三层接线**：`WebChatSink`（`ui/web/WebChatSink.kt`）实现 `ChatSink`，`ClaudeUiPreviewActivity` 用它驱动 `TaskFlowController`；页面侧新增 `renderLive`/`renderLiveRaw` 按 role 重建 turn，composer 经 `PokeClawChat.send` 回调 Kotlin。**编排逻辑仍是 `TaskFlowController` 一处**，这是「一个控制器 + 三个 sink 实现」，不是 CLAUDE.md 说的 duplicate code path。
+  - 配套：`WebChatSinkTest` 13 例；全量 **260 tests / 29 suites / 0 失败**。
+  - ❌ **真机验证未完成（不得记 PASS）**：`ClaudeUiPreviewActivity` 是 `exported="false"`（正确的安全设计），adb 无法拉起；`adb input tap` 导航连续失败。详见 `QA_CHECKLIST.md` **H18**。
+  - ⚠️ **下一条独立缺口**：`ChatMessage.toolSteps` 在 `TaskFlowController` 里**从未被赋值**（grep 零命中）。所以设计稿里的工具卡片 / MCP 确认卡 / 记忆 chips 在接入后**仍是静态示例** —— `buildTurn` 已能画工具卡，缺的是**生产侧数据**。要给 MCP 确认按钮接交互，还需一条 Kotlin → JS → Kotlin 的决策回路，属另一次范围决策。
+
   Same class of leak as `.github/FUNDING.yml` shipping `github: ithiria894` (§10.2).
 
 ## Features
