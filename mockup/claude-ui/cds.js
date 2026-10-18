@@ -36,7 +36,6 @@
     store(THEME_KEY, mode);
     var btn = document.getElementById('themeToggle');
     if (btn) btn.setAttribute('aria-label', mode === 'dark' ? '切换到浅色' : '切换到深色');
-    qaRefresh();
   }
 
   function initTheme() {
@@ -58,7 +57,6 @@
       row.setAttribute('aria-checked', String(row.dataset.themeKey === key));
     });
     syncThemeLabel();
-    qaRefresh();
   }
 
   /* ------------------------------------------------- 底色方案
@@ -72,7 +70,6 @@
       row.setAttribute('aria-checked', String(row.dataset.baseKey === key));
     });
     syncThemeLabel();
-    qaRefresh();
   }
 
   /* ------------------------------------------------- 存量值校验
@@ -546,46 +543,18 @@
     return s;
   }
 
-  function qaRender(s) {
-    if (!qaPanel) return;
-    qaPanel.querySelector('#qaLoads').textContent =
-      'loads=' + s.loads + ' @' + s.launchAt;
-    qaPanel.querySelector('#qaOrigin').textContent =
-      s.origin + ' · ' + s.protocol + ' · ' + s.ua;
-    qaPanel.querySelector('#qaApplied').textContent =
-      'applied mode=' + s.applied.mode + ' accent=' + s.applied.accent + ' base=' + s.applied.base;
-    qaPanel.querySelector('#qaStored').textContent =
-      'stored theme=' + s.stored.theme + ' accent=' + s.stored.accent +
-      ' base=' + s.stored.base + ' len=' + s.stored.len;
-    qaPanel.querySelector('#qaRT').textContent =
-      '自检 写=' + s.roundTrip.w + ' 读=' + s.roundTrip.r + ' 一致=' + s.roundTrip.ok +
-      ' | 原生记住 accent=' + (s.spAccent || '—') + ' mode=' + (s.spMode || '—');
-  }
-
-  function qaRefresh() { qaRender(qaReport()); }
-
+  // 面板已整体移除。
+  //
+  // 它是为了排查「配色存不住」临时加的诊断脚手架，排查早已结束（QA H13-b
+  // PASS，见 QA_CHECKLIST）。但它一直留在页面顶端，污染了要给用户看的成品
+  // —— 而且它在设备上把自身源码当纯文本渲染出来（同一份代码在桌面 Chromium
+  // 上正常），排查那个渲染问题本身没有价值：结论已经拿到了。
+  //
+  // 诊断能力不丢，只是改为纯编程接口：`window.__cds.qa()` 返回同一份状态对象，
+  // 自动化仍可调用，也仍会经 PokeClawQA 桥镜像到 SharedPreferences。
+  // 结论写在代码注释与 QA_CHECKLIST 里，而不是永久糊在设计稿顶上。
   function qaBuildPanel() {
-    var el = document.createElement('div');
-    el.id = 'cdsQaPanel';
-    // 只读诊断条，不再持有任何切换按钮 —— 配色切换一律走 index.html 里
-    // 那个 .theme-pop 色板浮层，与网页预览完全一致。之前加循环按钮是为了
-    // 绕开不可靠的坐标盲 tap，验收通过后已按要求撤回。
-    el.style.cssText = [
-      'position:fixed', 'z-index:2147483647', 'left:0', 'right:0', 'top:0',
-      'background:var(--cds-fill-secondary)', 'color:var(--cds-text-primary)',
-      'border-bottom:1px solid var(--cds-border-strong)',
-      'font:11px/1.5 ui-monospace,Consolas,monospace',
-      'padding:4px 8px', 'pointer-events:none'
-    ].join(';');
-    el.innerHTML =
-      '<b>QA</b>' +
-      '<span id="qaLoads"></span>' +
-      '<span id="qaOrigin"></span>' +
-      '<span id="qaApplied"></span>' +
-      '<span id="qaStored"></span>' +
-      '<span id="qaRT"></span>';
-    document.body.appendChild(el);
-    qaPanel = el;
+    // 故意不渲染任何东西 —— 见上。留这个空函数只为记录「面板已移除」这件事。
   }
 
   /* ------------------------------------------------------------------ 启动 */

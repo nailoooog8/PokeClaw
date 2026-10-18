@@ -2,10 +2,21 @@
 
 这是一个**设计稿 / 视觉参考**，不是产品的一部分。
 
-- 不进 APK —— `mockup/` 不在 `app/src/main/assets` 下，打包时不会被包含
 - 不连任何后端 —— 会话内容是写死的演示数据
 - 不接 `ConfigServer` —— 与局域网配置功能无关
-- **未经真机验证**，因此不能直接搬进 Android UI（见下）
+
+> ⚠️ **本目录确实会进 APK**，通过 `app/build.gradle.kts` 的 `syncClaudeUiMockup`
+> 任务在 `preBuild` 阶段同步到 `build/generated/claudeUiAssets/claude-ui/`，
+> 再由 `assets.srcDir` 挂进打包。只有 `index.html` / `cds.css` / `cds.js`
+> 三个运行时文件同步；9 张 `preview-*.png`（约 740 KB）不参与。
+> 验证方式：**解包 APK 看实际路径**，不要只看 `build/` 里的中间产物 ——
+> 中间目录正确不代表最终 APK 正确。
+>
+> 预览页本身是 **P1「发布前必删」的临时入口**（见 `BACKLOG.md` 的
+> Temporary surfaces 段）：设置 → 关于 →「Claude UI 设计稿」。删入口时本目录
+> 可以留下，它只是设计稿资产。
+>
+> 真机已验证：2026-10-18 release 包，配色选择**跨进程重启存活**（QA H13-b PASS）。
 
 ## 来源
 
