@@ -985,3 +985,31 @@ body {
   .app { grid-template-columns: 1fr; }
   .sidebar { display: none; }
 }
+
+/* ============================================================ 真实模式收敛
+   接上真实任务流之后，设计稿里这些元素**没有数据也没有行为**：会话列表、
+   搜索框、重命名与「更多」按钮、记忆库与技能管理入口、新建任务按钮。
+   留着它们等于承诺一个点不动的功能，所以藏掉。
+
+   由 <html data-live="true"> 驱动 —— cds.js 在检测到 Kotlin 桥时设置该属性。
+   纯浏览器打开设计稿时属性不存在，整套侧边栏照常显示，评审时看到的仍是
+   完整设计。用 CSS 而不是删元素，正是为了保住「一份 HTML 两种用途」。 */
+/* .sidebar-foot 里的记忆库 / 技能管理是死入口，但主题设置是活的，
+   所以用直接子选择器整体藏掉，再用 #themePickerBtn 单独顶回来。
+   #themeToggle（深浅色）同理。 */
+[data-live="true"] .sessions,
+[data-live="true"] .search,
+[data-live="true"] .new-task,
+[data-live="true"] #themeToggle,
+[data-live="true"] .sidebar-foot > .row-btn {
+  display: none;
+}
+
+[data-live="true"] #themePickerBtn { display: flex; }
+[data-live="true"] .sidebar-head { border-bottom: none; }
+
+/* 顶栏两枚图标按钮（重命名 / 更多）在真实模式下没有任何行为，
+   而它们长得就像能点。点不动的控件比没有控件更糟，直接藏掉。
+   用属性选择器定位而不是加 class，避免动 index.html 的结构 ——
+   那份 HTML 同时是纯浏览器里的设计稿，改结构会影响评审效果。 */
+[data-live="true"] .topbar > .icon-btn { display: none; }

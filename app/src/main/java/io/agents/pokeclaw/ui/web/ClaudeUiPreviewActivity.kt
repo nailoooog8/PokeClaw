@@ -368,6 +368,10 @@ class ClaudeUiPreviewActivity : BaseActivity() {
         if (::webView.isInitialized) {
             webView.destroy()
         }
+        // The executor is created eagerly in a field initialiser, so every
+        // open/close cycle would leave one idle thread behind. ComposeChatActivity
+        // shuts its own down in onDestroy; this surface has to as well.
+        executor.shutdown()
         super.onDestroy()
     }
 

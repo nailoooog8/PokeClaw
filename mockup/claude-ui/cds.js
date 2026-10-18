@@ -168,6 +168,21 @@
     return typeof PokeClawChat !== 'undefined' && PokeClawChat && PokeClawChat.send;
   }
 
+  /* ------------------------------------------------- 真实模式下的收敛
+     设计稿里有一批**纯静态**的东西：会话列表、搜索框、「给妈妈订高铁票」
+     这个顶栏标题、重命名与「更多」按钮、记忆库与技能管理入口。接上真实任务
+     流之后它们仍然是死的 —— 用户点不动，也点不出结果。
+
+     两种做法：删掉，或者藏起来。这里选藏：这份 HTML 同时也是**纯浏览器里的
+     设计稿预览**，删了就看不到完整设计了。用一个标记属性让 CSS 决定显示，
+     纯浏览器打开时标记不存在，一切照旧。 */
+  function enterLiveMode() {
+    document.documentElement.setAttribute('data-live', 'true');
+    // 标题改成中性文案：写死「给妈妈订高铁票」会让真实使用显得像被冒充。
+    var title = document.querySelector('.topbar-title');
+    if (title) title.textContent = '新任务';
+  }
+
   function submit() {
     var text = ta.value.trim();
     if (!text) return;
@@ -630,6 +645,9 @@
   initTheme();
   initAccent();
   initBase();
+  // 必须在主题初始化之后、且在首次读桥之前。addJavascriptInterface 在页面
+  // 加载前就注入了，所以这里读到的一定是最终状态。
+  if (hasNativeBridge()) enterLiveMode();
   document.getElementById('themeToggle').addEventListener('click', function () {
     applyTheme(root.getAttribute('data-mode') === 'dark' ? 'light' : 'dark');
   });
@@ -649,6 +667,8 @@
   window.__cds = {
     renderLive: renderLive,
     renderLiveRaw: renderLiveRaw,
+    enterLiveMode: enterLiveMode,
+    hasNativeBridge: hasNativeBridge,
     rateLimit: triggerBackoff,
     resetRateLimit: function () {
       clearInterval(backoff.timer); backoff.timer = null;
