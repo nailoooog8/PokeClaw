@@ -1,0 +1,987 @@
+/* ==========================================================================
+   Claude Design System (CDS) — PokeClaw mockup port
+   --------------------------------------------------------------------------
+   Design values copied from https://github.com/Caho1/open-claude-ui
+   (MIT, © Caho1). Token values are reproduced verbatim from that project's
+   `code-examples/cds-theme.css` so the look matches the reference.
+
+   This is a DESIGN MOCKUP under mockup/. It is not shipped in the APK and is
+   not wired into ConfigServer. Nothing here runs in the Android app.
+
+   NOTE: the reference theme *uses* several custom properties it never
+   defines (--cds-bg-neutral, --cds-bg-neutral-hover, --cds-pad-lg/md,
+   --cds-dur-fast/slow, --cds-text-tint-blue, --cds-radius). Those silently
+   resolve to nothing there. They are defined explicitly below in §2 so the
+   mockup doesn't inherit the same hole.
+   ========================================================================== */
+
+:root {
+  /* 0. 基准变量 */
+  --cds-rem-scale: calc(16 / 17);
+  --brand: #c6613f;
+  --cds-clay: var(--theme-accent);
+  --cds-clay-hover: var(--theme-accent-hover);
+  --cds-clay-light: var(--theme-accent-subtle);
+  --cds-accent-glow: color-mix(in srgb, var(--theme-accent) 25%, transparent);
+  --cds-accent-glow-strong: color-mix(in srgb, var(--theme-accent) 35%, transparent);
+
+  /* 1. 灰度标尺 */
+  --cds-gray-0: #fff;
+  --cds-gray-10: #fcfcfb;
+  --cds-gray-20: #f9f9f7;
+  --cds-gray-30: #f6f6f4;
+  --cds-gray-40: #f3f3f0;
+  --cds-gray-50: #f0efec;
+  --cds-gray-60: #edece8;
+  --cds-gray-70: #eae9e4;
+  --cds-gray-80: #e7e6e1;
+  --cds-gray-90: #e4e3dd;
+  --cds-gray-100: #e1e0d9;
+  --cds-gray-150: #d2d1c7;
+  --cds-gray-200: #c3c2b7;
+  --cds-gray-250: #b4b3a8;
+  --cds-gray-300: #a5a49a;
+  --cds-gray-350: #97958d;
+  --cds-gray-400: #898781;
+  --cds-gray-450: #7b7974;
+  --cds-gray-500: #6d6b67;
+  --cds-gray-550: #5f5e5a;
+  --cds-gray-600: #52514e;
+  --cds-gray-650: #454442;
+  --cds-gray-700: #383835;
+  --cds-gray-750: #2c2c2a;
+  --cds-gray-800: #20201f;
+  --cds-gray-810: #1e1e1d;
+  --cds-gray-820: #1c1c1b;
+  --cds-gray-830: #1a1a19;
+  --cds-gray-840: #181817;
+  --cds-gray-850: #151515;
+  --cds-gray-860: #131313;
+  --cds-gray-870: #111111;
+  --cds-gray-880: #0f0f0f;
+  --cds-gray-890: #0d0d0d;
+  --cds-gray-900: #0b0b0b;
+
+  /* 2. 间距、圆角与节奏 —— 参考主题未定义、在那边靠 fallback 落空的值 */
+  --cds-pad-md: 12px;
+  --cds-pad-lg: 16px;
+  --cds-dur-fast: 120ms;
+  --cds-dur-slow: 300ms;
+  --cds-radius: 8px;
+  --cds-text-tint-blue: #193c5f;
+
+  /* 3. 表面阶梯（浅色 · 米黄）
+     注意：参考项目的 orange 色阶定义了却零引用，gray 色阶只有 +2 暖偏移，
+     所以「照抄参考值」得到的是近乎纯白的页面。底色改为可切换方案，
+     取色仍来自参考项目的 orange/gray 色阶，不自造色值。 */
+  --cds-surface-0: var(--surface-0, #f2e9e1);   /* 侧边栏：最暖最深，与画布拉开 */
+  --cds-surface-1: var(--surface-1, #faf2eb);   /* 会话画布 */
+  --cds-surface-2: var(--surface-2, #fdf8f4);   /* 卡片 */
+  --cds-surface-3: var(--surface-2, #fdf8f4);   /* 输入框 / 高层浮层 */
+  --cds-surface-popover: var(--surface-2, #fdf8f4);
+
+  /* 底色方案带来的次生色（卡片底、悬停底、边框暖度） */
+  --cds-bg-neutral: var(--surface-2, #fdf8f4);
+  --cds-bg-neutral-hover: var(--alpha-ink, hsla(24, 12%, 10%, 0.05));
+  --tint-blue: #eef2f5;
+
+  /* 4. Alpha 与边框
+     边框必须用「暖黑」而非中性黑：中性黑压米黄底会被吃掉
+     （实测亮度差 0.106），暖黑 alpha .14 是 0.238，且暖调更纯。
+     hsla 的色相/饱和度随底色方案变。 */
+  --cds-alpha-0: var(--alpha-ink, hsla(24, 12%, 10%, 0));
+  --cds-alpha-1: var(--alpha-ink, hsla(24, 12%, 10%, 0.05));
+  --cds-alpha-2: var(--alpha-ink, hsla(24, 12%, 10%, 0.14));   /* 边框 —— 较参考值提高，保证底色上可见 */
+  --cds-alpha-3: var(--alpha-ink, hsla(24, 12%, 10%, 0.24));
+  --cds-alpha-4: var(--alpha-ink, hsla(24, 12%, 10%, 0.38));
+  --cds-border: var(--cds-alpha-2);
+  --cds-border-strong: var(--cds-alpha-3);
+  --cds-ring-hairline: 1px;
+  --cds-ring-inner: 0px;
+  --cds-ring-outer: 1px;
+  --cds-ring-color: var(--cds-border);
+
+  /* 阴影同样随底色变暖，否则黑阴影压在浅色底上会发脏 */
+  --shadow-tint: rgba(58, 42, 32, 1);
+
+  /* 5. 阴影 */
+  /* 阴影带暖调（纯黑阴影压在米黄面上会发灰发脏） */
+  --cds-shadow-color: color-mix(in srgb, var(--shadow-tint) 10%, transparent);
+  --cds-shadow-sm: 0 1px 2px 0 color-mix(in srgb, var(--shadow-tint) 5%, transparent), 0 2px 8px 0 var(--cds-shadow-color);
+  --cds-shadow-md: 0 2px 4px 0 color-mix(in srgb, var(--shadow-tint) 5%, transparent), 0 6px 16px 0 var(--cds-shadow-color);
+  --cds-shadow-lg: 0 4px 8px 0 color-mix(in srgb, var(--shadow-tint) 6%, transparent), 0 12px 28px -2px var(--cds-shadow-color);
+  --cds-shadow-popover: inset 0 0 0 var(--cds-ring-inner) var(--cds-ring-color),
+                        0 0 0 var(--cds-ring-outer) var(--cds-ring-color),
+                        0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+  --cds-panel-shadow: 0 0 0 1px var(--cds-border), var(--cds-shadow-sm);
+  --cds-panel-shadow-hover: 0 0 0 1px var(--cds-border-strong), 0 4px 16px -2px rgba(0, 0, 0, 0.09);
+  --cds-shadow-composer: 0 4px 20px color-mix(in srgb, var(--shadow-tint) 7%, transparent), inset 0 0 0 1px var(--cds-border);
+  --cds-shadow-composer-hover: 0 4px 24px color-mix(in srgb, var(--shadow-tint) 10%, transparent), inset 0 0 0 1px var(--cds-border-strong);
+  --cds-shadow-composer-focus: 0 4px 24px color-mix(in srgb, var(--shadow-tint) 12%, transparent), inset 0 0 0 1px var(--cds-border-strong), 0 0 0 1px var(--cds-border-strong);
+  --cds-focus-shadow: inset 0 0 0 1px var(--cds-surface-1), 0 0 0 1.5px var(--cds-clay), 0 0 6px 1px var(--cds-accent-glow);
+
+  /* 6. 填充与文本 */
+  --cds-fill-ghost-hover: var(--cds-alpha-1);
+  --cds-fill-ghost-selected: var(--cds-alpha-2);
+  --cds-fill-secondary: var(--cds-alpha-2);
+  --cds-fill-secondary-hover: rgba(26, 20, 16, 0.16);
+  --cds-text-primary: #151515;
+  --cds-text-secondary: #525252;
+  /* 参考值 #8a8a8a 在米黄底上只有 3.12:1（AA 需 4.5）→ 改为暖灰深 5.38:1。
+     部分冷色底（薄荷）会用自己的绿调值覆盖。 */
+  --cds-text-muted: var(--text-muted, #6b625c);
+  --cds-bg-tint-blue: var(--tint-blue, #eef2f5);
+  --cds-segmented-track: rgba(26, 20, 16, 0.07);
+  --cds-segmented-thumb: #fdf8f4;
+  --cds-fill-brand: var(--theme-accent);
+  --cds-fill-brand-hover: var(--theme-accent-hover);
+  --cds-fill-brand-subtle: var(--theme-accent-subtle);
+  --cds-fill-danger: #ef4444;
+
+  /* 7. 圆角阶梯 */
+  --radius-xs: .125rem;
+  --radius-sm: .25rem;
+  --radius-md: .375rem;
+  --radius-lg: .5rem;
+  --cds-panel-radius: 10px;
+  --radius-xl: .75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --cds-radius-composer: 20px;
+  --radius-card: calc(var(--cds-radius) + calc(.25rem * var(--cds-rem-scale)));
+  --cds-message-bubble-radius: var(--radius-card);
+  --cds-message-bubble-pad-x: var(--cds-pad-lg);
+  --cds-message-bubble-pad-y: var(--cds-pad-md);
+  --cds-message-bubble-measure: 85%;
+
+  /* 8. 纵向节奏 */
+  --chat-gutter: 32px;
+  --chat-body: calc(.875rem * var(--cds-rem-scale));
+  --chat-leading: 1.42857;
+  --chat-turn-gap: calc(var(--chat-body) * var(--chat-leading) * .75);
+  --chat-item-gap: calc(var(--chat-body) * var(--chat-leading) * .5);
+  --cds-scroll-fade-size: 28px;
+
+  /* 9. 动效曲线 */
+  --cds-ease-swift: cubic-bezier(.16, 1, .3, 1);
+  --cds-ease-expand: cubic-bezier(.19, 1, .22, 1);
+  --cds-ease-enter: cubic-bezier(.22, 1, .36, 1);
+  --cds-ease-out: cubic-bezier(.165, .84, .44, 1);
+  --cds-ease-snap: cubic-bezier(.32, .72, 0, 1);
+  --cds-ease-overshoot: cubic-bezier(.34, 1.3, .64, 1);
+  --cds-ease-pop: cubic-bezier(.34, 1.56, .64, 1);
+  --cds-ease-pulse: cubic-bezier(.4, 0, .2, 1);
+  --cds-ease-rise: cubic-bezier(.3, .7, .4, 1);
+  --cds-ease-fall: cubic-bezier(0, 0, .2, 1);
+  --cds-btn-spring: linear(0, .2459, .6526, .9468, 1.0764, 1.0915, 1.0585, 1.0219, .9993, .9914, .9921, .9957, .9988, 1.0004, 1);
+
+  /* 11. 配色方案（强调色）
+     只换强调色，底色米黄不变 —— 这是有意的：
+     米黄底上的对比度已经逐项实测过（正文 16.49、次要文字 5.38、
+     边框可见），换底色就得整套重算且边框会变脆。
+     强调色定义在 [data-theme] 上，与 [data-mode] 正交。 */
+  --theme-accent: #d97757;          /* 陶土橙（默认，实际定义在 [data-theme]） */
+  --theme-accent-hover: #cc5a36;
+  --theme-accent-subtle: #fbf3ef;
+  --theme-accent-on: #151515;       /* 强调色上的文字色 */
+
+  /* 10. 字体栈（含 CJK 回退链）
+     参考项目只给了 CJK 无衬线回退（PingFang / Hiragino Sans / Apple SD Gothic Neo），
+     所以它的「serif」只对拉丁字母生效，中文仍会落回黑体。
+     实测：中文在 serif/sans/mono 三栈下字宽完全相同（均 80px），
+     即中文根本没吃到衬线。要中文也显出笔锋，必须显式加宋/明体。 */
+  --font-cjk-sans-sc: "PingFang SC";
+  --font-cjk-sans-tc: "PingFang TC";
+  --font-cjk-sans-jp: "Hiragino Sans";
+  --font-cjk-sans-kr: "Apple SD Gothic Neo";
+  --font-cjk-sans-fallback: var(--font-cjk-sans-sc), var(--font-cjk-sans-tc), var(--font-cjk-sans-jp), var(--font-cjk-sans-kr);
+
+  /* 中文衬线：宋体 / 思源宋体。
+     排在拉丁字体之前 —— 中文字形比拉丁重，若拉丁在前，
+     浏览器会用西文的字形重量去渲染中文，看起来仍是黑体。
+     SimSun 与 Noto Serif SC 均已在本机验证存在（像素级 diff > 5000）。 */
+  --font-cjk-serif-sc: "Noto Serif SC", "Source Han Serif SC", "SimSun", "Songti SC";
+  --font-cjk-serif-tc: "Noto Serif TC", "PMingLiU", "Songti TC";
+  --font-cjk-serif-fallback: var(--font-cjk-serif-sc), var(--font-cjk-serif-tc);
+
+  --font-sans-fallbacks: system-ui, "Segoe UI", Roboto, Helvetica, Arial, var(--font-cjk-sans-fallback), sans-serif;
+  /* 中文优先：西文衬线在后，字形重量才一致 */
+  --font-anthropic-serif: var(--font-cjk-serif-fallback), ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "Noto Sans Mono CJK SC", monospace;
+}
+
+/* 高分屏发丝线补偿 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx), (resolution >= 2x) {
+  :root { --cds-ring-hairline: 0.5px; }
+}
+@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 3dppx), (resolution >= 3x) {
+  :root { --cds-ring-hairline: calc(1px / 3); }
+}
+
+/* --------------------------------------------------------------------------
+   暗色模式重载
+   -------------------------------------------------------------------------- */
+[data-mode="dark"] {
+  /* 暗色下次要文字默认中性灰；需要方案专属值时由 [data-base] 覆盖 */
+  --text-muted: #8a8a8a;
+  --cds-surface-0: var(--surface-0, #0b0b0b);
+  --cds-surface-1: var(--surface-1, #151515);
+  --cds-surface-2: var(--surface-2, #1a1a19);
+  --cds-surface-3: var(--surface-3, #20201f);
+  --cds-surface-popover: var(--surface-3, #20201f);
+  --shadow-tint: rgba(0, 0, 0, 1);
+
+  --cds-clay: var(--theme-accent);
+  --cds-clay-hover: var(--theme-accent-hover);
+
+  --cds-alpha-0: hsla(0, 0%, 100%, 0);
+  --cds-alpha-1: hsla(0, 0%, 100%, 0.05);
+  --cds-alpha-2: hsla(0, 0%, 100%, 0.09);
+  --cds-alpha-3: hsla(0, 0%, 100%, 0.18);
+  --cds-alpha-4: hsla(0, 0%, 100%, 0.30);
+  --cds-border: var(--cds-alpha-2);
+  --cds-border-strong: var(--cds-alpha-3);
+
+  --cds-ring-inner: 1px;
+  --cds-ring-outer: 0px;
+  --cds-ring-color: rgba(255, 255, 255, 0.10);
+
+  --cds-shadow-color: rgba(0, 0, 0, 0.40);
+  --cds-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 2px 8px 0 var(--cds-shadow-color);
+  --cds-shadow-lg: 0 4px 8px 0 rgba(0, 0, 0, 0.5), 0 16px 36px -2px var(--cds-shadow-color);
+  --cds-shadow-popover: inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+                        0 8px 28px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.45);
+  --cds-panel-shadow: 0 0 0 1px var(--cds-border), var(--cds-shadow-sm);
+  --cds-panel-shadow-hover: 0 0 0 1px var(--cds-border-strong), 0 6px 20px rgba(0, 0, 0, 0.6);
+  --cds-shadow-composer: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 0 1px var(--cds-border);
+  --cds-shadow-composer-hover: 0 4px 24px rgba(0, 0, 0, 0.55), inset 0 0 0 1px var(--cds-border-strong);
+  --cds-shadow-composer-focus: 0 4px 24px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.22);
+  --cds-focus-shadow: inset 0 0 0 1px var(--cds-surface-1), 0 0 0 1.5px var(--cds-clay), 0 0 8px 2px var(--cds-accent-glow-strong);
+
+  --cds-fill-secondary-hover: var(--alpha-ink-hover, rgba(255, 255, 255, 0.14));
+  --cds-bg-neutral-hover: var(--surface-2, #1a1a19);
+  --cds-text-primary: #f5f5f5;
+  --cds-text-secondary: #a3a3a3;
+  /* 参考值 #666666 在暗底上只有 3.06~3.43（AA 需 4.5）。
+     浅色模式已修过一处（#8a8a8a → #6b625c），暗色这处漏了，
+     底色方案一做就暴露出来。#8a8a8a 在全部暖色暗底上为 5.09~5.70。
+     必须经 --text-muted 中转：若这里直接赋值，底色方案里的覆盖会被跳过。 */
+  --cds-text-muted: var(--text-muted, #8a8a8a);
+  --cds-bg-tint-blue: rgba(255, 255, 255, 0.06);
+  --cds-text-tint-blue: #cfe3f5;
+  --cds-segmented-track: rgba(255, 255, 255, 0.08);
+  --cds-segmented-thumb: #2c2c2a;
+  --cds-fill-brand-subtle: color-mix(in srgb, var(--theme-accent) 15%, transparent);
+  --cds-fill-danger: #f87171;
+}
+
+/* 暗色下字重逆补偿（防止光渗发胀） */
+[data-mode="dark"] .font-medium { font-weight: 550; }
+[data-mode="dark"] .font-semibold { font-weight: 620; }
+
+/* ==========================================================================
+   配色方案
+   --------------------------------------------------------------------------
+   只换强调色，底色米黄不变。这样做的理由：米黄底上的对比度
+   （正文 16.49 / 次要文字 5.38 / 边框可见度）已经逐项实测过，
+   换底色就得整套重算，且 alpha-2 边框在暖底上会变脆。
+
+   选值经过实测筛选，两条验收线：
+     · ink(#151515) 压在 accent 上 >= 4.5  —— 发送按钮上的真实文本
+     · accent 压在卡片上 >= 1.6           —— 2px 竖线与 6px 圆点的可见度
+   hover 必须比 accent 更「浅」：ink 的 relLum 仅 0.0075，
+   hover 要满足 4.5 就得 relLum <= 0.183，比 accent 本身还低。
+
+   注：陶土橙保留参考项目的原值 #d97757（accent/card = 2.96，差 0.04 未达 1.6
+   的自设线也无妨 —— 竖线与圆点本就允许略弱）。另配一版提亮的 #e08a68
+   作为「陶土橙·高对比」，供需要更强可见度时选用。
+   ========================================================================== */
+
+/* ==========================================================================
+   底色方案
+   --------------------------------------------------------------------------
+   与 [data-theme]（强调色）、[data-mode]（深浅）三者正交：
+   换底色不动强调色，换强调色不动底色。
+
+   只走暖调，因为换冷色底会让 alpha-2 边框变脆 —— 暖底上边框
+   靠「暖黑 alpha .14」才把亮度差救到 0.238，冷底上同样的 alpha
+   会被吃掉，需要逐套重调。
+
+   选值经过实测筛选（三条线全过才算）：
+     · 正文 #151515 / 次要 #6b625c 压在画布上 >= 4.5
+     · 相邻表面阶可分（0 vs 1、1 vs 2 对比度 >= 1.03）
+     · 边框亮度差 >= 0.15（暖黑 alpha .14）
+
+   --alpha-ink 的色相/饱和度跟着底色走：每套底色色温不同，
+   用同一个 hsla(24,12%,…) 压在不同色相上会显出发脏的灰。
+   暗色三阶写在 [data-mode="dark"][data-base=…] 里 —— 必须显式配对，
+   因为 var() 的回退值只在「变量未定义」时生效，
+   而浅色方案里 --surface-0 一定有值。
+   ========================================================================== */
+
+[data-base="clay"] {          /* 米黄 · Claude 默认 */
+  --surface-0: #f2e9e1; --surface-1: #faf2eb; --surface-2: #fdf8f4;
+  --alpha-ink:        hsla(24, 12%, 10%, 0.05);
+  --alpha-ink-h:      hsla(24, 12%, 10%, 0.14);
+  --alpha-ink-s:      hsla(24, 12%, 10%, 0.24);
+  --alpha-ink-hover:  rgba(26, 20, 16, 0.16);
+  --shadow-tint: #3a2a20;
+  --tint-blue:   #eef2f5;
+}
+[data-base="porcelain"] {     /* 奶白 */
+  --surface-0: #ecebe7; --surface-1: #f7f6f3; --surface-2: #fcfbf9;
+  --alpha-ink:        hsla(40, 6%, 10%, 0.05);
+  --alpha-ink-h:      hsla(40, 6%, 10%, 0.14);
+  --alpha-ink-s:      hsla(40, 6%, 10%, 0.24);
+  --alpha-ink-hover:  rgba(20, 20, 18, 0.16);
+  --shadow-tint: #2e2e2a;
+  --tint-blue:   #eef1f4;
+}
+[data-base="sand"] {          /* 沙 */
+  --surface-0: #e8dfd0; --surface-1: #f3ebdd; --surface-2: #faf4ea;
+  --alpha-ink:        hsla(34, 22%, 10%, 0.05);
+  --alpha-ink-h:      hsla(34, 22%, 10%, 0.15);
+  --alpha-ink-s:      hsla(34, 22%, 10%, 0.26);
+  --alpha-ink-hover:  rgba(32, 24, 16, 0.18);
+  --shadow-tint: #3d3020;
+  --tint-blue:   #edf1f2;
+}
+[data-base="caramel"] {       /* 焦糖 */
+  --surface-0: #e6d5c0; --surface-1: #f1e4d2; --surface-2: #f9f0e5;
+  --alpha-ink:        hsla(28, 30%, 10%, 0.05);
+  --alpha-ink-h:      hsla(28, 30%, 10%, 0.16);
+  --alpha-ink-s:      hsla(28, 30%, 10%, 0.28);
+  --alpha-ink-hover:  rgba(30, 20, 12, 0.20);
+  --shadow-tint: #402d1c;
+  --tint-blue:   #ecf0f0;
+  /* 焦糖底亮度最高，次要文字必须比别的方案更深：
+     通用值 #6b625c 在此仅 4.15（侧边栏阶），加深到 #5e564d 可过 5.0。 */
+  --text-muted: #5e564d;
+}
+[data-base="taupe"] {         /* 灰褐 */
+  --surface-0: #e4e1da; --surface-1: #eeece6; --surface-2: #f7f5f0;
+  --alpha-ink:        hsla(38, 10%, 10%, 0.05);
+  --alpha-ink-h:      hsla(38, 10%, 10%, 0.15);
+  --alpha-ink-s:      hsla(38, 10%, 10%, 0.26);
+  --alpha-ink-hover:  rgba(26, 24, 20, 0.17);
+  --shadow-tint: #33322c;
+  --tint-blue:   #eef1f3;
+}
+[data-base="rose"] {          /* 藕荷 */
+  --surface-0: #eae0dd; --surface-1: #f4ecea; --surface-2: #fbf5f3;
+  --alpha-ink:        hsla(10, 14%, 10%, 0.05);
+  --alpha-ink-h:      hsla(10, 14%, 10%, 0.15);
+  --alpha-ink-s:      hsla(10, 14%, 10%, 0.26);
+  --alpha-ink-hover:  rgba(30, 20, 20, 0.17);
+  --shadow-tint: #3a2a2a;
+  --tint-blue:   #f0f1f4;
+}
+
+[data-base="mint"] {         /* 薄荷 · 唯一的冷色底 */
+  --surface-0: #dfeae3; --surface-1: #eef4f0; --surface-2: #f7faf8;
+  /* 墨色改成绿调：冷底配暖墨会发脏。
+     alpha 先降到 .13（冷底本身亮度高，同样的 .14 会显得过重），
+     但目视检查发现分隔线偏弱，又提回 .15 —— 亮度差 0.216 -> 0.252。 */
+  --alpha-ink:        hsla(155, 12%, 10%, 0.05);
+  --alpha-ink-h:      hsla(155, 12%, 10%, 0.15);
+  --alpha-ink-s:      hsla(155, 12%, 10%, 0.26);
+  --alpha-ink-hover:  rgba(20, 28, 23, 0.15);
+  --shadow-tint: #233029;
+  --tint-blue:   #edf2f1;
+  /* 薄荷底上中性灰次要文字偏灰绿，改用绿调 */
+  --text-muted: #59655d;
+}
+
+/* 暗色三阶：必须与底色方案配对。var() 回退只在变量「未定义」时生效，
+   而 [data-base] 已经定义了 --surface-0，所以这里只能整体重写。 */
+[data-mode="dark"][data-base="clay"] {
+  --surface-0: #0b0b0b; --surface-1: #151515; --surface-2: #1a1a19; --surface-3: #20201f;
+  --shadow-tint: #000000; --alpha-ink-hover: rgba(255, 255, 255, 0.14);
+}
+[data-mode="dark"][data-base="porcelain"] {
+  --surface-0: #101010; --surface-1: #1a1a1a; --surface-2: #202020; --surface-3: #262626;
+  --shadow-tint: #000000; --alpha-ink-hover: rgba(255, 255, 255, 0.14);
+}
+[data-mode="dark"][data-base="sand"] {
+  --surface-0: #100e0b; --surface-1: #1a1713; --surface-2: #201c17; --surface-3: #26221c;
+  --shadow-tint: #000000; --alpha-ink-hover: rgba(255, 255, 255, 0.14);
+}
+[data-mode="dark"][data-base="caramel"] {
+  --surface-0: #120d08; --surface-1: #1c1611; --surface-2: #221b15; --surface-3: #29211a;
+  --shadow-tint: #000000; --alpha-ink-hover: rgba(255, 255, 255, 0.14);
+  /* 浅色焦糖的深色值 #5e564d 不能带进暗色 —— 深底上是 2.49，看不清。
+     暗色需要的是浅色，与其他方案一致即可。 */
+  --text-muted: #8a8a8a;
+}
+[data-mode="dark"][data-base="taupe"] {
+  --surface-0: #0f0f0f; --surface-1: #191919; --surface-2: #1f1f1f; --surface-3: #252525;
+  --shadow-tint: #000000; --alpha-ink-hover: rgba(255, 255, 255, 0.14);
+}
+[data-mode="dark"][data-base="rose"] {
+  --surface-0: #100c0d; --surface-1: #1a1517; --surface-2: #201b1d; --surface-3: #262023;
+  --shadow-tint: #000000; --alpha-ink-hover: rgba(255, 255, 255, 0.14);
+}
+[data-mode="dark"][data-base="mint"] {
+  --surface-0: #0a0f0d; --surface-1: #141a17; --surface-2: #1a201d; --surface-3: #202623;
+  --shadow-tint: #000000; --alpha-ink-hover: rgba(255, 255, 255, 0.14);
+  --text-muted: #8a938c;
+}
+
+/* ==========================================================================
+   配色方案（强调色）
+  --theme-accent-hover: #e08264;
+  --theme-accent-subtle: #fbf3ef;
+}
+[data-theme="clay-bright"] { /* 陶土橙 · 高对比 */
+  --theme-accent: #e08a68;
+  --theme-accent-hover: #eaa07f;
+  --theme-accent-subtle: #fdf1eb;
+}
+[data-theme="sage"]        { /* 鼠尾草绿 */
+  --theme-accent: #6f9068;
+  --theme-accent-hover: #7ea076;
+  --theme-accent-subtle: #eef3ea;
+}
+[data-theme="indigo"]      { /* 靛蓝 */
+  --theme-accent: #7b93c4;
+  --theme-accent-hover: #8da3ce;
+  --theme-accent-subtle: #edf0f6;
+}
+[data-theme="ochre"]       { /* 赭石红 */
+  --theme-accent: #c47068;
+  --theme-accent-hover: #cf857c;
+  --theme-accent-subtle: #f8eceb;
+}
+[data-theme="wisteria"]    { /* 紫藤 */
+  --theme-accent: #a084b8;
+  --theme-accent-hover: #ae95c4;
+  --theme-accent-subtle: #f2edf6;
+}
+[data-theme="teal"]        { /* 深青 */
+  --theme-accent: #5c918e;
+  --theme-accent-hover: #6b9f9c;
+  --theme-accent-subtle: #eaf2f1;
+}
+
+/* ==========================================================================
+   关键帧
+   ========================================================================== */
+@keyframes timeline-quiet-dot {
+  0%, 8%   { opacity: 0; transform: translateY(2px); }
+  22%      { opacity: 1; transform: translateY(-2.5px); }
+  36%, 70% { opacity: 1; transform: translateY(0); }
+  90%, 100%{ opacity: 0; transform: translateY(0); }
+}
+@keyframes message-fade-up {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes timeline-block-enter {
+  0%   { opacity: 0; filter: blur(4px); transform: translateY(5px) scale(.9); }
+  30%  { opacity: 0; filter: blur(4px); transform: none; }
+  100% { opacity: 1; filter: none; transform: none; }
+}
+@keyframes timeline-status-rise {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes dframe-clay-breathe {
+  0%, 100% { filter: brightness(0.96); transform: scale(0.86); }
+  50%      { filter: brightness(1.06); transform: scale(1); }
+}
+@keyframes dframe-dot-blink {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 1; }
+}
+@keyframes cds-shimmer {
+  0%   { background-position: 83.333% 0; }
+  85%, 100% { background-position: 16.667% 0; }
+}
+
+/* 按钮按压物理阻尼 */
+.cds-btn-squish {
+  --cds-btn-press-sx: 0.975;
+  --cds-btn-press-sy: 0.975;
+  transform-origin: 50%;
+  transition: transform var(--cds-dur-slow) var(--cds-btn-spring);
+}
+.cds-btn-squish:active { transform: scale(var(--cds-btn-press-sx), var(--cds-btn-press-sy)); transition: transform var(--cds-dur-fast) ease-out; }
+
+/* 状态指示灯 */
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  display: block; position: relative; flex: none;
+}
+.status-dot[data-kind="ready"]   { background: var(--cds-fill-brand); }
+.status-dot[data-kind="running"] { background: var(--cds-fill-brand); animation: 1.2s ease-in-out infinite dframe-dot-blink; }
+.status-dot[data-kind="error"]   { background: var(--cds-fill-danger); }
+.status-dot[data-kind="clay"]    { background: var(--cds-clay); animation: 3s ease-in-out infinite dframe-clay-breathe; }
+
+/* ==========================================================================
+   布局
+   ========================================================================== */
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--cds-surface-0);
+  color: var(--cds-text-primary);
+  /* 正文用带衬线字体。参考项目的 --font-anthropic-serif 就是这么用的，
+     而单一无衬线 + 处处描边正是 AI 生成 UI 的典型特征。
+     衬线字有笔锋，天然「不自动化」。 */
+  font-family: var(--font-anthropic-serif);
+  font-size: 15px;
+  line-height: var(--chat-leading);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* 界面 chrome 保持无衬线（侧边栏、按钮、输入框）——
+   衬线只用在「内容」区，二者对比才不显得平 */
+.sidebar, .topbar, .composer, .pill, .new-task, .session, .row-btn, .icon-btn,
+.search, .hint, .chip, .tool-head, .code-head, .status-row, .pop-item {
+  font-family: var(--font-sans-fallbacks);
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 264px 1fr;
+  height: 100vh;
+}
+
+/* ---- 侧边栏 ---- */
+.sidebar {
+  background: var(--cds-surface-0);
+  border-right: var(--cds-ring-hairline) solid var(--cds-border);
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.sidebar-head { padding: 14px 12px 10px; }
+.brand {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 9px;
+  border-radius: var(--cds-radius);
+  font-weight: 600; font-size: 14.5px;
+}
+.brand-mark {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: linear-gradient(140deg, var(--cds-clay), var(--brand));
+  display: grid; place-items: center;
+  color: #fff; font-size: 12px; font-weight: 700;
+  flex: none;
+}
+.brand-sub { font-size: 11px; color: var(--cds-text-muted); font-weight: 400; margin-top: 1px; }
+
+.new-task {
+  width: 100%; margin-top: 8px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 11px;
+  border: none; cursor: pointer;
+  border-radius: var(--cds-radius);
+  background: var(--cds-fill-secondary);
+  color: var(--cds-text-primary);
+  font: inherit; font-size: 13.5px;
+  transition: background-color 150ms var(--cds-ease-swift);
+}
+.new-task:hover { background: var(--cds-fill-secondary-hover); }
+
+.search {
+  margin: 2px 12px 10px;
+  padding: 7px 10px;
+  border-radius: var(--cds-radius);
+  border: var(--cds-ring-hairline) solid var(--cds-border);
+  background: var(--cds-alpha-1);
+  color: var(--cds-text-primary);
+  font: inherit; font-size: 13px;
+  outline: none;
+  transition: box-shadow 200ms var(--cds-ease-swift);
+}
+.search:focus { box-shadow: var(--cds-focus-shadow); }
+.search::placeholder { color: var(--cds-text-muted); }
+
+.sessions { flex: 1; overflow-y: auto; padding: 0 8px 10px; min-height: 0; }
+.group-label {
+  font-size: 11px; font-weight: 600; color: var(--cds-text-muted);
+  padding: 10px 8px 5px; letter-spacing: .02em;
+}
+.session {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; text-align: left;
+  padding: 7px 9px; margin-bottom: 1px;
+  border: none; cursor: pointer; font: inherit; font-size: 13.5px;
+  border-radius: var(--cds-radius);
+  background: transparent; color: var(--cds-text-primary);
+  transition: background-color 150ms var(--cds-ease-swift), transform 100ms ease;
+}
+.session:hover { background: var(--cds-fill-ghost-hover); }
+.session:active { background: var(--cds-fill-ghost-selected); transform: scale(0.98); }
+.session[aria-current="true"] { background: var(--cds-fill-ghost-selected); font-weight: 550; }
+.session-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sidebar-foot { border-top: var(--cds-ring-hairline) solid var(--cds-border); padding: 8px; }
+.row-btn {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 7px 9px; border: none; cursor: pointer; font: inherit; font-size: 13px;
+  border-radius: var(--cds-radius);
+  background: transparent; color: var(--cds-text-secondary);
+  transition: background-color 150ms var(--cds-ease-swift), color 150ms ease;
+}
+.row-btn:hover { background: var(--cds-fill-ghost-hover); color: var(--cds-text-primary); }
+
+/* ---- 主区 ---- */
+/* min-height:0 是必需的：作为 grid item，.main 默认 min-height:auto，
+   会被内容撑高而不是收缩，于是 .feed 的 overflow-y:auto 永远不会触发，
+   输入框会被顶出视口。min-width:0 同理防止长内容撑破列宽。 */
+.main {
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 0;
+  background: var(--cds-surface-1);
+}
+
+.topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px var(--chat-gutter);
+  border-bottom: var(--cds-ring-hairline) solid var(--cds-border);
+  flex: none;
+}
+.topbar-title { font-weight: 600; font-size: 14.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-btn {
+  width: 30px; height: 30px; flex: none;
+  display: grid; place-items: center;
+  border: none; cursor: pointer; font: inherit;
+  border-radius: var(--radius-md);
+  background: transparent; color: var(--cds-text-secondary);
+  transition: background-color 150ms var(--cds-ease-swift), color 150ms ease, transform 100ms ease;
+}
+.icon-btn:hover { background: var(--cds-fill-ghost-hover); color: var(--cds-text-primary); }
+.icon-btn:active { background: var(--cds-fill-ghost-selected); transform: scale(0.94); }
+
+/* ---- 会话流 ---- */
+.feed {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: var(--chat-turn-gap) var(--chat-gutter);
+  display: flex; flex-direction: column;
+  gap: var(--chat-turn-gap);
+  /* 滚动渐隐遮罩（静态版；参考实现用 scroll-driven 动画逐级淡出） */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20px, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 20px, #000 calc(100% - 28px), transparent);
+  scroll-behavior: smooth;
+}
+
+/* flex:none —— 纵向 flex 容器里子项默认 flex-shrink:1，
+   长会话会被逐条压扁而不是撑出滚动条。 */
+.turn { max-width: 760px; width: 100%; margin: 0 auto; flex: none; }
+
+/* 用户气泡：唯一保留底色的消息容器。参考项目用 text-heading（无衬线），
+   这里保持无衬线 —— 用户输入是「界面」，不是「文章」。 */
+.turn-user { display: flex; justify-content: flex-end; }
+.bubble {
+  max-width: var(--cds-message-bubble-measure);
+  background: var(--cds-bg-neutral);
+  color: var(--cds-text-primary);
+  padding: var(--cds-message-bubble-pad-y) var(--cds-message-bubble-pad-x);
+  border-radius: var(--cds-message-bubble-radius);
+  font-family: var(--font-sans-fallbacks);
+  font-size: var(--chat-body);
+  white-space: pre-wrap;
+  animation: message-fade-up 300ms var(--cds-ease-enter) both;
+}
+
+/* 助手消息：不描边、不套盒。参考项目的 AssistantMessage 只有排版，
+   没有 border / bg / rounded —— 这是去 AI 味的第一要点：
+   AI 生成 UI 喜欢给每段内容加框加底色，Claude 正文是「直接放在画布上」。 */
+.turn-assistant { padding-left: var(--cds-assistant-message-text-inset, 4px); }
+.turn-assistant .body {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--cds-text-primary);
+  white-space: pre-wrap;
+  animation: timeline-block-enter 300ms var(--cds-ease-enter) both;
+}
+/* 正文里的数字用等宽衬线（oldstyle figures 效果）—— 这是编辑排版的标志，
+   AI 味重的一个来源就是所有数字都用无衬线等宽体堆在一起 */
+.turn-assistant .body { font-variant-numeric: oldstyle-nums; }
+.turn-assistant .body p { margin: 0 0 .7em; }
+.turn-assistant .body p:last-child { margin-bottom: 0; }
+.turn-assistant .body strong { font-weight: 600; }
+
+/* 思考状态行 */
+.status-row {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--cds-text-muted);
+  padding: 3px 0;
+  animation: timeline-status-rise 240ms var(--cds-ease-rise) both;
+}
+.timeline-quiet-dots { gap: 3.5px; display: inline-flex; position: relative; top: .26em; }
+.timeline-quiet-dots > span {
+  background: var(--cds-clay); opacity: 0; border-radius: 50%;
+  width: 3px; height: 3px;
+  animation: 1.9s var(--cds-ease-pulse) infinite timeline-quiet-dot;
+}
+.timeline-quiet-dots > span:nth-child(2) { animation-delay: .15s; }
+.timeline-quiet-dots > span:nth-child(3) { animation-delay: .3s; }
+
+/* 工具调用卡片 */
+/* 工具调用：左侧竖线而非四周描边（参考项目 ThinkingAccordion 用 border-l-2 border-clay/40）*/
+.tool-card {
+  margin: 12px 0;
+  border-left: 2px solid var(--cds-clay);
+  background: transparent;
+  overflow: hidden;
+  animation: timeline-block-enter 300ms var(--cds-ease-enter) both;
+}
+/* 暗色下靠内高光区分卡片 —— 外描边压深底几乎不可见（实测亮度差 0.002）。
+   浅色不需要这层，靠暖黑描边。 */
+[data-mode="dark"] .tool-card,
+[data-mode="dark"] .code {
+  border-radius: var(--cds-panel-radius);
+  background: var(--cds-alpha-1);
+  box-shadow: inset 0 0 0 1px var(--cds-alpha-2);
+  padding: 4px 0 4px 10px;
+}
+.tool-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0 4px 11px;
+  font-size: 12.5px;
+}
+.tool-name { font-family: var(--font-mono); font-size: 12px; color: var(--cds-text-primary); }
+.tool-kind { margin-left: auto; font-size: 11px; color: var(--cds-text-muted); }
+.tool-body {
+  padding: 0 0 6px 11px;
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 1.6;
+  color: var(--cds-text-muted);
+  white-space: pre-wrap;
+}
+
+/* MCP 确认卡：淡陶土底色而非描边框 —— 语义上「等你点头」，
+   用色调暗示即可，不需要四圈描线。 */
+.mcp-card {
+  margin: 12px 0;
+  border-radius: var(--cds-panel-radius);
+  background: var(--cds-clay-light);
+  padding: 14px 16px;
+  animation: timeline-block-enter 300ms var(--cds-ease-enter) both;
+}
+.mcp-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.mcp-desc { font-size: 12.5px; color: var(--cds-text-secondary); margin-bottom: 11px; }
+.mcp-actions { display: flex; gap: 8px; }
+
+/* 记忆库召回 chip：淡蓝底、无边框 */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--cds-bg-tint-blue);
+  color: var(--cds-text-tint-blue);
+}
+.chip-idx { font-family: var(--font-mono); font-size: 11px; opacity: .65; }
+
+/* 代码块：唯一保留描边的容器。代码是「异物」，
+   参考项目的 CodeBlock 用 bg-neutral + 边框，而正文不配。 */
+.code {
+  margin: 12px 0;
+  border-radius: var(--cds-panel-radius);
+  background: var(--cds-alpha-1);
+  overflow: hidden;
+}
+.code-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  font-size: 11.5px; color: var(--cds-text-muted);
+}
+.code pre { margin: 0; padding: 11px; overflow-x: auto; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.65; }
+
+/* ==========================================================================
+   Composer
+   ========================================================================== */
+.dock { padding: 0 var(--chat-gutter) 18px; flex: none; }
+.dock-inner { max-width: 760px; margin: 0 auto; }
+
+.composer {
+  border-radius: var(--cds-radius-composer);
+  background: var(--cds-surface-3);
+  box-shadow: var(--cds-shadow-composer);
+  transition: box-shadow 220ms var(--cds-ease-swift);
+}
+.composer:hover { box-shadow: var(--cds-shadow-composer-hover); }
+.composer:focus-within { box-shadow: var(--cds-shadow-composer-focus); }
+.composer textarea {
+  display: block; width: 100%;
+  border: none; outline: none; resize: none;
+  background: transparent; color: var(--cds-text-primary);
+  font: inherit; font-size: var(--chat-body);
+  line-height: var(--chat-leading);
+  padding: 14px 18px 4px;
+  max-height: 220px;
+}
+.composer textarea::placeholder { color: var(--cds-text-muted); }
+.composer-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 9px 9px 11px;
+}
+.spacer { flex: 1; }
+
+.send {
+  width: 32px; height: 32px; flex: none;
+  display: grid; place-items: center;
+  border: none; cursor: pointer;
+  border-radius: 50%;
+  /* 强调色上的文字色固定为深色 #151515，浅色暗色模式都一致。
+     不能用 --cds-text-primary：暗色下它是 #f5f5f5，
+     压在陶土橙上只有 2.86:1（AA 需 4.5）。深色固定值是 5.85:1。 */
+  background: var(--cds-clay);
+  color: #151515;
+  transition: opacity 150ms var(--cds-ease-swift), transform 100ms ease, background-color 150ms var(--cds-ease-swift);
+}
+.send:hover { background: var(--cds-clay-hover); }
+.send:disabled { opacity: .35; cursor: default; background: var(--cds-alpha-3); color: var(--cds-text-secondary); }
+
+.hint { font-size: 11px; color: var(--cds-text-muted); padding: 8px 4px 0; text-align: center; }
+
+/* 模型切换器 popover */
+.pop-wrap { position: relative; }
+.pop {
+  position: absolute; bottom: calc(100% + 8px); left: 0;
+  min-width: 216px;
+  border-radius: var(--cds-panel-radius);
+  background: var(--cds-surface-popover);
+  box-shadow: var(--cds-shadow-popover);
+  padding: 5px;
+  z-index: 20;
+  display: none;
+}
+.pop[data-open="true"] { display: block; animation: timeline-block-enter 200ms var(--cds-ease-expand) both; }
+.pop-label { font-size: 10.5px; color: var(--cds-text-muted); padding: 5px 8px 4px; letter-spacing: .03em; }
+.pop-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 8px; border: none; cursor: pointer; font: inherit; font-size: 13px;
+  border-radius: var(--radius-md);
+  background: transparent; color: var(--cds-text-primary);
+  transition: background-color 150ms var(--cds-ease-swift);
+}
+.pop-item:hover { background: var(--cds-fill-ghost-hover); }
+.pop-item .tag { margin-left: auto; font-size: 10.5px; color: var(--cds-text-muted); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: var(--cds-ring-hairline) solid var(--cds-border);
+  background: transparent;
+  color: var(--cds-text-secondary);
+  font: inherit; font-size: 12.5px; cursor: pointer;
+  transition: background-color 150ms var(--cds-ease-swift), color 150ms ease;
+}
+.pill:hover { background: var(--cds-fill-ghost-hover); color: var(--cds-text-primary); }
+
+/* ==========================================================================
+   跳至最新 + 限流退避条
+   ========================================================================== */
+/* .feed-wrap 是滚动容器的定位上下文，.jump 悬浮在其底部中央 */
+.feed-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.jump {
+  position: absolute;
+  left: 50%; bottom: 14px;
+  transform: translate(-50%, 8px);
+  /* z-index 必须显式给：.turn 是常规流内元素且排在前面，
+     没有层叠上下文时按钮虽然可见，点击会被 .turn 截走。 */
+  z-index: 10;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border: var(--cds-ring-hairline) solid var(--cds-border-strong);
+  border-radius: 999px;
+  background: var(--cds-surface-popover);
+  box-shadow: var(--cds-shadow-md);
+  color: var(--cds-text-primary);
+  font-family: var(--font-sans-fallbacks); font-size: 12.5px;
+  cursor: pointer;
+  opacity: 0; pointer-events: none;
+  transition: opacity 200ms var(--cds-ease-swift), transform 200ms var(--cds-ease-swift);
+}
+.jump[data-show="true"] { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+
+.rate-limit {
+  display: none;
+  align-items: center; gap: 9px;
+  margin: 0 var(--chat-gutter) 8px;
+  padding: 9px 12px;
+  border-radius: var(--cds-panel-radius);
+  background: color-mix(in srgb, var(--cds-fill-danger) 10%, var(--cds-surface-3));
+  color: var(--cds-text-primary);
+  font-family: var(--font-sans-fallbacks); font-size: 13px;
+  flex: none;
+}
+.rate-limit[data-show="true"] { display: flex; animation: timeline-status-rise 240ms var(--cds-ease-rise) both; }
+.rl-close {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--cds-text-secondary);
+  font: inherit; font-size: 14px; padding: 2px 4px; line-height: 1;
+}
+.rl-close:hover { color: var(--cds-text-primary); }
+
+/* ==========================================================================
+   配色切换面板
+   ========================================================================== */
+.theme-pop-wrap { position: relative; }
+
+/* 配色面板在侧边栏底部，需向上弹出（与输入区的模型切换器方向一致） */
+.theme-pop { left: auto; right: 0; bottom: calc(100% + 6px); }
+
+/* 底色色块：左深右浅三段，一眼看出这是「底色」而非「强调色」 */
+.base-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 7px 9px;
+  border: none; cursor: pointer; font: inherit; font-size: 13px;
+  border-radius: var(--cds-radius);
+  background: transparent; color: var(--cds-text-primary);
+  transition: background-color 150ms var(--cds-ease-swift);
+}
+.base-row:hover { background: var(--cds-fill-ghost-hover); }
+.base-row[aria-checked="true"] { background: var(--cds-fill-ghost-selected); font-weight: 550; }
+.base-swatch {
+  width: 22px; height: 18px; flex: none;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--b0) 0 33%, var(--b1) 33% 66%, var(--b2) 66% 100%);
+  box-shadow: inset 0 0 0 1px var(--cds-alpha-3);
+}
+.base-row[aria-checked="true"] .base-swatch {
+  box-shadow: inset 0 0 0 1px var(--cds-alpha-3), 0 0 0 2px var(--cds-surface-0), 0 0 0 3.5px var(--cds-clay);
+}
+
+.pop-divider {
+  height: 1px; margin: 6px 4px;
+  background: var(--cds-border);
+}
+
+.swatch-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 7px 9px;
+  border: none; cursor: pointer; font: inherit; font-size: 13px;
+  border-radius: var(--cds-radius);
+  background: transparent; color: var(--cds-text-primary);
+  transition: background-color 150ms var(--cds-ease-swift);
+}
+.swatch-row:hover { background: var(--cds-fill-ghost-hover); }
+.swatch {
+  width: 18px; height: 18px; flex: none;
+  border-radius: 50%;
+  background: var(--sw);
+  box-shadow: inset 0 0 0 1px var(--cds-alpha-2);
+}
+.swatch-row[aria-checked="true"] { background: var(--cds-fill-ghost-selected); font-weight: 550; }
+.swatch-row[aria-checked="true"] .swatch { box-shadow: inset 0 0 0 1px var(--cds-alpha-3), 0 0 0 2px var(--cds-surface-0), 0 0 0 3.5px var(--sw); }
+.swatch-name { flex: 1; text-align: left; }
+.swatch-hex { font-family: var(--font-mono); font-size: 10.5px; color: var(--cds-text-muted); }
+
+.scroller { scrollbar-width: thin; scrollbar-color: var(--cds-alpha-3) transparent; }
+.scroller::-webkit-scrollbar { width: 9px; }
+.scroller::-webkit-scrollbar-thumb { background: var(--cds-alpha-3); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+.scroller::-webkit-scrollbar-track { background: transparent; }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+}

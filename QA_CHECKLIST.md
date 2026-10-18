@@ -769,6 +769,33 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 - [ ] **H11. Channel group is reachable [RELEASE-OK]**: Settings → scroll to the channel group → Discord / Telegram / WeChat / QQ / Douyin / Pairing PIN / LAN Config rows are ALL visible (this group was `android:visibility="gone"` in `activity_settings.xml`, so the handlers existed in code but had no UI entry) → each opens its `ChannelConfigActivity` page → QQ shows WS URL + Token fields, Douyin shows Webhook URL + Token fields → save → row trailing text flips to Bound
 - [ ] **H12. QQ and Douyin icons render**: Settings → channel group → QQ row shows the penguin icon and Douyin row shows the note icon (they previously used `android.R.drawable.stat_notify_chat` / `ic_media_play` placeholders) → no missing-icon box, tinted consistently with Discord/Telegram/WeChat
 
+### Claude UI design mockup — TEMPORARY surface, delete with the feature
+
+> [RELEASE-BLOCKER] This whole subsection tests a surface that must not ship. See
+> BACKLOG.md "Temporary surfaces". When that entry is actioned, delete this
+> subsection too.
+
+- [ ] **H13. Mockup opens and its JS actually runs**: Settings → About → 「Claude UI 设计稿」 → a full-screen mockup appears. **This is the case that catches the silent bug**: `javaScriptEnabled` was never set, so `cds.js` never ran — theme switching, scroll pinning and the model popover were all dead while the HTML shell still rendered and *looked* fine. Verify JS is live, not just that the page painted:
+  - tap the theme/accent switcher → the palette changes (proves `cds.js` executed)
+  - scroll up mid-conversation → the 「跳至最新」 jump button appears (proves scroll pinning + JS)
+  - `adb logcat --pid=$(adb shell pidof io.agents.pokeclaw) -s ClaudeUiPreview` shows `onCreate: loaded file:///android_asset/claude-ui/index.html`
+  - ✅ 2026-10-17 release 包真机确认：页面完整渲染（中文/日文/等宽字体、消息气泡、代码块），点配色**立即变色** → JS 确实在跑
+  - ⚠️ 配色名以 `mockup/claude-ui/index.html` 的 `data-theme-key` 为准（陶土橙 / 陶土橙·高对比 / 鼠尾草绿 / 靛蓝 / 赭石红 / 紫藤 / 深青）。此前文档写的「海盐绿」**不存在**，别照着找。
+  - ⚠️ logcat 断言已随 `WebViewAssetLoader` 改变，改为 `onCreate: loaded https://appassets.androidplatform.net/assets/claude-ui/index.html`
+- [x] **H13-b. Theme choice SURVIVES a close/reopen [PASS — 2026-10-18]**: 选非默认配色 → BACK BACK → 重开 → 配色必须仍是上次那个。
+  - ✅ **PASS，且推翻了此前「持久化失败」的结论。** 判定依据是三个独立证据同时成立：`loads` 计数跨 `force-stop` 从 1 涨到 2、`roundTrip.ok=true`、`applied == stored`。`localStorage` 在 `appassets` 来源下**完全正常**。
+  - **真实根因**：当初那次点击**根本没落到 `applyAccent`**，所以 clay 默认值被原样读回，看起来像「存不住」。不是存储问题。
+  - ⚠️ **曾经的错误结论（勿重犯）**：曾断言「CSS 变量表缺某个 key，导致静默回落」。核对 `cds.css:322-463` 后证实**7 个配色 + 7 个底色规则齐全**，该推断错误。教训：先数一遍再下结论。
+  - **新增护栏**：QA 面板把状态画进页面（截图即可读，不依赖 uiautomator——它看不见 WebView 内部）。面板里 `自检 写/读/一致` 与 `原生记住 accent=` 是对照组，后者走 SharedPreferences（一定持久），用于区分「没写」与「写丢了」。
+  - **新增校验**：`validAccent` / `validBase` 现在读**解析后的计算值**（`getComputedStyle`），不再只查 DOM。只查 DOM 会放过「色块还在、CSS 变量没了」这类静默回落。
+  - 验证方法：`assembleRelease` → 覆盖安装 → 选非默认配色 → `adb shell am force-stop` → 重开 → 面板 `loads` 必须 ≥2 且 `stored` 等于所选 key。
+- [ ] **H14. Back leaves the mockup and does not crash**: on the mockup → BACK → returns to Settings.
+  - ⚠️ **第一次返回可能只关掉配色面板**（若主题面板正开着），第二次才退出 —— 别误判成返回键坏了。
+  - ✅ 2026-10-17 release 包真机确认：无 `FATAL` / `ANR`，第二次返回确实回到 `SettingsActivity`，`dumpsys activity` 中已无 `ClaudeUiPreview` 残留。
+  - ⚠️ **内存泄漏项仍未验证**：连续 3 轮开关的 PSS 在 170–334 MB 间振荡（GC 抖动，非单调增长），但当时 `adb input tap` 未能可靠进入预览（滚动惯性导致点错行，见 §13.4），**故该轮数据不作数**。重测请用 `scripts/ui_cycle_test.py`，并确认每轮 `entered=OK`。
+- [ ] **H15. Mockup loads from the generated assets dir, not a stale committed copy**: the mockup must render the file under `mockup/claude-ui/`. Edit a visible string there, `./gradlew assembleDebug`, reinstall → the edit is visible.
+  - Guards the dedup: the three runtime files used to be duplicated byte-for-byte into `app/src/main/assets/claude-ui/`. Now `syncClaudeUiMockup` copies them into `build/generated/claudeUiAssets` at build time. Confirm `build/generated/claudeUiAssets/claude-ui/` contains exactly `index.html`, `cds.css`, `cds.js` — the nine `preview-*.png` (~740 KB) and `README.md` must NOT be in the APK.
+
 ## SEC. Security — Adversarial Verification (red-team)
 
 Threat model: a hostile app installed on the same phone, or anyone on the same Wi-Fi.

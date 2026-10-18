@@ -57,6 +57,29 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 - [ ] **P1** Lossless `exportJson()` for the memory bank — `exportMarkdown()` writes only content/tags/pinned, so it drops `hits`/`lastUsedAt` (retention state), `conflictsWith` and `relatedIds`. It is a human-readable share format, not a round-trip format, and should not be presented as one. Markdown export stays as-is.
 - [ ] **P3** Optional: contrast-bound evaluation for the bank. Community benchmark numbers are not comparable across frameworks (see `docs/MEMORY_DESIGN.md` §1.1), so a small local set of (query → expected entry) pairs would be the only honest way to judge a ranking change. Not blocking; useful before any tuning of the retention curve.
 
+## Temporary surfaces — DELETE BEFORE ANY PUBLIC RELEASE
+
+Anything here is reachable by users right now. If a release is being cut and this
+section is not empty, the release is not ready.
+
+- [ ] **P1** Claude UI design-review surface. A Settings > About row ("Claude UI mockup" / 「Claude UI 设计稿」) opens `ClaudeUiPreviewActivity`, a WebView showing the static `mockup/claude-ui/` mockup. **No product value — pure design review.** Must not ship. Removal checklist:
+  - `ClaudeUiPreviewActivity.kt` (whole file)
+  - `SettingsActivity.kt` — the `aboutGroup.addMenuItem` block + the `ClaudeUiPreviewActivity` import
+  - `AndroidManifest.xml` — the `.ui.web.ClaudeUiPreviewActivity` `<activity>`
+  - `res/values*/strings.xml` — `settings_about_claude_ui_preview` (all three locales)
+  - `app/build.gradle.kts` — `claudeUiMockup` / `claudeUiAssetsDir` / `syncClaudeUiMockup` / the `sourceSets` assets entry
+  - `mockup/claude-ui/` can stay; it is a design artefact and never entered the APK
+  - `NOTICE` keeps the MIT attribution either way (see below) — removing the
+    surface does not remove the licence obligation once it has shipped in a build
+
+  Not gated on `BuildConfig.DEBUG` **on purpose**: the QA device carries the
+  release-signed build and a debug APK cannot overwrite it
+  (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`, CLAUDE.local.md §13.2). A DEBUG gate would
+  hide the entry on the only build that can be tested. This entry is the guard.
+
+- [ ] **P1** Promote the Claude UI mockup to a real screen. The user wants the design live, not just viewable. `ChatSink` (`ui/chat/ChatSink.kt`, commit `86e4719`) is the seam that makes this possible: a WebView surface implements it and forwards to `evaluateJavascript` instead of re-implementing the task flow. **Blocked on a second seam** — `ChatSessionController` has the identical Compose coupling (`ChatSessionUiState` holds a `SnapshotStateList`, written in 40+ places inside `loadModelIfReady`, spanning model loading, conversation compaction and billing). Extract `ChatSessionSink` first; that is the fragile part and belongs in its own change. Do not shortcut by duplicating the flow — that is exactly the anti-pattern this extraction exists to remove.
+  Same class of leak as `.github/FUNDING.yml` shipping `github: ithiria894` (§10.2).
+
 ## Features
 
 - [x] ~~**P1** MCP server editor: auth-type dropdown for the auth header~~ (2026-10-10). `McpServersActivity.showEditDialog` provides an auth-type selector (None / Bearer / Basic / Custom) that automatically formats and ensures the `Bearer ` or `Basic ` prefix, plus runtime `normalizedHeaderValue()` in `McpServerConfig` and `McpStreamableHttpClient` preventing 401s when bare tokens are provided. Unit tests added in `McpServerConfigTest.kt`.

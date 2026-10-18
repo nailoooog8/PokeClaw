@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PokeClaw — 设计稿</title>
+<link rel="stylesheet" href="cds.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============================ 侧边栏 ============================ -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <div class="brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <div>PokeClaw</div>
+          <div class="brand-sub">v0.8.3 · 附属发行版</div>
+        </div>
+      </div>
+      <button class="new-task cds-btn-squish" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        新建任务
+      </button>
+    </div>
+
+    <input class="search" type="search" placeholder="搜索会话与记忆…" aria-label="搜索">
+
+    <nav class="sessions scroller" aria-label="会话列表">
+      <div class="group-label">今天</div>
+      <button class="session" aria-current="true" type="button">
+        <span class="status-dot" data-kind="running"></span>
+        <span class="session-title">给妈妈订高铁票</span>
+      </button>
+      <button class="session" type="button">
+        <span class="session-title">清理相册重复照片</span>
+      </button>
+      <button class="session" type="button">
+        <span class="session-title">微信里回复张工</span>
+      </button>
+
+      <div class="group-label">最近</div>
+      <button class="session" type="button"><span class="session-title">设置 QQ 与抖音渠道</span></button>
+      <button class="session" type="button"><span class="session-title">导出记忆库并分享</span></button>
+      <button class="session" type="button"><span class="session-title">局域网配置排查</span></button>
+      <button class="session" type="button"><span class="session-title">MCP 服务器接入</span></button>
+
+      <div class="group-label">远程渠道</div>
+      <button class="session" type="button"><span class="status-dot" data-kind="ready"></span><span class="session-title">微信 · 已连接</span></button>
+      <button class="session" type="button"><span class="status-dot" data-kind="ready"></span><span class="session-title">Telegram · 已连接</span></button>
+      <button class="session" type="button"><span class="session-title">Discord · 未连接</span></button>
+      <button class="session" type="button"><span class="session-title">QQ · 未配置</span></button>
+      <button class="session" type="button"><span class="session-title">抖音 · 未配置</span></button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <button class="row-btn" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10zM8 12h8M12 8v8"/></svg>
+        记忆库 · 128 条
+      </button>
+      <button class="row-btn" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        技能管理
+      </button>
+
+      <!-- 主题：底色 × 强调色，两个维度合并在一个面板 -->
+      <div class="theme-pop-wrap">
+        <button class="row-btn" id="themePickerBtn" type="button" aria-haspopup="true" aria-expanded="false">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-5-4.5-8.6-10-8.6z"/></svg>
+          主题 · <span id="themeNameInline">米黄 陶土橙</span>
+        </button>
+        <div class="pop theme-pop" id="themePop" data-open="false" role="menu">
+
+          <div class="pop-label">底色</div>
+          <button class="base-row" role="menuitemradio" data-base-key="clay"      type="button">
+            <span class="base-swatch" style="--b0:#f2e9e1;--b1:#faf2eb;--b2:#fdf8f4"></span>
+            <span class="swatch-name">米黄</span><span class="swatch-hex">#faf2eb</span>
+          </button>
+          <button class="base-row" role="menuitemradio" data-base-key="porcelain" type="button">
+            <span class="base-swatch" style="--b0:#ecebe7;--b1:#f7f6f3;--b2:#fcfbf9"></span>
+            <span class="swatch-name">奶白</span><span class="swatch-hex">#f7f6f3</span>
+          </button>
+          <button class="base-row" role="menuitemradio" data-base-key="sand"      type="button">
+            <span class="base-swatch" style="--b0:#e8dfd0;--b1:#f3ebdd;--b2:#faf4ea"></span>
+            <span class="swatch-name">沙</span><span class="swatch-hex">#f3ebdd</span>
+          </button>
+          <button class="base-row" role="menuitemradio" data-base-key="caramel"   type="button">
+            <span class="base-swatch" style="--b0:#e6d5c0;--b1:#f1e4d2;--b2:#f9f0e5"></span>
+            <span class="swatch-name">焦糖</span><span class="swatch-hex">#f1e4d2</span>
+          </button>
+          <button class="base-row" role="menuitemradio" data-base-key="taupe"     type="button">
+            <span class="base-swatch" style="--b0:#e4e1da;--b1:#eeece6;--b2:#f7f5f0"></span>
+            <span class="swatch-name">灰褐</span><span class="swatch-hex">#eeece6</span>
+          </button>
+          <button class="base-row" role="menuitemradio" data-base-key="rose"      type="button">
+            <span class="base-swatch" style="--b0:#eae0dd;--b1:#f4ecea;--b2:#fbf5f3"></span>
+            <span class="swatch-name">藕荷</span><span class="swatch-hex">#f4ecea</span>
+          </button>
+          <button class="base-row" role="menuitemradio" data-base-key="mint"      type="button">
+            <span class="base-swatch" style="--b0:#dfeae3;--b1:#eef4f0;--b2:#f7faf8"></span>
+            <span class="swatch-name">薄荷</span><span class="swatch-hex">#eef4f0</span>
+          </button>
+
+          <div class="pop-divider"></div>
+          <div class="pop-label">强调色</div>
+          <button class="swatch-row" role="menuitemradio" data-theme-key="clay"        style="--sw:#d97757" type="button"><span class="swatch"></span><span class="swatch-name">陶土橙</span><span class="swatch-hex">#d97757</span></button>
+          <button class="swatch-row" role="menuitemradio" data-theme-key="clay-bright" style="--sw:#e08a68" type="button"><span class="swatch"></span><span class="swatch-name">陶土橙 · 高对比</span><span class="swatch-hex">#e08a68</span></button>
+          <button class="swatch-row" role="menuitemradio" data-theme-key="sage"        style="--sw:#6f9068" type="button"><span class="swatch"></span><span class="swatch-name">鼠尾草绿</span><span class="swatch-hex">#6f9068</span></button>
+          <button class="swatch-row" role="menuitemradio" data-theme-key="indigo"      style="--sw:#7b93c4" type="button"><span class="swatch"></span><span class="swatch-name">靛蓝</span><span class="swatch-hex">#7b93c4</span></button>
+          <button class="swatch-row" role="menuitemradio" data-theme-key="ochre"       style="--sw:#c47068" type="button"><span class="swatch"></span><span class="swatch-name">赭石红</span><span class="swatch-hex">#c47068</span></button>
+          <button class="swatch-row" role="menuitemradio" data-theme-key="wisteria"    style="--sw:#a084b8" type="button"><span class="swatch"></span><span class="swatch-name">紫藤</span><span class="swatch-hex">#a084b8</span></button>
+          <button class="swatch-row" role="menuitemradio" data-theme-key="teal"        style="--sw:#5c918e" type="button"><span class="swatch"></span><span class="swatch-name">深青</span><span class="swatch-hex">#5c918e</span></button>
+        </div>
+      </div>
+
+      <button class="row-btn" id="themeToggle" type="button" aria-label="切换深浅色">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        深浅色
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============================= 主区 ============================= -->
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn" type="button" aria-label="重命名">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      </button>
+      <div class="topbar-title">给妈妈订高铁票</div>
+      <span class="pill" style="pointer-events:none">
+        <span class="status-dot" data-kind="running"></span>本地模型 · LiteRT-LM
+      </span>
+      <button class="icon-btn" type="button" aria-label="更多">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </button>
+    </header>
+
+    <!-- 会话流 -->
+    <div class="feed-wrap">
+    <div class="feed scroller" id="feed">
+
+      <div class="turn turn-user">
+        <div class="bubble">帮我在 12306 买一张后天从杭州东到上海虹桥的票，二等座，优先上午出发。</div>
+      </div>
+
+      <div class="turn turn-assistant">
+        <div class="status-row">
+          <span class="timeline-quiet-dots"><span></span><span></span><span></span></span>
+          <span>正在回忆相关偏好…</span>
+        </div>
+      </div>
+
+      <div class="turn turn-assistant">
+        <div class="chips">
+          <span class="chip"><span class="chip-idx">#12</span>妈妈出行优先上午车次</span>
+          <span class="chip"><span class="chip-idx">#31</span>常买杭州东 → 上海虹桥</span>
+          <span class="chip"><span class="chip-idx">#77</span>妈妈身份证已存</span>
+        </div>
+        <div class="body">
+          <p>找到三条相关记忆，其中 <strong>#31</strong> 与这次行程冲突——之前记的是「不接受 14:00 之后的车」。我按上午优先来筛。</p>
+        </div>
+      </div>
+
+      <div class="turn turn-assistant">
+        <div class="tool-card">
+          <div class="tool-head">
+            <span class="status-dot" data-kind="ready"></span>
+            <span class="tool-name">accessibility.open_app</span>
+            <span class="tool-kind">无障碍 · 启动应用</span>
+          </div>
+          <div class="tool-body">PACKAGE=com.MobileTicket  ·  ACTION=LAUNCH</div>
+        </div>
+      </div>
+
+      <div class="turn turn-assistant">
+        <div class="mcp-card">
+          <div class="mcp-head">
+            <span class="status-dot" data-kind="clay"></span>
+            需要你确认
+          </div>
+          <div class="mcp-desc">
+            下单前需要填入乘客人身份证号。是否允许 PokeClaw 读取已保存的实名信息并填入表单？
+          </div>
+          <div class="mcp-actions">
+            <button class="pill cds-btn-squish" type="button">允许一次</button>
+            <button class="pill cds-btn-squish" type="button">始终允许</button>
+            <button class="pill cds-btn-squish" type="button">本次拒绝</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="turn turn-assistant">
+        <div class="body">
+          <p>12306 已打开，筛出后天（10-19）上午的三趟：</p>
+        </div>
+        <div class="code">
+          <div class="code-head">候补结果</div>
+          <pre>G7307  07:12 → 08:24   二等座  ¥73.5   有票
+G7303  08:03 → 09:21   二等座  ¥73.5   有票
+G1201  09:15 → 10:42   二等座  ¥93.0   有票</pre>
+        </div>
+        <div class="body">
+          <p>买 G7307 还是 G7303？确认后我就走下单流程。</p>
+        </div>
+      </div>
+
+      <div class="turn turn-user">
+        <div class="bubble">G7307 吧。</div>
+      </div>
+
+      <div class="turn turn-assistant">
+        <div class="status-row">
+          <span class="timeline-quiet-dots"><span></span><span></span><span></span></span>
+          <span>正在下单…</span>
+        </div>
+      </div>
+
+    </div>
+
+      <!-- 跳至最新：离开底部 >120px 出现 -->
+      <button class="jump" id="jumpLatest" data-show="false" type="button" aria-label="跳至最新">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        跳至最新
+      </button>
+    </div>
+
+    <!-- 限流退避条 -->
+    <div class="rate-limit" id="rateLimit" data-show="false" role="status">
+      <span class="status-dot" data-kind="error"></span>
+      <span class="rl-text"></span>
+      <span class="spacer"></span>
+      <button class="pill rl-retry" type="button">手动重试</button>
+      <button class="rl-close" type="button" aria-label="关闭">✕</button>
+    </div>
+
+    <!-- =========================== 输入区 =========================== -->
+    <div class="dock">
+      <div class="dock-inner">
+        <div class="composer">
+          <textarea id="composerInput" rows="1" placeholder="描述你想让手机做的事…（Enter 发送，Shift + Enter 换行）"></textarea>
+          <div class="composer-bar">
+            <div class="pop-wrap">
+              <button class="pill" type="button" aria-haspopup="true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <span class="pill-label">本地模型</span>
+              </button>
+              <div class="pop" data-open="false" role="menu">
+                <div class="pop-label">选择模型</div>
+                <button class="pop-item" role="menuitemradio" data-label="本地模型" aria-checked="true" type="button">本地模型 · LiteRT-LM <span class="tag">离线</span></button>
+                <button class="pop-item" role="menuitemradio" data-label="云端 MiniMax" aria-checked="false" type="button">云端 MiniMax <span class="tag">视觉</span></button>
+                <button class="pop-item" role="menuitemradio" data-label="云端 Claude" aria-checked="false" type="button">云端 Claude <span class="tag">最强</span></button>
+              </div>
+            </div>
+
+            <button class="pill" type="button">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              高努力
+            </button>
+            <button class="pill" type="button">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1 12.4 2.1a2 2 0 0 0-2.8 0l-9 9a2 2 0 0 0 0 2.8l9 9a2 2 0 0 0 2.8 0l9-9a2 2 0 0 0 0-2.8z"/></svg>
+              允许操作
+            </button>
+
+            <span class="spacer"></span>
+            <button class="send cds-btn-squish" id="sendBtn" type="button" disabled aria-label="发送">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="hint">PokeClaw 会真的操作这台手机 · 敏感操作需你确认</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="cds.js"></script>
+</body>
+</html>
