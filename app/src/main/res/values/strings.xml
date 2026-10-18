@@ -389,6 +389,7 @@
     <string name="settings_about_share_debug">Share Debug Report</string>
     <string name="settings_about_share_debug_desc">ZIP logs + state</string>
     <string name="settings_about_sponsor">Sponsor</string>
+    <string name="settings_about_claude_ui_preview">Claude UI mockup</string>
     <string name="settings_about_sponsor_desc">WeChat Pay</string>
     <string name="sponsor_qr_title">Scan to sponsor</string>
     <string name="sponsor_qr_subtitle">WeChat Pay · code shown offline, no browser needed</string>

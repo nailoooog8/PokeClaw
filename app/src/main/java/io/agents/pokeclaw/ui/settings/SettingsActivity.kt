@@ -21,6 +21,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.agents.pokeclaw.R
 import io.agents.pokeclaw.base.BaseActivity
+import io.agents.pokeclaw.ui.web.ClaudeUiPreviewActivity
 import io.agents.pokeclaw.widget.AlertDialog
 import io.agents.pokeclaw.widget.ConfirmDialog
 import io.agents.pokeclaw.widget.CommonToolbar
@@ -704,6 +705,32 @@ class SettingsActivity : BaseActivity() {
         ).apply {
             setTrailingText(getString(R.string.settings_about_sponsor_desc))
             // ic_heart ships white; without this it disappears in the light theme.
+            setLeadingIconColor(getColor(R.color.colorTextPrimary))
+        }
+
+        // TEMPORARY — design-review entry for the Claude UI mockup. Tracked in
+        // BACKLOG.md "Temporary surfaces"; delete before any public release.
+        //
+        // ClaudeUiPreviewActivity is exported="false" on purpose, so `adb shell
+        // am start` cannot reach it either (SecurityException: not exported from
+        // uid 10395). Loosening exported just to make QA convenient would turn a
+        // design surface into something any app on the device can launch, so the
+        // entry point stays inside the app instead.
+        //
+        // Deliberately NOT gated on BuildConfig.DEBUG: the device under QA has the
+        // release-signed build installed, and a debug APK cannot overwrite it
+        // (INSTALL_FAILED_UPDATE_INCOMPATIBLE — see CLAUDE.local.md §13.2). Gating
+        // on DEBUG would hide this entry on the only build that can actually be
+        // tested. The BACKLOG entry is the guard instead.
+        aboutGroup.addMenuItem(
+            leadingIcon = R.drawable.ic_heart,
+            title = getString(R.string.settings_about_claude_ui_preview),
+            onClick = {
+                XLog.i("SettingsActivity", "opening Claude UI preview")
+                startActivity(Intent(this, ClaudeUiPreviewActivity::class.java))
+            },
+            showDivider = false
+        ).apply {
             setLeadingIconColor(getColor(R.color.colorTextPrimary))
         }
     }

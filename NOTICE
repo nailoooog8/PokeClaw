@@ -34,3 +34,22 @@ The upstream copyright notice above is retained unchanged, as required by
 Apache License 2.0 section 4(d). Upstream authored STRATEGY.md,
 EXECUTION_PLAN.md, and docs/index.html; those files are preserved as-is and any
 statements inside them describe upstream's intentions only.
+
+--------------------------------------------------------------------------------
+
+Third-party components bundled in the APK
+
+  open-claude-ui — https://github.com/Caho1/open-claude-ui
+    MIT License, Copyright (c) Caho1
+
+    Design tokens in the bundled Claude UI mockup (`cds.css`: the greyscale and
+    clay-orange scales, surface steps, corner-radius matrix, bezier curves and
+    CJK font fallback chain) are copied value-for-value from that project so the
+    mockup renders identically to the reference. `cds.js` is an original
+    vanilla-JS reimplementation of the reference project's React hooks, not a
+    copy. The mockup is a temporary design-review surface and is scheduled for
+    removal; see BACKLOG.md "Temporary surfaces".
+
+    The MIT license requires this copyright notice and permission notice to be
+    included in all copies or substantial portions of the Software.
+

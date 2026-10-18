@@ -100,6 +100,11 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".ui.web.ClaudeUiPreviewActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".tool.impl.ClipboardReaderActivity"
             android:exported="false"
             android:excludeFromRecents="true"

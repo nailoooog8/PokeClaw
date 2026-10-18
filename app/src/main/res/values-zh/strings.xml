@@ -388,6 +388,7 @@
     <string name="settings_about_share_debug_desc">ZIP 日志 + 状态</string>
     <string name="settings_about_sponsor">赞助</string>
     <string name="settings_about_sponsor_desc">微信支付</string>
+    <string name="settings_about_claude_ui_preview">Claude UI 设计稿</string>
     <string name="sponsor_qr_title">扫码赞助</string>
     <string name="sponsor_qr_subtitle">微信支付 · 离线显示，无需浏览器</string>
     <string name="sponsor_qr_load_failed">无法加载收款码</string>
