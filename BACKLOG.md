@@ -76,7 +76,10 @@ section is not empty, the release is not ready.
   - ✅ 已验证：`QA_CHECKLIST.md` **H17** 于 2026-10-18 真机 PASS（单条助手气泡、模型状态行、无 FATAL）。**唯一例外**：token/费用计数的真实数值未取证 —— `XLog` 在 release 下只有 `e` 级进 logcat，计数走 `XLog.d`，而设备上是 release 签名、debug 包无法覆盖安装。
   - ✅ **2026-10-18 已实现第三层接线**：`WebChatSink`（`ui/web/WebChatSink.kt`）实现 `ChatSink`，`ClaudeUiPreviewActivity` 用它驱动 `TaskFlowController`；页面侧新增 `renderLive`/`renderLiveRaw` 按 role 重建 turn，composer 经 `PokeClawChat.send` 回调 Kotlin。**编排逻辑仍是 `TaskFlowController` 一处**，这是「一个控制器 + 三个 sink 实现」，不是 CLAUDE.md 说的 duplicate code path。
   - 配套：`WebChatSinkTest` 13 例；全量 **260 tests / 29 suites / 0 失败**。
-  - ❌ **真机验证未完成（不得记 PASS）**：`ClaudeUiPreviewActivity` 是 `exported="false"`（正确的安全设计），adb 无法拉起；`adb input tap` 导航连续失败。详见 `QA_CHECKLIST.md` **H18**。
+  - ✅ **真机 PASS**（release 包 `..._171735.apk`）：`QA_CHECKLIST.md` **H18** 四项判据全通过 —— 用户气泡 → 「正在思考…」→ 真实回复替换 → **完成后仍停留在预览页**。`topResumedActivity` = `.ui.web.ClaudeUiPreviewActivity`，无 `FATAL` / 无 `ANR`。
+  - ✅ **连带修掉一个真 bug**（commit `b93b9b4`）：`TaskOrchestrator.onComplete` 把回跳目标**硬编码**为聊天页 —— 任何非聊天页发起的任务都会被误送回聊天页。改为 `TaskSessionState.originActivity` 记录发起方类名（存字符串不存引用，任务可能比界面活得久）。
+    - ⚠️ **硬编码回跳共四处，语义不同**：watchdog 超时是 `GLOBAL_ACTION_HOME`（回桌面）；`bringAppToForeground` 只挂在浮动球点击回调上（且其入口 `showFloatingCircle()` 零调用方）；通知 PendingIntent 应指主界面。**只有 `onComplete` 那一处是 bug**，其余故意不动。
+    - ✅ 全量 **264 tests / 29 suites / 0 失败**（新增 4 例，含「release 后 origin 必须清空」防泄漏）。详见 **H20**。
   - ⚠️ **下一条独立缺口**：`ChatMessage.toolSteps` 在 `TaskFlowController` 里**从未被赋值**（grep 零命中）。所以设计稿里的工具卡片 / MCP 确认卡 / 记忆 chips 在接入后**仍是静态示例** —— `buildTurn` 已能画工具卡，缺的是**生产侧数据**。要给 MCP 确认按钮接交互，还需一条 Kotlin → JS → Kotlin 的决策回路，属另一次范围决策。
 
   Same class of leak as `.github/FUNDING.yml` shipping `github: ithiria894` (§10.2).
