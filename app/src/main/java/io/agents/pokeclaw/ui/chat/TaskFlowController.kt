@@ -29,12 +29,59 @@ import io.agents.pokeclaw.utils.KVUtils
 import io.agents.pokeclaw.utils.XLog
 import java.util.concurrent.ExecutorService
 
-data class TaskFlowUiState(
+/**
+ * Compose adapter for [ChatSink].
+ *
+ * Every method writes to exactly the same Compose state the controller used
+ * before, so the Compose chat screen is behaviour-preserving by construction —
+ * this is a type change, not a logic change.
+ */
+class TaskFlowUiState(
     val messages: SnapshotStateList<ChatMessage>,
-    val modelStatus: MutableState<String>,
-    val isAwaitingReply: MutableState<Boolean>,
-    val isTaskRunning: MutableState<Boolean>,
-)
+    private val modelStatusState: MutableState<String>,
+    private val awaitingReplyState: MutableState<Boolean>,
+    private val taskRunningState: MutableState<Boolean>,
+) : ChatSink {
+
+    // Names deliberately differ from the [ChatSink] members: an `override var
+    // modelStatus` next to a `MutableState<String> modelStatus` parameter would
+    // be the same identifier twice with different meanings. Hence the `…State`
+    // suffix on the constructor params.
+    override var modelStatus: String
+        get() = modelStatusState.value
+        set(value) { modelStatusState.value = value }
+
+    override var awaitingReply: Boolean
+        get() = awaitingReplyState.value
+        set(value) { awaitingReplyState.value = value }
+
+    override var taskRunning: Boolean
+        get() = taskRunningState.value
+        set(value) { taskRunningState.value = value }
+
+    override fun append(message: ChatMessage) {
+        messages.add(message)
+    }
+
+    override fun replaceTypingIndicator(text: String, modelName: String?) {
+        val idx = messages.indexOfLast { isTypingIndicator(it) }
+        if (idx >= 0) {
+            messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelName)
+        } else {
+            messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelName))
+        }
+    }
+
+    override fun removeTypingIndicator() {
+        val idx = messages.indexOfLast { isTypingIndicator(it) }
+        if (idx >= 0) messages.removeAt(idx)
+    }
+
+    override fun snapshotMessages(): List<ChatMessage> = messages.toList()
+
+    private fun isTypingIndicator(m: ChatMessage) =
+        m.role == ChatMessage.Role.ASSISTANT && m.content == ChatSink.TYPING_INDICATOR
+}
 
 /**
  * Owns task-mode send flow, typed TaskEvent rendering, and monitor start wiring.
@@ -47,7 +94,7 @@ class TaskFlowController(
     private val appViewModel: AppViewModel,
     private val chatSessionController: ChatSessionController,
     private val currentConversationId: () -> String,
-    private val uiState: TaskFlowUiState,
+    private val sink: ChatSink,
     private val onPersistConversation: () -> Unit,
     private val onTaskSettled: (() -> Unit)? = null,
     private val onTaskTerminal: ((TaskEvent) -> Unit)? = null,
@@ -159,8 +206,8 @@ class TaskFlowController(
         sendTaskRetryCount = 0
 
         ensureNotificationPermission()
-        uiState.isAwaitingReply.value = false
-        uiState.isTaskRunning.value = false
+        sink.awaitingReply = false
+        sink.taskRunning = false
 
         if (!KVUtils.hasLlmConfig()) {
             Toast.makeText(activity, "Configure LLM in Settings first", Toast.LENGTH_LONG).show()
@@ -170,10 +217,10 @@ class TaskFlowController(
 
         val agentPromptOverride = buildAgentPromptOverride(text)
         addUser(text)
-        uiState.isAwaitingReply.value = true
-        uiState.isTaskRunning.value = false
+        sink.awaitingReply = true
+        sink.taskRunning = false
         XLog.i(TAG, "sendTask: isProcessing=TRUE")
-        uiState.messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
+        sink.append(ChatMessage(ChatMessage.Role.ASSISTANT, ChatSink.TYPING_INDICATOR))
 
         val taskId = "task_${System.currentTimeMillis()}"
 
@@ -197,9 +244,9 @@ class TaskFlowController(
     private fun executeDirectToolTask(text: String, toolCall: DirectDeviceDataGuard.DeterministicToolCall) {
         ensureNotificationPermission()
         addUser(text)
-        uiState.isAwaitingReply.value = true
-        uiState.isTaskRunning.value = false
-        uiState.messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
+        sink.awaitingReply = true
+        sink.taskRunning = false
+        sink.append(ChatMessage(ChatMessage.Role.ASSISTANT, ChatSink.TYPING_INDICATOR))
 
         executor.submit {
             try {
@@ -264,8 +311,8 @@ class TaskFlowController(
 
         val contact = trimmedLabel
         val app = target.app
-        uiState.isAwaitingReply.value = false
-        uiState.isTaskRunning.value = false
+        sink.awaitingReply = false
+        sink.taskRunning = false
         addSystem("Setting up auto-reply for $contact on $app...")
 
         val autoReplyManager = AutoReplyManager.getInstance()
@@ -274,8 +321,8 @@ class TaskFlowController(
         XLog.i(TAG, "startMonitor: enabled auto-reply for '${target.displayLabel}'")
 
         Handler(Looper.getMainLooper()).postDelayed({
-            uiState.isAwaitingReply.value = false
-            uiState.isTaskRunning.value = false
+            sink.awaitingReply = false
+            sink.taskRunning = false
             addSystem("✓ Auto-reply is now active for ${target.displayLabel}.\nMonitoring in background — you can stop anytime from the bar above.")
             XLog.i(TAG, "startMonitor: monitor active, staying in PokeClaw")
         }, 1500)
@@ -296,7 +343,7 @@ class TaskFlowController(
                     cleanupAfterTask()
                 }
                 is TaskEvent.Cancelled -> {
-                    removeTypingIndicator()
+                    sink.removeTypingIndicator()
                     onTaskTerminal?.invoke(event)
                     cleanupAfterTask()
                 }
@@ -306,30 +353,30 @@ class TaskFlowController(
                     cleanupAfterTask()
                 }
                 is TaskEvent.ToolAction -> {
-                    uiState.isAwaitingReply.value = false
-                    uiState.isTaskRunning.value = true
+                    sink.awaitingReply = false
+                    sink.taskRunning = true
                     if (!event.toolName.contains("Finish", ignoreCase = true)) {
-                        removeTypingIndicator()
+                        sink.removeTypingIndicator()
                         addSystem("${event.toolName}...")
                     }
                 }
                 is TaskEvent.ToolResult -> {
-                    uiState.isAwaitingReply.value = false
-                    uiState.isTaskRunning.value = true
+                    sink.awaitingReply = false
+                    sink.taskRunning = true
                     if (!event.success) addSystem("${event.toolName} failed")
                 }
                 is TaskEvent.Response -> {
-                    uiState.isAwaitingReply.value = false
+                    sink.awaitingReply = false
                     replaceTypingIndicator(event.text)
                 }
                 is TaskEvent.Progress -> {
-                    uiState.isAwaitingReply.value = false
-                    uiState.isTaskRunning.value = true
+                    sink.awaitingReply = false
+                    sink.taskRunning = true
                     addSystem(event.description)
                 }
                 is TaskEvent.LoopStart -> {
-                    uiState.isAwaitingReply.value = false
-                    uiState.isTaskRunning.value = true
+                    sink.awaitingReply = false
+                    sink.taskRunning = true
                 }
                 is TaskEvent.TokenUpdate, is TaskEvent.Thinking -> Unit
             }
@@ -340,33 +387,27 @@ class TaskFlowController(
 
     private fun replaceTypingIndicator(text: String, actualModelName: String? = null) {
         val modelTag = actualModelName
-            ?: uiState.modelStatus.value.removePrefix("● ").split(" ·").firstOrNull()?.trim()
+            ?: sink.modelStatus.removePrefix("● ").split(" ·").firstOrNull()?.trim()
             ?: ""
-        val idx = uiState.messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
-        if (idx >= 0) {
-            uiState.messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelTag)
-        } else {
-            uiState.messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelTag))
-        }
+        sink.replaceTypingIndicator(text, modelTag)
         onPersistConversation()
     }
 
     private fun removeTypingIndicator() {
-        val idx = uiState.messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
-        if (idx >= 0) uiState.messages.removeAt(idx)
+        sink.removeTypingIndicator()
     }
 
     private fun cleanupAfterTask() {
         XLog.i(TAG, "cleanupAfterTask: isProcessing=FALSE")
-        uiState.isAwaitingReply.value = false
-        uiState.isTaskRunning.value = false
+        sink.awaitingReply = false
+        sink.taskRunning = false
         appViewModel.clearTaskCallback()
         onTaskSettled?.invoke()
         Handler(Looper.getMainLooper()).postDelayed({
             try {
                 chatSessionController.loadModelIfReady(
                     conversationId = currentConversationId(),
-                    visibleMessages = uiState.messages.toList(),
+                    visibleMessages = sink.snapshotMessages(),
                 )
             } catch (e: Exception) {
                 XLog.e(TAG, "cleanupAfterTask: loadModel error", e)
@@ -401,11 +442,11 @@ class TaskFlowController(
     }
 
     private fun addUser(text: String) {
-        uiState.messages.add(ChatMessage(ChatMessage.Role.USER, text))
+        sink.append(ChatMessage(ChatMessage.Role.USER, text))
     }
 
     private fun addSystem(text: String) {
-        uiState.messages.add(ChatMessage(ChatMessage.Role.SYSTEM, text))
+        sink.append(ChatMessage(ChatMessage.Role.SYSTEM, text))
     }
 
     private fun openSettings() {
@@ -417,7 +458,7 @@ class TaskFlowController(
             return null
         }
 
-        val historyLines = CloudContextHandoffFormatter.conversationLines(uiState.messages)
+        val historyLines = CloudContextHandoffFormatter.conversationLines(sink.snapshotMessages())
         val backgroundStatus = buildBackgroundStatusContext()
 
         return TaskPromptEnvelope.build(

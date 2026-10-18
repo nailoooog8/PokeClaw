@@ -90,11 +90,11 @@ class ComposeChatActivity : ComponentActivity() {
             appViewModel = appViewModel,
             chatSessionController = chatSessionController,
             currentConversationId = { conversationStore.currentConversationId },
-            uiState = TaskFlowUiState(
+            sink = TaskFlowUiState(
                 messages = _messages,
-                modelStatus = _modelStatus,
-                isAwaitingReply = _isAwaitingReply,
-                isTaskRunning = _isTaskRunning,
+                modelStatusState = _modelStatus,
+                awaitingReplyState = _isAwaitingReply,
+                taskRunningState = _isTaskRunning,
             ),
             onPersistConversation = { saveChat() },
             onTaskSettled = { deferLocalChatBootstrapForAutoTask = false },
