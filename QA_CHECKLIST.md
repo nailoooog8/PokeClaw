@@ -799,11 +799,12 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ⚠️ **内存泄漏项仍未验证**：连续 3 轮开关的 PSS 在 170–334 MB 间振荡（GC 抖动，非单调增长），但当时 `adb input tap` 未能可靠进入预览（滚动惯性导致点错行，见 §13.4），**故该轮数据不作数**。重测请用 `scripts/ui_cycle_test.py`，并确认每轮 `entered=OK`。
 - [ ] **H15. Mockup loads from the generated assets dir, not a stale committed copy**: the mockup must render the file under `mockup/claude-ui/`. Edit a visible string there, `./gradlew assembleDebug`, reinstall → the edit is visible.
   - Guards the dedup: the three runtime files used to be duplicated byte-for-byte into `app/src/main/assets/claude-ui/`. Now `syncClaudeUiMockup` copies them into `build/generated/claudeUiAssets` at build time. Confirm `build/generated/claudeUiAssets/claude-ui/` contains exactly `index.html`, `cds.css`, `cds.js` — the nine `preview-*.png` (~740 KB) and `README.md` must NOT be in the APK.
-- [ ] **H17. Chat path unchanged after the ChatSessionSink extraction [NOT RUN — device pass required]**: 旗舰聊天页发一条消息 → 等待真实回复 → 确认①只出现**一条**助手气泡（无重复）②顶部模型状态行与 token/费用计数同步更新。
-  - 这是 `ChatSessionController` 抽出 `ChatSessionSink` 后的回归用例（2026-10-18）。改动**声称**是纯类型改动：`ChatSessionUiState` 仍写同一批 Compose state。
-  - 已有证据：`ChatSessionUiStateTest` 13 例把搬走的逻辑钉住（指示器识别、补一条而非丢弃、`lastMessage` 去重、快照不可变）；`assembleDebug` 与 247 个单测全绿。
-  - ⚠️ **但真机一条都没跑** —— 编译通过 ≠ 行为不变。上面第 ② 条尤其只有真机能验：token/费用走的是 `sink.sessionTokens += n` 的读改写，与原来的 `MutableState.value +=` 同构，这一点是推理不是实测。
-  - 附带风险点：`onPause` 的 `ConversationCompactor.compact(engine!!, sink.snapshotMessages(), ...)` 仍在 executor 线程上取快照（**与改动前一致，不是新引入的**）。若真机报 snapshot 异常，优先怀疑这里。
+- [x] **H17. Chat path unchanged after the ChatSessionSink extraction [PASS — 2026-10-18]**: 旗舰聊天页发一条消息 → 等待真实回复 → 确认①只出现**一条**助手气泡（无重复）②顶部模型状态行与 token/费用计数同步更新。
+  - 这是 `ChatSessionController` 抽出 `ChatSessionSink` 后的回归用例（commit `12fd283`）。改动**声称**是纯类型改动：`ChatSessionUiState` 仍写同一批 Compose state —— 所以 **UI 完全不变是预期结果，不是没生效**。
+  - ✅ 2026-10-18 真机（release 包 `PokeClaw_v0.8.3_20261018_162632.apk`，证书 `7c2d6dd5…4c667`，覆盖安装成功）：用户气泡 → **恰好一条**助手回复「已收到。在的，有什么需要我做的？」，无重复；模型状态行 `● doubao-seed-1.6-flash · Cloud` 完整；logcat 无 `FATAL` / `ANR`；进程 25714 未重启。
+  - **本条最值钱的证据**：`replaceTypingIndicator` 走的是「无指示器则补一条」这条**非默认**契约。若当初图省事让 `ChatSessionSink` 继承 `ChatSink`（no-op 语义），这条回复会被**整个吞掉** —— 用户发完消息界面永远停在「思考中」。真机这一轮把该设计选择验实了。
+  - ⚠️ **token/费用计数未取到数值**（**不计入 PASS**）：`XLog` 在 release 下只有 `e` 级进 logcat（§18.12），计数走的是 `XLog.d`；且当次 logcat 缓冲区仅剩 64 行、无 pokeclaw 记录。计数是纯读改写（`sink.sessionTokens += n` ↔ 原 `MutableState.value += n`），`ChatSessionUiStateTest` 已钉住往返，但**真机未观测**。要补验需 debug 包，而设备上是 release 签名、debug 无法覆盖安装（§13.2）。
+  - ✅ 附带确认：`onPause` 的 `ConversationCompactor.compact(engine!!, sink.snapshotMessages(), ...)`（§19.6 记的既有越线程隐患，本次未改）本轮未被触发，无 snapshot 异常。
 
 ## SEC. Security — Adversarial Verification (red-team)
 
