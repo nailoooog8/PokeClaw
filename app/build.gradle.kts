@@ -46,6 +46,41 @@ fun readLocalOrEnvInt(key: String, defaultValue: Int): Int {
     return readLocalOrEnvString(key).toIntOrNull() ?: defaultValue
 }
 
+/**
+ * Mirror mockup/claude-ui/ into a generated assets dir consumed by the
+ * `assets.srcDir` entry in the android block below.
+ *
+ * mockup/claude-ui/ is the single source of truth for the temporary Claude UI
+ * design-review surface and is edited there (it is the copy opened in a browser).
+ * It used to be duplicated byte-for-byte into app/src/main/assets/claude-ui/,
+ * which meant two copies drifted apart and the design source could silently stop
+ * matching what ships in the APK. Sync (not Copy) so removed files cannot linger.
+ *
+ * Only the three runtime files are synced — mockup/claude-ui/ also holds 9 preview
+ * PNGs (~740 KB) and a README that have no business inside the APK.
+ *
+ * These declarations must stay ABOVE `android { }`: Kotlin DSL scripts are
+ * evaluated top-to-bottom, so the android block cannot reference a val that has
+ * not been declared yet.
+ *
+ * When the design-review surface is deleted, drop this block, the srcDir entry,
+ * and ClaudeUiPreviewActivity together.
+ */
+val claudeUiMockup = rootProject.file("mockup/claude-ui")
+// Resolved to a File, not a Provider: AGP's SourceSet API rejects Provider
+// instances ("You cannot add Provider instances to the Android SourceSet API").
+// buildDirectory is deterministic at configuration time, so this is safe.
+val claudeUiAssetsDir = layout.buildDirectory.dir("generated/claudeUiAssets").get().asFile
+
+val syncClaudeUiMockup by tasks.registering(Sync::class) {
+    from(claudeUiMockup) {
+        include("index.html", "cds.css", "cds.js")
+    }
+    // Must land under a "claude-ui/" segment, otherwise the assets URL flattens
+    // to file:///android_asset/index.html and ClaudeUiPreviewActivity 404s.
+    into(claudeUiAssetsDir.resolve("claude-ui"))
+}
+
 android {
     namespace = "io.agents.pokeclaw"
     compileSdk {
@@ -162,6 +197,13 @@ android {
         compose = true
     }
 
+    // Design mockup assets — see the syncClaudeUiMockup task above.
+    sourceSets {
+        getByName("main") {
+            assets.srcDir(claudeUiAssetsDir)
+        }
+    }
+
     packaging {
         resources {
             excludes += setOf(
@@ -184,6 +226,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.webkit)
     implementation(libs.material)
     implementation(libs.constraintlayout)
     implementation(libs.gson)
@@ -263,6 +306,7 @@ tasks.register("injectBuildFingerprint") {
     }
 }
 tasks.named("preBuild") { dependsOn("injectBuildFingerprint") }
+tasks.named("preBuild") { dependsOn(syncClaudeUiMockup) }
 
 androidComponents {
     onVariants { variant ->

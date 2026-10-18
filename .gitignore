@@ -23,6 +23,10 @@ thoughts/
 .claudeignore
 /.kotlin/
 
+# Python bytecode (scripts/ tooling)
+/__pycache__/
+*.pyc
+
 # Local scratch / tooling
 .tmp_*
 .mimosa/
