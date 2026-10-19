@@ -134,6 +134,36 @@ class WebChatSink(
         emit()
     }
 
+    /**
+     * Reload from a persisted history, replacing whatever is on screen.
+     *
+     * Used on entry so a task interrupted by process death is not lost. A
+     * restored typing indicator would otherwise come back as a permanent
+     * "thinking" bubble with no task behind it to resolve it — the same
+     * reason [ChatSink.replaceTypingIndicator] is a no-op when its indicator is
+     * gone. So any indicator in the saved history is dropped.
+     */
+    fun restore(persisted: List<ChatMessage>) {
+        messages.clear()
+        typingIndex = -1
+        persisted
+            .filterNot {
+                it.role == ChatMessage.Role.ASSISTANT && it.content == ChatSink.TYPING_INDICATOR
+            }
+            .forEach { message ->
+                messages += WebMessage(
+                    role = message.role.name,
+                    content = message.content,
+                    isTypingIndicator = false,
+                    modelName = message.modelName,
+                    toolSteps = message.toolSteps.orEmpty().map {
+                        ToolStepView(it.toolName, it.summary, it.success)
+                    },
+                )
+            }
+        emit()
+    }
+
     private fun emit() {
         onRender(messages.toList())
     }

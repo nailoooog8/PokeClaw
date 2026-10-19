@@ -204,4 +204,61 @@ class WebChatSinkTest {
         assertEquals("gpt-4", last[0].modelName)
         assertNull(last[1].modelName)
     }
+
+    // ---------------------------------------------------------------------
+    // restore(): reloading a transcript that a killed process left on disk.
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun `restore replaces whatever is on screen`() {
+        val s = sink()
+        s.append(user("stale"))
+        s.restore(listOf(user("persisted q"), assistant("persisted a")))
+        assertEquals(listOf("persisted q", "persisted a"), last.map { it.content })
+    }
+
+    @Test
+    fun `restore drops a typing indicator left behind by a killed task`() {
+        val s = sink()
+        // A task killed mid-flight persists its indicator. Reloading it would
+        // show a permanent "thinking" bubble with no task left to resolve it.
+        s.restore(listOf(user("q"), typing()))
+        assertEquals(listOf("q"), last.map { it.content })
+        assertFalse(last.any { it.isTypingIndicator })
+    }
+
+    @Test
+    fun `restore of an empty history clears the screen`() {
+        val s = sink()
+        s.append(user("old"))
+        s.restore(emptyList())
+        assertTrue(last.isEmpty())
+    }
+
+    @Test
+    fun `restore leaves the sink ready to accept new messages`() {
+        val s = sink()
+        s.restore(listOf(user("persisted")))
+        s.append(typing())
+        s.replaceTypingIndicator("fresh", null)
+        // The restored list must not leave a stale indicator index behind, or
+        // the replace would rewrite an older message instead.
+        assertEquals(listOf("persisted", "fresh"), last.map { it.content })
+    }
+
+    @Test
+    fun `restore keeps tool steps from the saved transcript`() {
+        val s = sink()
+        s.restore(
+            listOf(
+                ChatMessage(
+                    ChatMessage.Role.ASSISTANT,
+                    "done",
+                    toolSteps = listOf(ToolStep("tap", "btn_send", true)),
+                )
+            )
+        )
+        assertEquals(1, last.single().toolSteps.size)
+        assertEquals("tap", last.single().toolSteps.single().name)
+    }
 }

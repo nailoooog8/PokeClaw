@@ -24,9 +24,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.webkit.WebViewAssetLoader
 import io.agents.pokeclaw.appViewModel
 import io.agents.pokeclaw.base.BaseActivity
+import io.agents.pokeclaw.ui.chat.ChatHistoryManager
 import io.agents.pokeclaw.ui.chat.ChatSessionController
 import io.agents.pokeclaw.ui.chat.ChatSessionUiState
-import io.agents.pokeclaw.ui.chat.ConversationStore
 import io.agents.pokeclaw.ui.chat.TaskFlowController
 import io.agents.pokeclaw.utils.XLog
 import java.util.concurrent.Executors
@@ -52,8 +52,6 @@ class ClaudeUiPreviewActivity : BaseActivity() {
     private var qaReceiver: BroadcastReceiver? = null
     private val executor = Executors.newSingleThreadExecutor()
 
-    private val conversationStore by lazy { ConversationStore(this) }
-
     private val sink by lazy {
         WebChatSink { messages -> publish(messages) }
     }
@@ -64,7 +62,7 @@ class ClaudeUiPreviewActivity : BaseActivity() {
             executor = executor,
             appViewModel = appViewModel,
             chatSessionController = chatSessionController,
-            currentConversationId = { conversationStore.currentConversationId },
+            currentConversationId = { PREVIEW_CONVERSATION_ID },
             sink = sink,
             onPersistConversation = { saveChat() },
         )
@@ -90,10 +88,56 @@ class ClaudeUiPreviewActivity : BaseActivity() {
         )
     }
 
+    /**
+     * Persist this surface's history.
+     *
+     * Deliberately does NOT go through [io.agents.pokeclaw.ui.chat.ConversationStore].
+     * Its `currentConversationId` lives in a **global** KV key, so saving here
+     * would overwrite the chat screen's current conversation — and the chat
+     * screen would overwrite this one on its next save. Two surfaces silently
+     * clobbering each other's history is worse than either one not persisting.
+     *
+     * [io.agents.pokeclaw.ui.chat.ChatHistoryManager] is stateless, so it can be
+     * called directly with a fixed id. The consequence is that this surface's
+     * history does not appear in the chat screen's sidebar, which is the right
+     * default: an experimental surface should not bury real conversations.
+     */
     private fun saveChat() {
-        // No conversation picker on this surface, so there is nothing to write
-        // back to. The controller requires the hook; keep it inert rather than
-        // inventing a storage policy this page does not have a UI for.
+        runCatching {
+            ChatHistoryManager.save(
+                context = this,
+                conversationId = PREVIEW_CONVERSATION_ID,
+                messages = sink.snapshotMessages(),
+                model = sink.modelStatus,
+            )
+        }.onFailure {
+            XLog.e(TAG, "saveChat failed: ${it.message}", it)
+        }
+    }
+
+    /**
+     * Reload history written by a previous visit.
+     *
+     * A task that was killed mid-flight leaves a half-finished transcript on
+     * disk; without this, reopening the page starts blank and the user cannot
+     * tell whether the work happened.
+     *
+     * Lookup goes through [ChatHistoryManager.listConversations] rather than a
+     * computed path: save() names the file after the date and the first user
+     * message, so the id only exists inside the file's frontmatter. Filtering by
+     * id — and taking the newest match — is what makes this correct when the
+     * first message differs between saves.
+     */
+    private fun restoreChat() {
+        runCatching {
+            val match = ChatHistoryManager.listConversations(this)
+                .firstOrNull { it.id == PREVIEW_CONVERSATION_ID }
+                ?: return
+            sink.restore(ChatHistoryManager.load(match.file))
+            XLog.i(TAG, "restoreChat: reloaded '${match.title}'")
+        }.onFailure {
+            XLog.e(TAG, "restoreChat failed: ${it.message}", it)
+        }
     }
 
     /**
@@ -282,6 +326,12 @@ class ClaudeUiPreviewActivity : BaseActivity() {
         // probe which fired on the first launch and never again — the exact
         // absence-of-evidence failure mode this diagnostic exists to avoid.
         webView.postDelayed({ dumpStorage() }, PROBE_DELAY_MS)
+
+        // Restoring has to wait for the page too, for the same reason as the
+        // probe above: sink.restore() emits immediately, and that emit calls
+        // window.__cds.renderLiveRaw — which does not exist until cds.js has
+        // finished loading. Restore after, never before.
+        webView.postDelayed({ restoreChat() }, RESTORE_DELAY_MS)
         XLog.i(TAG, "onCreate: loaded $MOCKUP_URL")
 
         // Registered at runtime rather than declared in the manifest: a
@@ -401,8 +451,24 @@ class ClaudeUiPreviewActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "ClaudeUiPreview"
+
+        /**
+         * Fixed id for this surface's transcript.
+         *
+         * Not shared with the chat screen: see [saveChat] for why going through
+         * ConversationStore would make the two surfaces overwrite each other.
+         */
+        private const val PREVIEW_CONVERSATION_ID = "preview_claude_ui"
         private const val ASSET_DOMAIN = "appassets.androidplatform.net"
         private const val PROBE_DELAY_MS = 2500L
+
+        /**
+         * Later than [PROBE_DELAY_MS] on purpose: the probe proves the page is
+         * alive at 2.5s, and the restore has to land strictly after it so a
+         * slow first load cannot race. Ordering the two delays (rather than
+         * using one callback) keeps the probe's diagnostic value intact.
+         */
+        private const val RESTORE_DELAY_MS = 3000L
         private const val ACTION_SET_ACCENT = "io.agents.pokeclaw.SET_ACCENT"
         private const val ACTION_DUMP = "io.agents.pokeclaw.DUMP_DOM"
         private const val QA_PREFS = "claude_ui_qa"
