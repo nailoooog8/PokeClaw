@@ -708,25 +708,28 @@ class SettingsActivity : BaseActivity() {
             setLeadingIconColor(getColor(R.color.colorTextPrimary))
         }
 
-        // TEMPORARY — design-review entry for the Claude UI mockup. Tracked in
-        // BACKLOG.md "Temporary surfaces"; delete before any public release.
+        // Claude UI surface. Was a design-review entry showing hardcoded HTML;
+        // it now runs the real TaskFlowController through a ChatSink, so it is
+        // an experimental chat interface rather than a mockup. Labelled
+        // "experimental" because the tool / MCP / memory cards still render as
+        // static samples — ChatMessage.toolSteps has no producer yet.
         //
         // ClaudeUiPreviewActivity is exported="false" on purpose, so `adb shell
         // am start` cannot reach it either (SecurityException: not exported from
-        // uid 10395). Loosening exported just to make QA convenient would turn a
-        // design surface into something any app on the device can launch, so the
-        // entry point stays inside the app instead.
+        // uid 10395). Loosening exported just to make QA convenient would let
+        // any app on the device launch this surface, so QA drives it from the
+        // in-app menu instead.
         //
         // Deliberately NOT gated on BuildConfig.DEBUG: the device under QA has the
         // release-signed build installed, and a debug APK cannot overwrite it
         // (INSTALL_FAILED_UPDATE_INCOMPATIBLE — see CLAUDE.local.md §13.2). Gating
         // on DEBUG would hide this entry on the only build that can actually be
-        // tested. The BACKLOG entry is the guard instead.
+        // tested.
         aboutGroup.addMenuItem(
             leadingIcon = R.drawable.ic_heart,
             title = getString(R.string.settings_about_claude_ui_preview),
             onClick = {
-                XLog.i("SettingsActivity", "opening Claude UI preview")
+                XLog.i("SettingsActivity", "opening Claude UI surface")
                 startActivity(Intent(this, ClaudeUiPreviewActivity::class.java))
             },
             showDivider = false

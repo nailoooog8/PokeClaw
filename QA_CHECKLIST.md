@@ -775,7 +775,7 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 > BACKLOG.md "Temporary surfaces". When that entry is actioned, delete this
 > subsection too.
 
-- [ ] **H13. Mockup opens and its JS actually runs**: Settings → About → 「Claude UI 设计稿」 → a full-screen mockup appears. **This is the case that catches the silent bug**: `javaScriptEnabled` was never set, so `cds.js` never ran — theme switching, scroll pinning and the model popover were all dead while the HTML shell still rendered and *looked* fine. Verify JS is live, not just that the page painted:
+- [ ] **H13. Mockup opens and its JS actually runs**: Settings → About → 「Claude UI 实验版」 → a full-screen page appears. **This is the case that catches the silent bug**: `javaScriptEnabled` was never set, so `cds.js` never ran — theme switching, scroll pinning and the model popover were all dead while the HTML shell still rendered and *looked* fine. Verify JS is live, not just that the page painted:
   - tap the theme/accent switcher → the palette changes (proves `cds.js` executed)
   - scroll up mid-conversation → the 「跳至最新」 jump button appears (proves scroll pinning + JS)
   - `adb logcat --pid=$(adb shell pidof io.agents.pokeclaw) -s ClaudeUiPreview` shows `onCreate: loaded file:///android_asset/claude-ui/index.html`
@@ -805,7 +805,7 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - **本条最值钱的证据**：`replaceTypingIndicator` 走的是「无指示器则补一条」这条**非默认**契约。若当初图省事让 `ChatSessionSink` 继承 `ChatSink`（no-op 语义），这条回复会被**整个吞掉** —— 用户发完消息界面永远停在「思考中」。真机这一轮把该设计选择验实了。
   - ⚠️ **token/费用计数未取到数值**（**不计入 PASS**）：`XLog` 在 release 下只有 `e` 级进 logcat（§18.12），计数走的是 `XLog.d`；且当次 logcat 缓冲区仅剩 64 行、无 pokeclaw 记录。计数是纯读改写（`sink.sessionTokens += n` ↔ 原 `MutableState.value += n`），`ChatSessionUiStateTest` 已钉住往返，但**真机未观测**。要补验需 debug 包，而设备上是 release 签名、debug 无法覆盖安装（§13.2）。
   - ✅ 附带确认：`onPause` 的 `ConversationCompactor.compact(engine!!, sink.snapshotMessages(), ...)`（§19.6 记的既有越线程隐患，本次未改）本轮未被触发，无 snapshot 异常。
-- [x] **H18. The preview page drives a real task [PASS — 2026-10-18]**: 设置 → 关于 →「Claude UI 设计稿」→ 在输入框发一条真实指令 → 确认①用户气泡立即出现②先出现「正在思考…」指示器③随后被真实回复替换④任务完成后仍停留在该页。
+- [x] **H18. The preview page drives a real task [PASS — 2026-10-18]**: 设置 → 关于 →「Claude UI 实验版」→ 在输入框发一条真实指令 → 确认①用户气泡立即出现②先出现「正在思考…」指示器③随后被真实回复替换④任务完成后仍停留在该页。
   - 这是 B 方案（把设计稿接上真实任务流）的验收用例。设计稿此前是**硬编码 HTML**，`cds.js` 只有 `renderBackoff()` 一个渲染函数、全项目零 JS 桥。现在由 `WebChatSink` 实现 `ChatSink`，Kotlin 侧把整份快照 `evaluateJavascript` 给页面，页面按 role 重建 turn。
   - ✅ **真机 PASS（release 包 `PokeClaw_v0.8.3_20261018_171735.apk`，commit `b93b9b4`）**：①用户气泡出现 ②「正在思考…」指示器出现并被替换 ③回复含模型真实输出 ④**回复完成后仍停留在预览页**。
   - ✅ **客观佐证**：`dumpsys activity activities` 的 `topResumedActivity` = `.ui.web.ClaudeUiPreviewActivity`；logcat **无 `FATAL EXCEPTION` / 无 `ANR`**。

@@ -85,7 +85,7 @@ section is not empty, the release is not ready.
     - ⚠️ **落盘刻意绕开 `ConversationStore`**：它的 `currentConversationId` 存在**全局 KV**，共用会让预览页与聊天页互相覆盖对方历史。改走无状态 `ChatHistoryManager` + 固定 ID `preview_claude_ui`。
     - ⚠️ **文件路径算不出来**：`save()` 用「日期 + 首条用户消息」命名，ID 只在 frontmatter 里。故按 ID 过滤 `listConversations` 取最新匹配。
   - ✅ **2026-10-19 真机确认「能用了」**。全量 **269 tests / 29 suites / 0 失败**。详见 `QA_CHECKLIST.md` **H21 / H22**。
-  - ⚠️ **入口名仍为「Claude UI 设计稿」**：作为聊天页名不副实，改名是剩下最便宜的一件。
+  - ✅ **2026-10-19 入口改名**：「Claude UI 设计稿 / mockup」→「**Claude UI 实验版 / experimental**」（三语）。理由：它已接真实任务流，「设计稿」名不副实；而工具卡 / MCP 卡 / 记忆 chips 仍是静态示例，「实验版」如实反映成熟度。
 
   Same class of leak as `.github/FUNDING.yml` shipping `github: ithiria894` (§10.2).
 

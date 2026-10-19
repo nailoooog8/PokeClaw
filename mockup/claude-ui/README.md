@@ -1,9 +1,12 @@
-# Claude UI 设计稿（PokeClaw）
+# Claude UI 表面（PokeClaw）
 
-这是一个**设计稿 / 视觉参考**，不是产品的一部分。
+这是一个**实验性聊天界面**，不是独立产品。
 
-- 不连任何后端 —— 会话内容是写死的演示数据
-- 不接 `ConfigServer` —— 与局域网配置功能无关
+- **接真实后端** —— 由 `WebChatSink` 实现 `ChatSink`，驱动的是与旗舰聊天页
+  同一个 `TaskFlowController`。composer 经 `PokeClawChat.send` 回调 Kotlin，
+  消息经 `evaluateJavascript` 推回页面。
+- 同一份 HTML 在纯浏览器里打开时**仍然是完整设计稿** —— `cds.js` 检测不到
+  桥就退回本地模拟，并把静态控件全部显示出来。
 
 > ⚠️ **本目录确实会进 APK**，通过 `app/build.gradle.kts` 的 `syncClaudeUiMockup`
 > 任务在 `preBuild` 阶段同步到 `build/generated/claudeUiAssets/claude-ui/`，
@@ -12,11 +15,15 @@
 > 验证方式：**解包 APK 看实际路径**，不要只看 `build/` 里的中间产物 ——
 > 中间目录正确不代表最终 APK 正确。
 >
-> 预览页本身是 **P1「发布前必删」的临时入口**（见 `BACKLOG.md` 的
-> Temporary surfaces 段）：设置 → 关于 →「Claude UI 设计稿」。删入口时本目录
-> 可以留下，它只是设计稿资产。
+> 入口：设置 → 关于 →「Claude UI 实验版」。曾是「P1 发布前必删」的临时入口，
+> 现在是有产品功能的入口，故那条判据已作废（见 `BACKLOG.md`）。
 >
-> 真机已验证：2026-10-18 release 包，配色选择**跨进程重启存活**（QA H13-b PASS）。
+> **仍不完整**：工具卡片 / MCP 确认卡 / 记忆 chips 是静态示例 ——
+> `ChatMessage.toolSteps` 在 `TaskFlowController` 里从未被赋值，
+> 渲染侧已就绪，缺的是生产侧数据。
+>
+> 真机已验证：2026-10-18 配色跨进程存活（QA H13-b）；
+> 2026-10-19 用户确认「能用了」（QA H18 / H20 / H21）。
 
 ## 来源
 

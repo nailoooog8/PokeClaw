@@ -387,7 +387,7 @@
     <string name="settings_about_share_debug">デバッグレポートを共有</string>
     <string name="settings_about_share_debug_desc">ZIP ログ + 状態</string>
     <string name="settings_about_sponsor">スポンサー</string>
-    <string name="settings_about_claude_ui_preview">Claude UI モックアップ</string>
+    <string name="settings_about_claude_ui_preview">Claude UI 実験版</string>
     <string name="settings_about_sponsor_desc">WeChat Pay</string>
     <string name="sponsor_qr_title">スキャンでスポンサー</string>
     <string name="sponsor_qr_subtitle">WeChat Pay · コードはオフライン表示、ブラウザ不要</string>
