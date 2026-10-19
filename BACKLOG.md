@@ -81,6 +81,11 @@ section is not empty, the release is not ready.
     - ⚠️ **硬编码回跳共四处，语义不同**：watchdog 超时是 `GLOBAL_ACTION_HOME`（回桌面）；`bringAppToForeground` 只挂在浮动球点击回调上（且其入口 `showFloatingCircle()` 零调用方）；通知 PendingIntent 应指主界面。**只有 `onComplete` 那一处是 bug**，其余故意不动。
     - ✅ 全量 **264 tests / 29 suites / 0 失败**（新增 4 例，含「release 后 origin 必须清空」防泄漏）。详见 **H20**。
   - ⚠️ **下一条独立缺口**：`ChatMessage.toolSteps` 在 `TaskFlowController` 里**从未被赋值**（grep 零命中）。所以设计稿里的工具卡片 / MCP 确认卡 / 记忆 chips 在接入后**仍是静态示例** —— `buildTurn` 已能画工具卡，缺的是**生产侧数据**。要给 MCP 确认按钮接交互，还需一条 Kotlin → JS → Kotlin 的决策回路，属另一次范围决策。
+  - ✅ **2026-10-19 收敛完成**（commits `5b4e68c` / `aa0a6ed`）：①修 `executor` 线程泄漏（我上一笔引入的缺陷，`ComposeChatActivity` 本来就有这行）；②用 `<html data-live="true">` 隐藏死控件，**保留纯浏览器里的完整设计稿**；③会话落盘（`saveChat()` 从空实现改为真实写入）。
+    - ⚠️ **落盘刻意绕开 `ConversationStore`**：它的 `currentConversationId` 存在**全局 KV**，共用会让预览页与聊天页互相覆盖对方历史。改走无状态 `ChatHistoryManager` + 固定 ID `preview_claude_ui`。
+    - ⚠️ **文件路径算不出来**：`save()` 用「日期 + 首条用户消息」命名，ID 只在 frontmatter 里。故按 ID 过滤 `listConversations` 取最新匹配。
+  - ✅ **2026-10-19 真机确认「能用了」**。全量 **269 tests / 29 suites / 0 失败**。详见 `QA_CHECKLIST.md` **H21 / H22**。
+  - ⚠️ **入口名仍为「Claude UI 设计稿」**：作为聊天页名不副实，改名是剩下最便宜的一件。
 
   Same class of leak as `.github/FUNDING.yml` shipping `github: ithiria894` (§10.2).
 
