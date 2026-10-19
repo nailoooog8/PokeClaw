@@ -62,6 +62,28 @@ interface ChatSink {
     /** Drop the typing indicator if present; no-op otherwise. */
     fun removeTypingIndicator()
 
+    /**
+     * Record one tool call and its outcome as a [ChatMessage.Role.TOOL_GROUP]
+     * message carrying [ChatMessage.toolSteps].
+     *
+     * ## Why a new message rather than mutating the previous one
+     *
+     * The event stream delivers `ToolAction(toolName)` and then
+     * `ToolResult(toolName, success, detail)` as two separate events. Merging
+     * them into the last assistant message would need an "update the previous
+     * message" operation on this interface, which none of the three
+     * implementations has and which nothing else needs.
+     *
+     * Appending one message per tool call instead gives each call its own row —
+     * `ChatScreen` already renders `TOOL_GROUP` via `ToolGroup()`, and the
+     * WebView surface renders `.tool-card`. Both read the same field.
+     *
+     * The `Finish` pseudo-tool is skipped by the caller: it is the agent
+     * loop's own bookkeeping, not a device action, and surfacing it would put
+     * "Finish..." in front of the user as though something had happened.
+     */
+    fun appendToolStep(step: ToolStep)
+
     /** Snapshot of all messages, oldest first. */
     fun snapshotMessages(): List<ChatMessage>
 

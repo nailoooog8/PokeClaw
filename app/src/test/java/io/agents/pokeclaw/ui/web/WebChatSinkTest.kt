@@ -261,4 +261,83 @@ class WebChatSinkTest {
         assertEquals(1, last.single().toolSteps.size)
         assertEquals("tap", last.single().toolSteps.single().name)
     }
+
+    // ---------------------------------------------------------------------
+    // appendToolStep: the producer side that was entirely missing until now.
+    // ChatMessage.toolSteps was never assigned anywhere in TaskFlowController,
+    // so every tool card in the design was a static sample.
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun `appendToolStep lands as its own TOOL_GROUP message`() {
+        val s = sink()
+        s.append(user("do it"))
+        s.appendToolStep(ToolStep("Open App", "com.MobileTicket", true))
+
+        assertEquals(2, last.size)
+        assertEquals("TOOL_GROUP", last[1].role)
+        assertEquals("", last[1].content)
+    }
+
+    @Test
+    fun `a tool step does not disturb the typing indicator`() {
+        val s = sink()
+        s.append(user("q"))
+        s.append(typing())
+        s.appendToolStep(ToolStep("Open App", "com.MobileTicket", true))
+
+        // A tool call happens while the turn is in flight. The indicator is
+        // tracked by index, not by being the tail, so appending after it must
+        // leave it alone — otherwise the reply would have nowhere to land.
+        // The reply fills the indicator's own slot (index 1), not the newest one.
+        assertEquals(3, last.size)
+        assertTrue(last[1].isTypingIndicator)
+        s.replaceTypingIndicator("done", null)
+        assertEquals("done", last[1].content)
+        assertEquals("TOOL_GROUP", last[2].role)
+    }
+
+    @Test
+    fun `a tool step survives the round trip back to ChatMessage`() {
+        val s = sink()
+        s.appendToolStep(ToolStep("Send Message", "Mom: hi", false))
+
+        val rebuilt = s.snapshotMessages().single()
+        assertEquals(ChatMessage.Role.TOOL_GROUP, rebuilt.role)
+        assertEquals(1, rebuilt.toolSteps?.size)
+        assertEquals("Send Message", rebuilt.toolSteps?.get(0)?.toolName)
+        assertFalse(rebuilt.toolSteps?.get(0)?.success ?: true)
+    }
+
+    @Test
+    fun `consecutive tool steps each get their own row`() {
+        val s = sink()
+        s.appendToolStep(ToolStep("Open App", "com.A", true))
+        s.appendToolStep(ToolStep("Tap", "btn_send", true))
+        s.appendToolStep(ToolStep("Send Message", "Mom: hi", false))
+
+        // One row per call, not one row per message batch: the design shows
+        // each action as its own card, and merging them would hide the order.
+        assertEquals(3, last.size)
+        assertEquals(listOf("Open App", "Tap", "Send Message"), last.map { it.toolSteps.single().name })
+    }
+
+    @Test
+    fun `a tool step restored from disk renders as a card`() {
+        val s = sink()
+        s.restore(
+            listOf(
+                ChatMessage(
+                    ChatMessage.Role.TOOL_GROUP,
+                    "",
+                    toolSteps = listOf(ToolStep("Open App", "com.MobileTicket", true)),
+                )
+            )
+        )
+        // buildTurn keys off role === 'TOOL_GROUP' falling through to the
+        // toolSteps branch; without content it must still emit a card, so the
+        // role and the payload both have to survive persistence.
+        assertEquals("TOOL_GROUP", last.single().role)
+        assertEquals("com.MobileTicket", last.single().toolSteps.single().summary)
+    }
 }

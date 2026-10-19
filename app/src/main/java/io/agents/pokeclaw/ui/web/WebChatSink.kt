@@ -115,6 +115,16 @@ class WebChatSink(
         emit()
     }
 
+    override fun appendToolStep(step: ToolStep) {
+        messages += WebMessage(
+            role = ChatMessage.Role.TOOL_GROUP.name,
+            content = "",
+            isTypingIndicator = false,
+            toolSteps = listOf(ToolStepView(step.toolName, step.summary, step.success)),
+        )
+        emit()
+    }
+
     override fun snapshotMessages(): List<ChatMessage> = messages.map { web ->
         ChatMessage(
             role = runCatching { ChatMessage.Role.valueOf(web.role) }

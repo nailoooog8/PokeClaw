@@ -77,6 +77,16 @@ class TaskFlowUiState(
         if (idx >= 0) messages.removeAt(idx)
     }
 
+    override fun appendToolStep(step: ToolStep) {
+        messages.add(
+            ChatMessage(
+                role = ChatMessage.Role.TOOL_GROUP,
+                content = "",
+                toolSteps = listOf(step),
+            )
+        )
+    }
+
     override fun snapshotMessages(): List<ChatMessage> = messages.toList()
 
     private fun isTypingIndicator(m: ChatMessage) =
@@ -363,11 +373,30 @@ class TaskFlowController(
                         sink.removeTypingIndicator()
                         addSystem("${event.toolName}...")
                     }
+                    // No tool row here on purpose. ToolAction and ToolResult are
+                    // not reliably paired — TaskOrchestrator also emits a bare
+                    // ToolAction("Retrying with AI agent") when a skill falls
+                    // back to the agent loop, and that one never gets a result.
+                    // Recording on the action would leave a permanently "running"
+                    // row behind. The existing system line already narrates the
+                    // attempt, so the card appears once there is a real outcome.
                 }
                 is TaskEvent.ToolResult -> {
                     sink.awaitingReply = false
                     sink.taskRunning = true
                     if (!event.success) addSystem("${event.toolName} failed")
+                    // Skip the loop's own Finish pseudo-tool: it is bookkeeping,
+                    // not a device action, and showing it would look like work
+                    // that never happened. ToolAction already filters it.
+                    if (!event.toolName.contains("Finish", ignoreCase = true)) {
+                        sink.appendToolStep(
+                            ToolStep(
+                                toolName = event.toolName,
+                                summary = event.detail.ifBlank { event.toolName },
+                                success = event.success,
+                            )
+                        )
+                    }
                 }
                 is TaskEvent.Response -> {
                     sink.awaitingReply = false
