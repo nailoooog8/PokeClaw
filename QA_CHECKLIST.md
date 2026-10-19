@@ -839,13 +839,12 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ 2026-10-19 真机确认页面整体可用（含发消息、指示器、回复替换、完成后停留本页）。
   - ⚠️ **落盘刻意不与聊天页共用会话**：`ConversationStore.currentConversationId` 存在**全局 KV**，共用会让两个界面互相覆盖对方历史。故走无状态的 `ChatHistoryManager` + 固定 ID `preview_claude_ui`。
     - 副作用：预览页历史**不出现在聊天页侧边栏** —— 对实验性界面是合理默认，它不该把真实会话埋掉。
-- [ ] **H23. Tool cards show real tool calls [PARTIAL — 2026-10-19]**: 发一条会触发工具调用的任务 → 确认每个工具调用出现一张卡片，且状态点区分成功/失败。
+- [x] **H23. Tool cards show real tool calls [PASS — 2026-10-19]**: 发一条会触发工具调用的任务 → 确认每个工具调用出现一张卡片，且状态点区分成功/失败。
   - **起因（已定性的缺口）**：`ChatMessage.toolSteps` 在 `TaskFlowController` 里**从未被赋值**（grep 零命中）。`ChatScreen` 早就有 `ToolGroup()` 渲染器、`cds.js` 早就能画 `.tool-card` —— **缺的只是生产侧**，两边都在等一个不存在的字段。
   - ✅ **已接**：`ChatSink` 新增 `appendToolStep()`；`handleTaskEvent` 在 `TaskEvent.ToolResult` 到达时写入一条 `TOOL_GROUP` 消息。**只在结果到达时落卡**，不在 `ToolAction` 时落 —— 二者**并非严格成对**：`TaskOrchestrator:319` 会在 skill 失败回退到 agent 循环时发一个 `ToolAction("Retrying with AI agent")`，它永远没有配对结果，在 Action 时落卡会留下一张永久「运行中」的卡片。
   - ✅ **「Finish」伪工具被过滤**：它是 agent 循环的记帐，不是设备动作，显示出来像发生了但其实没发生。
-  - ✅ **已验**：`compileDebugKotlin` 通过；全量 **274 / 29 suites / 0 失败**（`WebChatSinkTest` 新增 5 例，含「工具卡不干扰打字指示器」）；`..._183744.apk` 已安装。
+  - ✅ **真机 PASS**：2026-10-19 用户确认工具卡出现且工作正常。
     - ⚠️ **其中一条断言是我写错的**：我以为 `replaceTypingIndicator` 会填进**最后一条**（实际是填进指示器自己的槽位 index 1，工具卡追加在它后面）。代码行为是对的，指示器按位置追踪正是为此 —— 改的是断言不是代码。
-  - ❌ **未验（待人工）**：真机发一条会触发工具的任务，确认卡片出现。**本条不得记 PASS**。
 
 ## SEC. Security — Adversarial Verification (red-team)
 

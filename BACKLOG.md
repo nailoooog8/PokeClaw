@@ -82,7 +82,7 @@ section is not empty, the release is not ready.
     - ✅ 全量 **264 tests / 29 suites / 0 失败**（新增 4 例，含「release 后 origin 必须清空」防泄漏）。详见 **H20**。
   - ✅ **2026-10-19 工具卡已接真实数据**：`ChatSink` 新增 `appendToolStep()`，`handleTaskEvent` 在 `TaskEvent.ToolResult` 到达时写入 `TOOL_GROUP` 消息。**只在结果时落卡** —— `ToolAction` 与 `ToolResult` **并非严格成对**（`TaskOrchestrator:319` 会发一个永远没有结果的 `ToolAction("Retrying with AI agent")`），在 Action 时落卡会留下永久「运行中」的卡片。
     - 之前的判断「缺的是生产侧」是对的：`ChatScreen` 早有 `ToolGroup()` 渲染器、`cds.js` 早就能画 `.tool-card`，两边都在等一个不存在的字段。
-    - 全量 **274 tests / 29 suites / 0 失败**（新增 5 例）。
+    - 全量 **274 tests / 29 suites / 0 失败**（新增 5 例）。**2026-10-19 真机 PASS**，用户确认工具卡出现且工作正常。
   - ⚠️ **MCP 确认卡 / 记忆 chips 仍是静态示例**：两者都有渲染器、无数据源。MCP 确认按钮需一条 Kotlin → JS → Kotlin 的**决策回路**，记忆 chips 需接到记忆召回结果。属另一次范围决策。
   - ✅ **2026-10-19 收敛完成**（commits `5b4e68c` / `aa0a6ed`）：①修 `executor` 线程泄漏（我上一笔引入的缺陷，`ComposeChatActivity` 本来就有这行）；②用 `<html data-live="true">` 隐藏死控件，**保留纯浏览器里的完整设计稿**；③会话落盘（`saveChat()` 从空实现改为真实写入）。
     - ⚠️ **落盘刻意绕开 `ConversationStore`**：它的 `currentConversationId` 存在**全局 KV**，共用会让预览页与聊天页互相覆盖对方历史。改走无状态 `ChatHistoryManager` + 固定 ID `preview_claude_ui`。
