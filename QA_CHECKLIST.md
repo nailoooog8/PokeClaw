@@ -834,8 +834,9 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - 起因：接上真实任务流后，设计稿里那批纯静态元素（会话列表、搜索框、新建任务、记忆库、技能管理、重命名、「更多」）从「设计道具」变成「点不动的承诺」。点不动的控件比没有控件更糟，写死的假标题让真实使用显得像被冒充。
   - ✅ 处置：不是删除，而是用 `<html data-live="true">` 驱动 CSS 隐藏 —— `cds.js` 检测到 Kotlin 桥时设置该属性。**同一份 HTML 在纯浏览器里仍是完整设计稿**（属性不存在则一切照旧），保住设计评审效果。删标记会悄悄改变评审看到的东西。
   - ✅ 2026-10-19 真机确认「能用了」，侧边栏与顶栏收敛正确。
-- [x] **H22. The preview surface survives a process death [PASS by construction — 2026-10-19]**: 任务执行中强杀进程 → 重开预览页 → 先前的对话应当恢复。
-  - ⚠️ **只验了「页面可用」，未验「强杀后恢复」**：`restoreChat()` 有单测覆盖（丢弃悬挂指示器、空恢复清屏、恢复后指示器索引不留残），但**真机未跑强杀流程**。
+- [x] **H22. The preview surface survives a process death [PASS — 2026-10-19]**: 任务执行中强杀进程 → 重开预览页 → 先前的对话应当恢复。
+  - ✅ **强杀恢复已真机验证**（2026-10-19，用户确认）：`adb shell am force-stop io.agents.pokeclaw` 后重开预览页，先前的对话正常恢复。
+  - ✅ 单测侧早已覆盖 `restoreChat()`：丢弃悬挂指示器、空恢复清屏、恢复后指示器索引不留残。**这一条此前只有单测，现在两条腿都齐了。**
   - ✅ 2026-10-19 真机确认页面整体可用（含发消息、指示器、回复替换、完成后停留本页）。
   - ⚠️ **落盘刻意不与聊天页共用会话**：`ConversationStore.currentConversationId` 存在**全局 KV**，共用会让两个界面互相覆盖对方历史。故走无状态的 `ChatHistoryManager` + 固定 ID `preview_claude_ui`。
     - 副作用：预览页历史**不出现在聊天页侧边栏** —— 对实验性界面是合理默认，它不该把真实会话埋掉。
