@@ -124,6 +124,13 @@ section is not empty, the release is not ready.
 
 ## QA Gaps
 
+- [ ] **P2** Emulator matrix red for **infrastructure** reasons is indistinguishable from a real regression at a glance. Two distinct classes seen in one day (2026-10-19/20):
+  | Run | Job | Symptom | In our code? | Fix |
+  |---|---|---|---|---|
+  | 39240300241 | API 35 | all assertions passed, `adb logcat -d` hung → `set -e` killed the script | **yes** | ✅ fixed, QA CI1 + `smoke-harness-self-test` |
+  | 39359436248 | API 34 | `sdkmanager` → `Error on ZipFile unknown archive`, emulator never booted, smoke script never ran | **no** | re-run only; went green on retry |
+  - The API 34 case is upstream of us — a corrupt system-image download on the GitHub runner. Nothing in this repo can prevent it, and `emulator-smoke.sh` never executed, so it carries **zero signal about the app**. Next step if it recurs often enough to annoy: a retry wrapper around the `reactivecircus/android-emulator-runner` step, or pinning `force-avd-creation` / caching the system image so the download happens once.
+  - Until then: **read the failing job's log before assuming a regression.** A red job whose script never ran is not a product signal.
 - [ ] **P0** SEC1–SEC11 security E2E never executed. The red-team audit fixed 4 issues (PIN brute force, credential plaintext on read, MCP tool poisoning, path traversal), but **not one SEC case has been run on a real device**. Code-fixed is not security-tested — `docs/SECURITY_AUDIT.md` §4 states this boundary explicitly. Currently blocked by test-environment constraints, not by the code itself.
 - [ ] **P0** E2E for the round-2 findings (F1–F10, `docs/SECURITY_AUDIT_R2.md`) is likewise entirely unexecuted. F1 especially needs a live Telegram group to demonstrate end-to-end. Static code paths are confirmed; exploitability is not.
 - [ ] **P1** `./gradlew testDebugUnitTest` now runs in CI (`build.yml` `test` job) — verify the first green run on push and consider adding the same step to `emulator-matrix.yml` / `release.yml` so tag builds cannot ship without tests passing.

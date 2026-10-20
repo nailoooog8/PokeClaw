@@ -1604,6 +1604,26 @@ passed. Not caused by the commit under test — that one touched only Markdown.
 easily have made the whole script non-fatal — which would have "fixed" the red build by
 deleting the test. The negative control is what distinguishes the two.
 
+### 2026-10-20 — CI2 emulator matrix went red for a reason outside this repo
+
+Run `39359436248` (API 34) failed. Not the CI1 bug, and not anything in this repo.
+
+[2026-10-20] [FAIL]    CI2   `Smoke test on API 34 (google_apis)` failed with
+                               `Error on ZipFile unknown archive` while `sdkmanager` was
+                               installing `system-images;android-34;google_apis;x86_64`
+[2026-10-20] [PASS]    CI2   `gh run rerun --failed` → API 34 green. The same job had
+                               passed on the previous run, so this is infra flake, not a regression
+[2026-10-20] [NOTE]    CI2   `bash scripts/emulator-smoke.sh 34` **never executed** — the
+                               emulator never booted (`adb emu kill` then reported
+                               `could not connect to TCP port 5554`). This job therefore
+                               carries ZERO signal about the app. Filed as BACKLOG P2
+
+**Two reds one day apart, opposite causes.** Run 39240300241 (API 35) was ours to fix —
+the script mistook a diagnostic for an assertion. Run 39359436248 (API 34) was a corrupt
+system-image download on GitHub's runner; our code was never reached. Both show as a red
+job in the same column of the same view, which is why BACKLOG now records the
+discriminator: **a red job whose script never ran is not a product signal.**
+
 ### 2026-10-20 — H24 long unbroken text overflows the preview surface
 
 Device `10AG4J1THX00524` / V2502DA / Android 16, 1260×2800 @ 490 dpi → **411 dp** logical
