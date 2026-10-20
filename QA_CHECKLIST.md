@@ -859,7 +859,8 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **浏览器复验**（411 dp 与 320 dp 两档）：四处溢出**全部归零**，`.tool-body` 由 1 行变 **2 行**（24 → 43 px），卡片宽度不变（333 px），`.feed` 与 document 均无横向滚动；中文长句未回归。
   - ✅ **真机 PASS（气泡 + 助手正文）**：设备 `10AG4J1THX00524` / V2502DA / 411 dp，装 `PokeClaw_v0.8.3_20261020_094925.apk`（`adb install -r` Success）。发长路径 → 用户气泡**折 2 行完整可读**，助手正文同；且 `am force-stop` 后重开预览页，历史对话完整恢复（**顺带复验 H22**）。
   - ✅ **真机装的是含修复的包**：解包 APK 读 `assets/claude-ui/cds.css`，`overflow-wrap: anywhere` **4 处齐全**（QA H15 的判据：不看 `build/` 中间产物）。
-  - ⬜ **工具卡这一格真机未取到**：卡片当时停在 `正在截取屏幕…`，摘要还没换成路径。已用 `__cds.renderLiveRaw()` 喂真实 `toolSteps` 在浏览器复验通过（2 行 / 0 溢出 / 卡片 362 ≤ 411），**但那不是真机**，不算 PASS。
+  - ⬜ **工具卡这一格真机仍未取到**：真机上确实出了工具卡（`截屏` + 一个**短**摘要 `正在截取屏幕…`）。短摘要根本触发不了断词，所以这格既不能算 PASS 也不能算 FAIL —— 它**没测到东西**。已用 `__cds.renderLiveRaw()` 喂真实 `toolSteps` 在浏览器复验通过（2 行 / 0 溢出 / 卡片 362 ≤ 411），**但那不是真机**，不算 PASS。
+  - ⚠️ **一个查不到来源的观察**：那张卡右上角与正文里的 `设备截图` / `正在截取屏幕…`，**在仓库任何一次提交里都不存在**（`git log -S` 全history 零命中），解包 APK 的 `cds.js` / `index.html` 也没有。可打包进去的 `cds.js` 把 `.tool-kind` 写死为 `工具调用`，代码里没有任何路径能产出那两个串。**未定性**，可能是 OCR 误读、可能是运行时数据、也可能是缓存了别处的页面 —— 需要能读设备 WebView DOM 的人接着查。DevTools socket 在（`webview_devtools_remote_28400`），但本机 `adb forward` 上去后 HTTP 端点无响应，这条线索没走通。
 
 ## SEC. Security — Adversarial Verification (red-team)
 
@@ -1570,10 +1571,20 @@ upgrade — release key matched, so no reinstall/data loss).
                                no horizontal scroll on `.feed` or document; CJK unaffected
 [2026-10-20] [PASS]    H24   Real device — user bubble and assistant body: 65-char path wraps to
                                2 lines, fully readable, nothing clipped (user screenshot + adb screencap)
-[2026-10-20] [SKIP]    H24   Real device — tool card with a long summary: card was still showing
-                               `正在截取屏幕…` when captured, summary never became the path. Covered
-                               in-browser via `__cds.renderLiveRaw()` (2 lines / 0 overflow) but that
-                               is NOT device evidence, so the case stays `[~] PARTIAL`
+[2026-10-20] [SKIP]    H24   Real device — tool card with a long summary: a card did appear, but its
+                               summary was SHORT (`正在截取屏幕…`), so it never exercised
+                               word-breaking — neither a pass nor a fail, it measured nothing.
+                               Covered in-browser via `__cds.renderLiveRaw()` (2 lines / 0 overflow)
+                               but that is NOT device evidence, so the case stays `[~] PARTIAL`
+[2026-10-20] [NOTE]    H24   Unresolved: `设备截图` / `正在截取屏幕…` read off the device card are
+                               absent from EVERY commit in this repo (`git log -S`, all refs,
+                               zero hits) and from the unpacked `cds.js` / `index.html`. The
+                               packaged `cds.js` hardcodes `.tool-kind` to `工具调用` and no code
+                               path can emit the other strings. Untriaged — possibly my own OCR
+                               of 11 px CJK (the mistake I had already recorded), possibly runtime
+                               data, possibly a cached page. WebView DevTools socket exists
+                               (`webview_devtools_remote_28400`) but `adb forward` + HTTP gave no
+                               response, so the DOM could not be read to settle it.
 [2026-10-20] [PASS]    H22   Re-verified incidentally: `am force-stop` → reopen preview page →
                                full conversation restored, same fix still live afterwards
 [2026-10-20] [NOTE]    H24   Unpacked the APK and read `assets/claude-ui/cds.css` directly:
