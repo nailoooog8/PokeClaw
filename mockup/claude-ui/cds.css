@@ -684,6 +684,7 @@ body {
   font-family: var(--font-sans-fallbacks);
   font-size: var(--chat-body);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   animation: message-fade-up 300ms var(--cds-ease-enter) both;
 }
 
@@ -696,6 +697,7 @@ body {
   line-height: 1.65;
   color: var(--cds-text-primary);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   animation: timeline-block-enter 300ms var(--cds-ease-enter) both;
 }
 /* 正文里的数字用等宽衬线（oldstyle figures 效果）—— 这是编辑排版的标志，
@@ -744,13 +746,19 @@ body {
   padding: 4px 0 4px 11px;
   font-size: 12.5px;
 }
-.tool-name { font-family: var(--font-mono); font-size: 12px; color: var(--cds-text-primary); }
-.tool-kind { margin-left: auto; font-size: 11px; color: var(--cds-text-muted); }
+.tool-name { font-family: var(--font-mono); font-size: 12px; color: var(--cds-text-primary); overflow-wrap: anywhere; min-width: 0; }
+.tool-kind { margin-left: auto; font-size: 11px; color: var(--cds-text-muted); white-space: nowrap; }
 .tool-body {
   padding: 0 0 6px 11px;
   font-family: var(--font-mono); font-size: 11.5px; line-height: 1.6;
   color: var(--cds-text-muted);
   white-space: pre-wrap;
+  /* pre-wrap 只认换行符。工具详情最常见的生产数据是绝对路径
+     （take_screenshot → /data/user/0/.../cache/screenshots/<ts>.png），
+     60+ 字符无空格，缺 overflow-wrap 会被 .tool-card 的 overflow:hidden 裁掉。
+     anywhere 而非 break-word：.tool-name 在 flex 行里，只有 anywhere
+     参与最小尺寸计算（QA H24）。 */
+  overflow-wrap: anywhere;
 }
 
 /* MCP 确认卡：淡陶土底色而非描边框 —— 语义上「等你点头」，

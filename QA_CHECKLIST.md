@@ -846,6 +846,22 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **「Finish」伪工具被过滤**：它是 agent 循环的记帐，不是设备动作，显示出来像发生了但其实没发生。
   - ✅ **真机 PASS**：2026-10-19 用户确认工具卡出现且工作正常。
     - ⚠️ **其中一条断言是我写错的**：我以为 `replaceTypingIndicator` 会填进**最后一条**（实际是填进指示器自己的槽位 index 1，工具卡追加在它后面）。代码行为是对的，指示器按位置追踪正是为此 —— 改的是断言不是代码。
+- [~] **H24. Long unbroken text does not overflow its container [PARTIAL — 2026-10-20]**: 发一条会回很长连续文本的消息（截图文件路径、无空格的工具输出）→ 确认文本**换行**而不是被裁掉或撑破卡片。
+  - **起因（先量出来的，不是猜的）**：411 dp（V2502DA 逻辑宽度）下 `pre-wrap` **只认换行符，不认超长单词**：
+    | 容器 | 修前 `scrollWidth` / `clientWidth` | 修前溢出 |
+    |---|---|---|
+    | `.tool-body`（工具卡详情） | 462 / 331 | **+131 px** |
+    | `.turn-user .bubble`（用户气泡） | 476 / 286 | **+190 px** |
+    | `.turn-assistant .body p`（助手正文） | 511 / 333 | **+178 px** |
+    | `.tool-name`（工具名，flex 行内） | 471 / 471 | 撑破整行至 534 px |
+  - ⚠️ **比原判断更广**：原以为只有 `.tool-body` 一处，实测**用户气泡、助手正文同样溢出**，`.tool-name` 还会把整行撑出去 —— 同一个根因（都只有 `white-space: pre-wrap`，缺 `overflow-wrap`）。最易触发的生产数据是 `take_screenshot` 的绝对路径：`/data/user/0/io.agents.pokeclaw/cache/screenshots/<ts>.png`（65 字符无空格）。
+  - ✅ **修法**：`overflow-wrap: anywhere` 四处全加。选 `anywhere` 而非 `break-word` —— 后者只解决三处，`.tool-name` 在 flex 行里仍溢出（`break-word` 不参与最小尺寸计算）。
+  - ✅ **浏览器复验**（411 dp 与 320 dp 两档）：四处溢出**全部归零**，`.tool-body` 由 1 行变 **2 行**（24 → 43 px），卡片宽度不变（333 px），`.feed` 与 document 均无横向滚动；中文长句未回归。
+  - ✅ **真机 PASS（气泡 + 助手正文）**：设备 `10AG4J1THX00524` / V2502DA / 411 dp，装 `PokeClaw_v0.8.3_20261020_094925.apk`（`adb install -r` Success）。发长路径 → 用户气泡**折 2 行完整可读**，助手正文同；且 `am force-stop` 后重开预览页，历史对话完整恢复（**顺带复验 H22**）。
+  - ✅ **真机装的是含修复的包**：解包 APK 读 `assets/claude-ui/cds.css`，`overflow-wrap: anywhere` **4 处齐全**（QA H15 的判据：不看 `build/` 中间产物）。
+  - ⬜ **工具卡这一格真机未取到**：卡片当时停在 `正在截取屏幕…`，摘要还没换成路径。已用 `__cds.renderLiveRaw()` 喂真实 `toolSteps` 在浏览器复验通过（2 行 / 0 溢出 / 卡片 362 ≤ 411），**但那不是真机**，不算 PASS。
+
+## SEC. Security — Adversarial Verification (red-team)
 
 ## SEC. Security — Adversarial Verification (red-team)
 
@@ -1538,6 +1554,42 @@ adb shell run-as io.agents.pokeclaw strings /data/data/io.agents.pokeclaw/files/
 ## QA Debug Changelog
 
 Format: `[date] [status] [test-id] description`
+
+### 2026-10-20 — H24 long unbroken text overflows the preview surface
+
+Device `10AG4J1THX00524` / V2502DA / Android 16, 1260×2800 @ 490 dpi → **411 dp** logical
+width. Build `PokeClaw_v0.8.3_20261020_094925.apk`, `adb install -r` **Success** (in-place
+upgrade — release key matched, so no reinstall/data loss).
+
+[2026-10-20] [FAIL]    H24   Long unbroken text overflows its container — `.tool-body` +131 px,
+                               `.turn-user .bubble` +190 px, `.turn-assistant .body p` +178 px,
+                               `.tool-name` stretched the whole row to 534 px at 411 dp
+[2026-10-20] [PARTIAL] H24   Fixed: `overflow-wrap: anywhere` on all four selectors.
+                               Browser re-measured at 411 dp AND 320 dp → all overflow 0;
+                               `.tool-body` 1→2 lines (24→43 px), card width unchanged (333 px);
+                               no horizontal scroll on `.feed` or document; CJK unaffected
+[2026-10-20] [PASS]    H24   Real device — user bubble and assistant body: 65-char path wraps to
+                               2 lines, fully readable, nothing clipped (user screenshot + adb screencap)
+[2026-10-20] [SKIP]    H24   Real device — tool card with a long summary: card was still showing
+                               `正在截取屏幕…` when captured, summary never became the path. Covered
+                               in-browser via `__cds.renderLiveRaw()` (2 lines / 0 overflow) but that
+                               is NOT device evidence, so the case stays `[~] PARTIAL`
+[2026-10-20] [PASS]    H22   Re-verified incidentally: `am force-stop` → reopen preview page →
+                               full conversation restored, same fix still live afterwards
+[2026-10-20] [NOTE]    H24   Unpacked the APK and read `assets/claude-ui/cds.css` directly:
+                               `overflow-wrap: anywhere` present 4×. Per QA H15, a correct
+                               `build/` intermediate does not prove the APK — the APK was checked.
+
+**Two things I got wrong on the way in, both worth keeping:**
+
+1. **The gap was wider than reported.** The handoff said "tool card detail may be too long" —
+   one selector. Measuring showed the same missing property on the user bubble and assistant
+   body too. A one-selector patch would have left two identical bugs live.
+
+2. **I misread my own device screenshot.** I zoomed a 11.5 px mono line and recorded the tool
+   card's kind label as `设备截图`. It is `工具调用`, hardcoded in `cds.js`. The packaged assets
+   contain neither string, which is what gave it away. Do not OCR tiny CJK and report it as
+   evidence — assert against the source or a DOM read instead.
 
 ### 2026-10-17 — Security: first on-device run of the LAN ConfigServer probe (SEC1/SEC3/SEC6)
 
