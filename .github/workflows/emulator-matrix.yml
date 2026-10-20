@@ -52,6 +52,24 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
 
+  # The runner is code too. This job needs no emulator and no APK -- it runs
+  # scripts/emulator-smoke.sh against a fake `adb` to prove the script's own
+  # contract still holds. Cheap (~5s) and it catches the class of bug where a
+  # healthy app is reported red because the harness itself failed.
+  # Added after run 39240300241 (QA CI1).
+  smoke-harness-self-test:
+    name: Smoke harness self-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell syntax check
+        run: bash -n scripts/emulator-smoke.sh
+
+      - name: Harness contract test
+        run: bash scripts/smoke-harness-test.sh scripts/emulator-smoke.sh
+
   smoke-test:
     name: Smoke test on API ${{ matrix.api-level }} (${{ matrix.target }})
     needs: build-apk
@@ -158,7 +176,7 @@ jobs:
 
   matrix-summary:
     name: Compatibility matrix summary
-    needs: smoke-test
+    needs: [smoke-test, smoke-harness-self-test]
     runs-on: ubuntu-24.04
     if: always()
     steps:

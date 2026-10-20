@@ -19,6 +19,8 @@
 #     unreachable device used to block indefinitely; the job only ended because
 #     the workflow's timeout-minutes fired, which reports the run as
 #     "cancelled" instead of "failed" and produces no artifacts.
+#  3. Diagnostic capture never decides the exit code. See the comment at the
+#     "Capture logcat artifact" step (QA CI1).
 
 set -euo pipefail
 
@@ -123,10 +125,24 @@ fi
 echo "No fatal exceptions in crash buffer."
 echo "::endgroup::"
 
+# Artifact capture is DIAGNOSTICS, not an assertion. Every product assertion
+# has already passed by this point, so a failure here must not decide the
+# exit code -- otherwise a healthy app is reported red.
+#
+# 3rd hardening rule, added after run 39240300241 (2026-10-19) failed the API
+# 35 job for exactly this reason: `adb logcat -d` emitted a partial buffer and
+# then hung, `timeout` killed it, and `set -euo pipefail` turned that into
+# "The process '/usr/bin/sh' failed with exit code 255". The job was red while
+# install/launch/PID/crash-buffer all passed and the screenshot showed a
+# perfectly healthy app. The unbounded full dump is the fragile one: the
+# `-t 300` dump in dump_diagnostics() came back complete on the same device.
 echo "::group::Capture logcat artifact"
-adb_t logcat -d > "logcat-full-api${API_LEVEL}.txt"
-adb_t shell screencap -p "/sdcard/screen-api${API_LEVEL}.png"
-adb_t pull "/sdcard/screen-api${API_LEVEL}.png" .
+adb_t logcat -d > "logcat-full-api${API_LEVEL}.txt" \
+  || echo "::warning::full logcat capture incomplete (diagnostic only, not a failure)"
+adb_t shell screencap -p "/sdcard/screen-api${API_LEVEL}.png" \
+  || echo "::warning::screencap failed (diagnostic only, not a failure)"
+adb_t pull "/sdcard/screen-api${API_LEVEL}.png" . \
+  || echo "::warning::screenshot pull failed (diagnostic only, not a failure)"
 echo "::endgroup::"
 
 echo "::group::Smoke test summary"

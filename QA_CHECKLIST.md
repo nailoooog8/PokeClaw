@@ -862,7 +862,30 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ⬜ **工具卡这一格真机仍未取到**：真机上确实出了工具卡（`截屏` + 一个**短**摘要 `正在截取屏幕…`）。短摘要根本触发不了断词，所以这格既不能算 PASS 也不能算 FAIL —— 它**没测到东西**。已用 `__cds.renderLiveRaw()` 喂真实 `toolSteps` 在浏览器复验通过（2 行 / 0 溢出 / 卡片 362 ≤ 411），**但那不是真机**，不算 PASS。
   - ⚠️ **一个查不到来源的观察**：那张卡右上角与正文里的 `设备截图` / `正在截取屏幕…`，**在仓库任何一次提交里都不存在**（`git log -S` 全history 零命中），解包 APK 的 `cds.js` / `index.html` 也没有。可打包进去的 `cds.js` 把 `.tool-kind` 写死为 `工具调用`，代码里没有任何路径能产出那两个串。**未定性**，可能是 OCR 误读、可能是运行时数据、也可能是缓存了别处的页面 —— 需要能读设备 WebView DOM 的人接着查。DevTools socket 在（`webview_devtools_remote_28400`），但本机 `adb forward` 上去后 HTTP 端点无响应，这条线索没走通。
 
-## SEC. Security — Adversarial Verification (red-team)
+## CI. Emulator Smoke Harness
+
+The runner itself is code. When it reports red for a reason that has nothing to do with
+the app, it burns triage time and trains everyone to ignore the matrix — which is worse
+than having no CI at all. These cases test **the harness**, not the product.
+
+- [x] **CI1. Artifact capture failure must not fail the run [PASS — 2026-10-20]**: 模拟「全量 `adb logcat -d` 挂住被 `timeout` 杀掉」→ 冒烟脚本必须仍然退出 0；且 app 真挂时必须仍然报红。
+  - **起因（run 39240300241，API 35 档红，其余五档绿）**：**所有冒烟断言都通过了** —— `install` Success、`am start -W` `Status: ok` / `LaunchState: COLD` / PID 2410、crash buffer **0 字节**、artifact 截图里 app 正常运行。挂在最后一步：
+    | 观察 | 含义 |
+    |---|---|
+    | `::group::Capture logcat artifact` 开了**没有** `::endgroup::` | 脚本在这组里被 `set -e` 打断 |
+    | 紧接着 `::group::Dump diagnostics (failure path)` | EXIT trap 被触发 |
+    | `logcat-full-api35.txt` 结尾截断在 `PhoneAccountRegistrar: getS` | `adb logcat -d` 吐了半截就断了 |
+    | trap 自己产的 `logcat-api35.txt`（`-t 300`）**完整** | 设备是好的，只有不带 `-t` 的全量 dump 会断 |
+    | `/usr/bin/sh failed with exit code 255` | `timeout` 杀掉 adb |
+  - **根因**：`set -euo pipefail` 把**诊断采集**当成了**断言**。诊断挂了就判死，被测对象完全健康也报红 —— 训练所有人忽略矩阵，比没有 CI 更糟。
+  - ✅ **已修**：尾部三步采集各自 `|| echo "::warning::... (diagnostic only, not a failure)"`，断言部分一行未动。
+  - ✅ **已验（不是推断）**：新增 `scripts/smoke-harness-test.sh`，用假 `adb` 跑真实脚本，两个场景：
+    | 场景 | 期望 | 修前 | 修后 |
+    |---|---|---|---|
+    | A：app 健康 + `logcat -d` 挂住 | 退出 0，走到 `PASS:` 摘要 | ❌ 退出 124，`REACHED PASS SUMMARY: no` | ✅ 退出 0，走完摘要 |
+    | B：app 进程不存在 | 必须报红 | ✅ 退出 1 | ✅ 退出 1（**没被修坏**） |
+    - 场景 B 是**反向对照**：只让采集失败不算数，必须证明真正的断言还拦得住，否则这个测试等于把冒烟测试关了。本地 Git Bash 5.3.15 实跑，`OVERALL: PASS`。
+  - ✅ **已接进 CI**：新增 `smoke-harness-self-test` job（无模拟器、无 APK，约 5 秒），`matrix-summary` 的 `needs` 同时依赖它。
 
 ## SEC. Security — Adversarial Verification (red-team)
 
@@ -1555,6 +1578,31 @@ adb shell run-as io.agents.pokeclaw strings /data/data/io.agents.pokeclaw/files/
 ## QA Debug Changelog
 
 Format: `[date] [status] [test-id] description`
+
+### 2026-10-20 — CI1 the emulator smoke harness reported red for a healthy app
+
+Run `39240300241` (API 35) failed; the other five API levels and `Build debug APK`
+passed. Not caused by the commit under test — that one touched only Markdown.
+
+[2026-10-20] [FAIL]    CI1   `Smoke test on API 35 (google_apis)` failed with
+                               `The process '/usr/bin/sh' failed with exit code 255` —
+                               while install/launch/PID/crash-buffer ALL passed
+[2026-10-20] [FIXED]   CI1   `set -euo pipefail` was treating the trailing artifact
+                               capture as an assertion. A hanging unbounded
+                               `adb logcat -d` got killed by `timeout`, and the script
+                               died there. Capture is now best-effort (`|| ::warning::`);
+                               no product assertion was touched
+[2026-10-20] [PASS]    CI1   `scripts/smoke-harness-test.sh` — new, runs the real script
+                               against a fake `adb`. Scenario A (healthy app + hanging
+                               logcat) exited 124 before the fix, exits 0 and reaches the
+                               `PASS:` summary after. Scenario B (app process dead) exits 1
+                               both before and after — the fix did NOT silence real failures
+[2026-10-20] [NOTE]    CI1   New `smoke-harness-self-test` CI job runs the above on every
+                               push (~5s, no emulator, no APK). `matrix-summary` now needs it
+
+**Scenario B is the part that matters.** A fix which makes capture non-fatal could
+easily have made the whole script non-fatal — which would have "fixed" the red build by
+deleting the test. The negative control is what distinguishes the two.
 
 ### 2026-10-20 — H24 long unbroken text overflows the preview surface
 
