@@ -846,7 +846,7 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **「Finish」伪工具被过滤**：它是 agent 循环的记帐，不是设备动作，显示出来像发生了但其实没发生。
   - ✅ **真机 PASS**：2026-10-19 用户确认工具卡出现且工作正常。
     - ⚠️ **其中一条断言是我写错的**：我以为 `replaceTypingIndicator` 会填进**最后一条**（实际是填进指示器自己的槽位 index 1，工具卡追加在它后面）。代码行为是对的，指示器按位置追踪正是为此 —— 改的是断言不是代码。
-- [~] **H24. Long unbroken text does not overflow its container [PARTIAL — 2026-10-20]**: 发一条会回很长连续文本的消息（截图文件路径、无空格的工具输出）→ 确认文本**换行**而不是被裁掉或撑破卡片。
+- [x] **H24. Long unbroken text does not overflow its container [PASS — 2026-10-22]**: 发一条会回很长连续文本的消息（截图文件路径、无空格的工具输出）→ 确认文本**换行**而不是被裁掉或撑破卡片。
   - **起因（先量出来的，不是猜的）**：411 dp（V2502DA 逻辑宽度）下 `pre-wrap` **只认换行符，不认超长单词**：
     | 容器 | 修前 `scrollWidth` / `clientWidth` | 修前溢出 |
     |---|---|---|
@@ -859,7 +859,11 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **浏览器复验**（411 dp 与 320 dp 两档）：四处溢出**全部归零**，`.tool-body` 由 1 行变 **2 行**（24 → 43 px），卡片宽度不变（333 px），`.feed` 与 document 均无横向滚动；中文长句未回归。
   - ✅ **真机 PASS（气泡 + 助手正文）**：设备 `10AG4J1THX00524` / V2502DA / 411 dp，装 `PokeClaw_v0.8.3_20261020_094925.apk`（`adb install -r` Success）。发长路径 → 用户气泡**折 2 行完整可读**，助手正文同；且 `am force-stop` 后重开预览页，历史对话完整恢复（**顺带复验 H22**）。
   - ✅ **真机装的是含修复的包**：解包 APK 读 `assets/claude-ui/cds.css`，`overflow-wrap: anywhere` **4 处齐全**（QA H15 的判据：不看 `build/` 中间产物）。
-  - ⬜ **长工具摘要这一格仍未验证**：2026-10-20 真机通过本地 `get_screen_info` 生成了真实工具卡，但工具摘要没有包含 100 字符测试标记，仍未触发长连续文本断词；H24 继续标为 PARTIAL。
+  - ✅ **长工具摘要这一格也过了（2026-10-22，最后一格）**：让模型调一次 `take_screenshot` —— 它的返回值就是那条**不换行的 PNG 绝对路径**，正是本条自己写的「最易触发的生产数据」。设备 `10AG4J1THX00524` / V2502DA / 411 dp：
+    - 工具卡正文渲染成 **`/data/user/0/io.agents.pokeclaw/cache/screenshots/17926785` / `58202.png`** —— 67 字符的连续串**断在词中间折成 2 行**，完整可读；
+    - 助手正文里同一条路径（在反引号里）同样折行，共 4 行；
+    - **卡片没有被撑宽**：文字节点 x 范围 113→1136，屏幕宽 1260，无横向滚动。
+    - **量化判据（不靠认图）**：无障碍树里单行节点（「截屏」「工具调用」）高 **37 px** = 行高基准；路径节点高 **113 px** = 2 行 + 39 px 内边距；回答节点高 **187 px** = 4 行 + 内边距。**长串确实折了行，而不是被裁掉。**
   - ✅ **`设备截图` / `正在截取屏幕…` 已定性为误读**（2026-10-22 复核，比「我读错图」更强一层）：那两个串**不可能**来自页面 —— live 渲染路径把 `.tool-kind` 写死为 `工具调用`（`mockup/claude-ui/cds.js:451`），静态样例写的是 `无障碍 · 点击` / `无障碍 · 启动应用`（`cds.js:485`、`350e2f7` 的初版），**两条路都产不出那两个串**；`git log -S "正在截取"` 全history 只命中过 `QA_CHECKLIST.md` / `BACKLOG.md` **文档本身**，任何一版打包资源里也都没有。
     - 推论：**「WebView 缓存了别处的页面」这个解释同样不成立** —— 缓存里装的也是已提交过的字符串。所以 DevTools socket 那条线（`webview_devtools_remote_28400` / `adb forward` 后 HTTP 无响应）不必再追：**页面里没有那个串，读 DOM 也读不出来**。
     - 真正的原因是小字号 CJK 的 OCR 误读（11.5 px 等宽字）。**教训**：不要 OCR 小字后当证据上报，要拿源码或 DOM 断言。
@@ -883,6 +887,11 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
     - **这是文字，不是 OCR。** H24 那次 `设备截图` 的悬案正是 OCR 小字惹出来的 —— 有原文可读，就不要去认图。
     - ⚠️ **前提：WebView 必须在前台且拿到焦点。** 本次在安装确认弹窗弹出时 dump，拿到的是**桌面**的树（与 §4 记的一致）；弹窗关掉、应用在前台时才拿到 WebView 的树。
     - `EditText`（输入框）的 `text` 属性有时抓不到，**截图确认**输入内容更稳。
+  - **📌 判「折行了」还是「被裁掉了」，用节点几何，不用认图**：
+    - 先找一个**已知单行**的节点（工具卡里的工具名／种类标签）量出**行高基准**（本次 37 px）；
+    - 再看长文本节点的**高度**：`高度 ≈ 行数 × 行高 + 内边距`。本次路径节点 113 px = 2 行 + 39 px；
+    - 再看**宽度**：文字节点的 x 范围若顶到屏幕边缘，说明撑破了（本次 113→1136，屏幕 1260，没顶）。
+    - 这套判据的用处是：**它不需要人眼，也不依赖 OCR**，而 OCR 在这台设备的小字号 CJK 上已经坑过一次（H24 的 `设备截图` 悬案）。
 
 ## CI. Emulator Smoke Harness
 
@@ -1755,6 +1764,29 @@ upgrade — release key matched, so no reinstall/data loss).
                                confirmation had nothing to show and the request was auto-rejected.
                                Wake the device first. A *normal* upgrade needs no confirmation at
                                all; the dialog only appeared on the downgrade attempt.
+[2026-10-22] [PASS]    H24   Real device, the last open cell of this section. Asked the local
+                               model to call `take_screenshot` once: the tool's return value is
+                               the unbroken PNG absolute path, i.e. exactly the production data
+                               this case was written for. The card body rendered
+                               `/data/user/0/io.agents.pokeclaw/cache/screenshots/17926785` +
+                               `58202.png` — the 67-character run **broke mid-token onto two
+                               lines**, fully readable; the assistant body wrapped the same path
+                               across four lines. The card did not widen: the text node spans
+                               x 113→1136 on a 1260-wide screen, no horizontal scrolling.
+                               Measured, not eyeballed: single-line nodes ("截屏", "工具调用")
+                               are 37 px tall = the line height; the path node is 113 px =
+                               2 lines + 39 px padding; the answer node is 187 px = 4 lines.
+                               H24 goes from `[~] PARTIAL` to `[x] PASS`.
+[2026-10-22] [NOTE]    —     Driving the preview page: **send with the Enter key**, not by
+                               tapping the send button. The composer hint says "Enter 发送".
+                               One `input tap` on the send button left the composer empty with
+                               **no message in the transcript and none in the history** — the
+                               text was on screen beforehand, so it was submitted and lost. A
+                               keyevent ENTER a second later went through normally. Seen once,
+                               cause unknown; **use Enter** and treat the tap as unreliable.
+[2026-10-22] [NOTE]    —     A third consecutive on-device confirmation of the H25 fix, this
+                               time with a different tool: `截屏` card followed by the final
+                               answer "The PNG path for the screenshot is ...".
 
 **Two things I got wrong on the way in, both worth keeping:**
 
