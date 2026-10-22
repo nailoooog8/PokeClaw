@@ -865,13 +865,23 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
     - 真正的原因是小字号 CJK 的 OCR 误读（11.5 px 等宽字）。**教训**：不要 OCR 小字后当证据上报，要拿源码或 DOM 断言。
   - ✅ **顺带修掉一个真实隐患**：预览页的 asset URL 恒定不变，WebView 资源缓存可能把**上一版构建**的页面端上来 —— 评审就变成了在评一个没装在机上的构建。`ClaudeUiPreviewActivity` 现在 `clearCache(true)` + 按 `BuildConfig.VERSION_CODE` 加查询串（同源，localStorage 里的主题状态不受影响）。
     - 查询串不会让 asset 解析失败：`WebViewAssetLoader.shouldInterceptRequest` 与 `PathMatcher.match` **只读 `uri.getPath()`**，从不看 query（已对 `androidx.webkit:1.12.1` 的 class 反汇编确认，不是凭印象）。
-- [ ] **H25. Claude UI shows the final answer after a tool call [修复已就绪，待真机验证 — 2026-10-22]**: Open the Claude UI experimental surface on a real device with a local model active → send a safe prompt requiring one read-only `get_screen_info` call followed by a short answer → verify the live tool card appears, then exactly one final assistant answer appears after it, and the task returns to idle. No notification, contact, clipboard, or cloud access. Repeat a no-tool prompt to confirm the ordinary answer path still appears once.
+- [x] **H25. Claude UI shows the final answer after a tool call [PASS — 2026-10-22]**: Open the Claude UI experimental surface on a real device with a local model active → send a safe prompt requiring one read-only `get_screen_info` call followed by a short answer → verify the live tool card appears, then exactly one final assistant answer appears after it, and the task returns to idle. No notification, contact, clipboard, or cloud access. Repeat a no-tool prompt to confirm the ordinary answer path still appears once.
   - **根因（读代码读出来的，不是猜的）**：`handleTaskEvent` 在 `TaskEvent.ToolAction` 到达时先 `sink.removeTypingIndicator()` —— **回合中途指示器就被删了**；随后 `TaskEvent.Completed` 调 `replaceTypingIndicator(answer)`，而 `WebChatSink.replaceTypingIndicator` 的语义是**填指示器自己的槽位**，没有指示器就是 **no-op**。最终回答因此无处可落，页面停在工具卡上。
     - 这就是 H23「工具卡接上真实数据」之后才暴露的原因：没有工具就没有 `ToolAction`，指示器一直在，旧的 `replace` 反而是好的。
   - ✅ **修法**：`ChatSink` 新增 `completeAssistantTurn(text, modelName)` —— **有指示器就原地替换，没有就追加**一条助手消息；`TaskFlowController` 的全部终态出口（`Completed` / `Failed` / `Blocked` / 直接工具任务）统一走 `publishAssistantResponse()`，并用 `assistantResponsePublished` 挡掉重复的终态事件（`sendTask` 时重置）。
     - `TaskFlowUiState.replaceTypingIndicator` 因此从「无指示器时追加」收紧为 **no-op**，追加的职责整体移交给 `completeAssistantTurn`。**聊天模式不在这条链上** —— 它走独立的 `ChatSessionSink`（`ChatSessionController`），未被本次改动触及。
   - ✅ **单测**：新增 3 条（无指示器则追加 / 有指示器则原地替换 / 工具卡夹在中间时仍追加），全量 **277 tests / 29 suites / 0 失败**（基线 269，新增 8 条）。
-  - ⬜ **真机验证待做 —— 本次会话设备未连接**：release 包已构建（签名证书 SHA-256 `7c2d6dd5…c667`，与设备上现装的 v0.8.3 **同一把密钥**，可 `adb install -r` 覆盖安装，不会动已下载的本地模型与已绑的微信 token），待插上设备后按上面两条路径各跑一遍。
+  - ✅ **真机 PASS（V2502DA / 本地 Gemma 4 E2B / CPU，两条路径各跑一遍）**：
+    - **带工具**：提示「Call get_screen_info exactly once. Do not use other tools. Then answer with one short sentence what is on the screen.」→ 顺序为 用户提示 → 系统行「获取屏幕信息...」→ 工具卡（名称「获取屏幕信息」/ 种类「工具调用」）→ **最终回答「The screen shows a PokeClaw interface with options to take a screenshot, send a file, and get screen information.」**，回答**恰好 1 条**。
+    - **不带工具**：提示「Say hello in one short sentence. Do not use any tool.」→ 回答「Hello.」**恰好 1 条**，**没有新增工具卡**，指示器消失、回到 idle。
+    - **证据取自无障碍树原文，不是 OCR**（见下「取证方法」）。**顺带印证 H24 悬案**：live 卡片的种类标签就是写死的「工具调用」。
+  - ✅ **装在机上的那个 APK 里确实带着修复**（QA H15 的判据：看 APK，不看 `build/`）：把设备上的 `base.apk` 拉下来查 dex，三条新日志串全部命中 —— `publishAssistantResponse: published` / `reset terminal-response state` / `ignored duplicate terminal response`。
+    - ⚠️ 查 `completeAssistantTurn` 这个**方法名**是没用的：R8 会把接口方法改名，字面量不留在 dex 里。**要查新增代码，就查新增代码里的字符串常量**。
+  - **📌 取证方法（这次最有用的一条，值得复用）：`uiautomator dump` 能读到 WebView 渲染出来的文字原文。**
+    - `adb shell uiautomator dump /sdcard/p.xml` + `adb pull` → 解析 `text="..."` 节点，能拿到工具卡名称、种类标签、**最终回答的完整句子**。
+    - **这是文字，不是 OCR。** H24 那次 `设备截图` 的悬案正是 OCR 小字惹出来的 —— 有原文可读，就不要去认图。
+    - ⚠️ **前提：WebView 必须在前台且拿到焦点。** 本次在安装确认弹窗弹出时 dump，拿到的是**桌面**的树（与 §4 记的一致）；弹窗关掉、应用在前台时才拿到 WebView 的树。
+    - `EditText`（输入框）的 `text` 属性有时抓不到，**截图确认**输入内容更稳。
 
 ## CI. Emulator Smoke Harness
 
@@ -1715,6 +1725,35 @@ upgrade — release key matched, so no reinstall/data loss).
                                downloaded local model or the bound WeChat token) — but an APK that
                                was never installed proves nothing about the device path.
                                H25 stays `[ ]` until both prompt paths are run on hardware.
+[2026-10-22] [PASS]    H25   Real device, V2502DA / local Gemma 4 E2B / CPU. Both paths run.
+                               With a tool: prompt → system line `获取屏幕信息...` → tool card
+                               (name `获取屏幕信息`, kind `工具调用`) → final answer
+                               "The screen shows a PokeClaw interface with options to take a
+                               screenshot, send a file, and get screen information." — the answer
+                               appears exactly once, after the card.
+                               Without a tool: answer "Hello." exactly once, no new tool card,
+                               indicator gone (idle). Evidence read from the accessibility tree
+                               as **text**, not OCR.
+[2026-10-22] [PASS]    H24   Side effect of the H25 run: the live tool card's kind label is
+                               `工具调用`, exactly as `cds.js:451` hardcodes it. The mystery
+                               strings are not in the DOM because the DOM never had them.
+[2026-10-22] [NOTE]    —     Install path on this device, three separate snags:
+                               (1) the device ran versionCode **36** while the repo default is
+                               **33** → `INSTALL_FAILED_VERSION_DOWNGRADE`;
+                               (2) `pm install -r -d` did **not** honour the downgrade flag on
+                               this vivo build — it failed with the same downgrade error;
+                               (3) the first `adb install` attempt hung for ~18 minutes with no
+                               output, while `adb push` (1.5 s) + `pm install -r` (instant) did
+                               the same job.
+                               Resolution: build with `POKECLAW_VERSION_CODE=37` in the
+                               environment (`readLocalOrEnvInt` reads env first, so the repo
+                               needs no change) and install as a normal upgrade. Data survived:
+                               the 2.6 GB local model and the bound WeChat token were untouched.
+[2026-10-22] [NOTE]    —     `INSTALL_FAILED_ABORTED: User rejected permissions` was **not** a
+                               permission problem: the screen was off, so vivo's install
+                               confirmation had nothing to show and the request was auto-rejected.
+                               Wake the device first. A *normal* upgrade needs no confirmation at
+                               all; the dialog only appeared on the downgrade attempt.
 
 **Two things I got wrong on the way in, both worth keeping:**
 
