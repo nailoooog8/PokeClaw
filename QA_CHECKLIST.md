@@ -859,8 +859,19 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **浏览器复验**（411 dp 与 320 dp 两档）：四处溢出**全部归零**，`.tool-body` 由 1 行变 **2 行**（24 → 43 px），卡片宽度不变（333 px），`.feed` 与 document 均无横向滚动；中文长句未回归。
   - ✅ **真机 PASS（气泡 + 助手正文）**：设备 `10AG4J1THX00524` / V2502DA / 411 dp，装 `PokeClaw_v0.8.3_20261020_094925.apk`（`adb install -r` Success）。发长路径 → 用户气泡**折 2 行完整可读**，助手正文同；且 `am force-stop` 后重开预览页，历史对话完整恢复（**顺带复验 H22**）。
   - ✅ **真机装的是含修复的包**：解包 APK 读 `assets/claude-ui/cds.css`，`overflow-wrap: anywhere` **4 处齐全**（QA H15 的判据：不看 `build/` 中间产物）。
-  - ⬜ **工具卡这一格真机仍未取到**：真机上确实出了工具卡（`截屏` + 一个**短**摘要 `正在截取屏幕…`）。短摘要根本触发不了断词，所以这格既不能算 PASS 也不能算 FAIL —— 它**没测到东西**。已用 `__cds.renderLiveRaw()` 喂真实 `toolSteps` 在浏览器复验通过（2 行 / 0 溢出 / 卡片 362 ≤ 411），**但那不是真机**，不算 PASS。
-  - ⚠️ **一个查不到来源的观察**：那张卡右上角与正文里的 `设备截图` / `正在截取屏幕…`，**在仓库任何一次提交里都不存在**（`git log -S` 全history 零命中），解包 APK 的 `cds.js` / `index.html` 也没有。可打包进去的 `cds.js` 把 `.tool-kind` 写死为 `工具调用`，代码里没有任何路径能产出那两个串。**未定性**，可能是 OCR 误读、可能是运行时数据、也可能是缓存了别处的页面 —— 需要能读设备 WebView DOM 的人接着查。DevTools socket 在（`webview_devtools_remote_28400`），但本机 `adb forward` 上去后 HTTP 端点无响应，这条线索没走通。
+  - ⬜ **长工具摘要这一格仍未验证**：2026-10-20 真机通过本地 `get_screen_info` 生成了真实工具卡，但工具摘要没有包含 100 字符测试标记，仍未触发长连续文本断词；H24 继续标为 PARTIAL。
+  - ✅ **`设备截图` / `正在截取屏幕…` 已定性为误读**（2026-10-22 复核，比「我读错图」更强一层）：那两个串**不可能**来自页面 —— live 渲染路径把 `.tool-kind` 写死为 `工具调用`（`mockup/claude-ui/cds.js:451`），静态样例写的是 `无障碍 · 点击` / `无障碍 · 启动应用`（`cds.js:485`、`350e2f7` 的初版），**两条路都产不出那两个串**；`git log -S "正在截取"` 全history 只命中过 `QA_CHECKLIST.md` / `BACKLOG.md` **文档本身**，任何一版打包资源里也都没有。
+    - 推论：**「WebView 缓存了别处的页面」这个解释同样不成立** —— 缓存里装的也是已提交过的字符串。所以 DevTools socket 那条线（`webview_devtools_remote_28400` / `adb forward` 后 HTTP 无响应）不必再追：**页面里没有那个串，读 DOM 也读不出来**。
+    - 真正的原因是小字号 CJK 的 OCR 误读（11.5 px 等宽字）。**教训**：不要 OCR 小字后当证据上报，要拿源码或 DOM 断言。
+  - ✅ **顺带修掉一个真实隐患**：预览页的 asset URL 恒定不变，WebView 资源缓存可能把**上一版构建**的页面端上来 —— 评审就变成了在评一个没装在机上的构建。`ClaudeUiPreviewActivity` 现在 `clearCache(true)` + 按 `BuildConfig.VERSION_CODE` 加查询串（同源，localStorage 里的主题状态不受影响）。
+    - 查询串不会让 asset 解析失败：`WebViewAssetLoader.shouldInterceptRequest` 与 `PathMatcher.match` **只读 `uri.getPath()`**，从不看 query（已对 `androidx.webkit:1.12.1` 的 class 反汇编确认，不是凭印象）。
+- [ ] **H25. Claude UI shows the final answer after a tool call [修复已就绪，待真机验证 — 2026-10-22]**: Open the Claude UI experimental surface on a real device with a local model active → send a safe prompt requiring one read-only `get_screen_info` call followed by a short answer → verify the live tool card appears, then exactly one final assistant answer appears after it, and the task returns to idle. No notification, contact, clipboard, or cloud access. Repeat a no-tool prompt to confirm the ordinary answer path still appears once.
+  - **根因（读代码读出来的，不是猜的）**：`handleTaskEvent` 在 `TaskEvent.ToolAction` 到达时先 `sink.removeTypingIndicator()` —— **回合中途指示器就被删了**；随后 `TaskEvent.Completed` 调 `replaceTypingIndicator(answer)`，而 `WebChatSink.replaceTypingIndicator` 的语义是**填指示器自己的槽位**，没有指示器就是 **no-op**。最终回答因此无处可落，页面停在工具卡上。
+    - 这就是 H23「工具卡接上真实数据」之后才暴露的原因：没有工具就没有 `ToolAction`，指示器一直在，旧的 `replace` 反而是好的。
+  - ✅ **修法**：`ChatSink` 新增 `completeAssistantTurn(text, modelName)` —— **有指示器就原地替换，没有就追加**一条助手消息；`TaskFlowController` 的全部终态出口（`Completed` / `Failed` / `Blocked` / 直接工具任务）统一走 `publishAssistantResponse()`，并用 `assistantResponsePublished` 挡掉重复的终态事件（`sendTask` 时重置）。
+    - `TaskFlowUiState.replaceTypingIndicator` 因此从「无指示器时追加」收紧为 **no-op**，追加的职责整体移交给 `completeAssistantTurn`。**聊天模式不在这条链上** —— 它走独立的 `ChatSessionSink`（`ChatSessionController`），未被本次改动触及。
+  - ✅ **单测**：新增 3 条（无指示器则追加 / 有指示器则原地替换 / 工具卡夹在中间时仍追加），全量 **277 tests / 29 suites / 0 失败**（基线 269，新增 8 条）。
+  - ⬜ **真机验证待做 —— 本次会话设备未连接**：release 包已构建（签名证书 SHA-256 `7c2d6dd5…c667`，与设备上现装的 v0.8.3 **同一把密钥**，可 `adb install -r` 覆盖安装，不会动已下载的本地模型与已绑的微信 token），待插上设备后按上面两条路径各跑一遍。
 
 ## CI. Emulator Smoke Harness
 
@@ -1658,6 +1669,52 @@ upgrade — release key matched, so no reinstall/data loss).
 [2026-10-20] [NOTE]    H24   Unpacked the APK and read `assets/claude-ui/cds.css` directly:
                                `overflow-wrap: anywhere` present 4×. Per QA H15, a correct
                                `build/` intermediate does not prove the APK — the APK was checked.
+[2026-10-20] [PARTIAL] H24   Rechecked the live data path on V2502DA with the on-device Gemma 4 E2B:
+                               `TaskFlowController` → `ChatSink.appendToolStep` → `WebChatSink` →
+                               rendered `.tool-card` (real `get_screen_info` result). The card rendered,
+                               but its summary did not contain the synthetic 100-character marker,
+                               so this did not test long unbroken summary
+                               wrapping. `WebChatSinkTest`: 23/23 PASS. No notifications were read
+                               and no cloud model was used; H24 remains `[~] PARTIAL`.
+[2026-10-20] [FAIL]    H25   V2502DA / local Gemma 4 E2B: `get_screen_info` tool card rendered,
+                               but the final assistant answer never appeared after it; the
+                               preview transcript ended at the tool card. This confirms the
+                               missing-indicator completion path in the WebChatSink.
+[2026-10-22] [PASS]    H25   Unit level. Root cause read out of the code, not guessed:
+                               `TaskEvent.ToolAction` removes the typing indicator mid-turn,
+                               then `TaskEvent.Completed` calls `replaceTypingIndicator`, whose
+                               contract is "fill the indicator's own slot" — with no indicator
+                               left that is a no-op, so the terminal answer had nowhere to go.
+                               Fix: `ChatSink.completeAssistantTurn` (replace the indicator if
+                               present, otherwise append) + one `publishAssistantResponse` exit
+                               for every terminal event, with `assistantResponsePublished`
+                               rejecting duplicates. 3 new cases; full suite **277 tests /
+                               29 suites / 0 failures** (baseline 269, +8).
+[2026-10-22] [PASS]    H24   `设备截图` / `正在截取屏幕…` re-derived, and this time *proved*
+                               impossible rather than merely doubted: the live renderer hardcodes
+                               `.tool-kind` = `工具调用` (`mockup/claude-ui/cds.js:451`) and the
+                               static samples say `无障碍 · 点击` / `无障碍 · 启动应用`
+                               (`cds.js:485`, `350e2f7`); `git log -S "正在截取"` over all history
+                               hits only `QA_CHECKLIST.md` / `BACKLOG.md` themselves. So no build —
+                               and therefore no cached page either — could have carried those
+                               strings. The "cached another page" hypothesis is dead; the DevTools
+                               socket line needs no further chasing.
+[2026-10-22] [NOTE]    H24   Real hazard fixed anyway: the preview page's asset URL never
+                               changes, so the WebView cache could serve the *previous build's*
+                               page and the reviewer would judge a build that is not installed.
+                               `ClaudeUiPreviewActivity` now does `clearCache(true)` + a
+                               `?v=BuildConfig.VERSION_CODE` query (same origin, so the
+                               localStorage theme survives). Query strings cannot break asset
+                               resolution: `WebViewAssetLoader.shouldInterceptRequest` and
+                               `PathMatcher.match` read `uri.getPath()` only — verified by
+                               disassembling `androidx.webkit:1.12.1`, not from memory.
+[2026-10-22] [SKIP]    H25   Real device: **no device attached this session**
+                               (`adb devices` empty). A signed release APK was built and
+                               signature-verified (cert SHA-256 `7c2d6dd5…c667`, same key as the
+                               installed v0.8.3, so it installs over the top without touching the
+                               downloaded local model or the bound WeChat token) — but an APK that
+                               was never installed proves nothing about the device path.
+                               H25 stays `[ ]` until both prompt paths are run on hardware.
 
 **Two things I got wrong on the way in, both worth keeping:**
 
