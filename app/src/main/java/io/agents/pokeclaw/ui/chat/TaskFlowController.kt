@@ -412,7 +412,10 @@ class TaskFlowController(
                 }
                 is TaskEvent.Response -> {
                     sink.awaitingReply = false
-                    publishAssistantResponse(event.text, event.modelName)
+                    // A mid-turn utterance, not the task's final answer. It must
+                    // not consume the one-shot terminal flag: if it did, the
+                    // final answer would be swallowed by the duplicate filter.
+                    publishAssistantText(event.text, event.modelName)
                 }
                 is TaskEvent.Progress -> {
                     sink.awaitingReply = false
@@ -430,17 +433,34 @@ class TaskFlowController(
         }
     }
 
+    /**
+     * Publish the task's final answer.
+     *
+     * Terminal events are filtered: the orchestrator has several paths that can
+     * each emit one, and a task that finishes twice must not print twice.
+     */
     private fun publishAssistantResponse(text: String, actualModelName: String? = null) {
         if (assistantResponsePublished) {
             XLog.d(TAG, "publishAssistantResponse: ignored duplicate terminal response")
             return
         }
+        publishAssistantText(text, actualModelName)
+        assistantResponsePublished = true
+    }
+
+    /**
+     * Put assistant text on the feed, without touching the terminal filter.
+     *
+     * Used by the terminal path (which sets the filter) and by
+     * [TaskEvent.Response], a mid-turn utterance that must not consume the
+     * one-shot terminal publication.
+     */
+    private fun publishAssistantText(text: String, actualModelName: String? = null) {
         val modelTag = actualModelName
             ?: sink.modelStatus.removePrefix("● ").split(" ·").firstOrNull()?.trim()
             ?: ""
         sink.completeAssistantTurn(text, modelTag)
-        assistantResponsePublished = true
-        XLog.d(TAG, "publishAssistantResponse: published ${text.length} chars, model=$modelTag")
+        XLog.d(TAG, "publishAssistantText: published ${text.length} chars, model=$modelTag")
         onPersistConversation()
     }
 

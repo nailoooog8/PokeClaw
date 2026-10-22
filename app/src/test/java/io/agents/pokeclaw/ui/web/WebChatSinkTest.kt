@@ -128,6 +128,26 @@ class WebChatSinkTest {
     }
 
     @Test
+    fun `a mid-turn text and a final answer both land`() {
+        val s = sink()
+        s.append(user("q"))
+        s.append(typing())
+
+        // A mid-turn utterance replaces the pending indicator; the final answer
+        // then has no indicator to fill and must be appended rather than
+        // swallowed. `TaskEvent.Response` publishes the first, `Completed` the
+        // second.
+        s.completeAssistantTurn("Working on it.", "Gemma")
+        s.completeAssistantTurn("All done.", "Gemma")
+
+        assertEquals(listOf("USER", "ASSISTANT", "ASSISTANT"), last.map { it.role })
+        assertEquals("Working on it.", last[1].content)
+        assertEquals("All done.", last[2].content)
+        assertFalse(last[1].isTypingIndicator)
+        assertFalse(last[2].isTypingIndicator)
+    }
+
+    @Test
     fun `a second replace after the first is a no-op`() {
         val s = sink()
         s.append(typing())

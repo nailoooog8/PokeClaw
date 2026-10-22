@@ -90,6 +90,16 @@ class TaskFlowUiStateTest {
     }
 
     @Test
+    fun `a mid-turn text and a final answer both land`() {
+        val (s, messages) = sink(listOf(ChatMessage(ChatMessage.Role.USER, "hi"), typing()))
+        // A mid-turn utterance fills the indicator; the final answer then has
+        // no indicator left and must be appended rather than swallowed.
+        s.completeAssistantTurn("Working on it.", null)
+        s.completeAssistantTurn("All done.", null)
+        assertEquals(listOf("hi", "Working on it.", "All done."), contents(messages))
+    }
+
+    @Test
     fun `complete after remove appends instead of failing`() {
         // The real event order: ToolAction removes the indicator, then a late
         // terminal event must still publish its answer without corrupting the feed.

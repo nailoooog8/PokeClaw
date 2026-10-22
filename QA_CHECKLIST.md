@@ -877,6 +877,7 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
     - **证据取自无障碍树原文，不是 OCR**（见下「取证方法」）。**顺带印证 H24 悬案**：live 卡片的种类标签就是写死的「工具调用」。
   - ✅ **装在机上的那个 APK 里确实带着修复**（QA H15 的判据：看 APK，不看 `build/`）：把设备上的 `base.apk` 拉下来查 dex，三条新日志串全部命中 —— `publishAssistantResponse: published` / `reset terminal-response state` / `ignored duplicate terminal response`。
     - ⚠️ 查 `completeAssistantTurn` 这个**方法名**是没用的：R8 会把接口方法改名，字面量不留在 dex 里。**要查新增代码，就查新增代码里的字符串常量**。
+    - ⚠️ **复核用的日志串会随重构变**：`publishAssistantResponse` 后来拆成 `publishAssistantResponse`（终态，带去重）+ `publishAssistantText`（发布本身），第一条串变成 **`publishAssistantText: published`**。查新包时用当前代码里的串，别照抄旧记录。
   - **📌 取证方法（这次最有用的一条，值得复用）：`uiautomator dump` 能读到 WebView 渲染出来的文字原文。**
     - `adb shell uiautomator dump /sdcard/p.xml` + `adb pull` → 解析 `text="..."` 节点，能拿到工具卡名称、种类标签、**最终回答的完整句子**。
     - **这是文字，不是 OCR。** H24 那次 `设备截图` 的悬案正是 OCR 小字惹出来的 —— 有原文可读，就不要去认图。
