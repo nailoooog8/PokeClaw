@@ -58,9 +58,16 @@ class TaskFlowUiStateTest {
     }
 
     @Test
-    fun `replace appends when no indicator is pending`() {
+    fun `replace is a no-op when no indicator is pending`() {
         val (s, messages) = sink(listOf(ChatMessage(ChatMessage.Role.USER, "hi")))
         s.replaceTypingIndicator("answer", null)
+        assertEquals(listOf("hi"), contents(messages))
+    }
+
+    @Test
+    fun `complete appends when no indicator is pending`() {
+        val (s, messages) = sink(listOf(ChatMessage(ChatMessage.Role.USER, "hi")))
+        s.completeAssistantTurn("answer", null)
         assertEquals(listOf("hi", "answer"), contents(messages))
     }
 
@@ -83,12 +90,12 @@ class TaskFlowUiStateTest {
     }
 
     @Test
-    fun `replace after remove appends instead of failing`() {
+    fun `complete after remove appends instead of failing`() {
         // The real event order: ToolAction removes the indicator, then a late
-        // terminal event still calls replace. Must not throw or corrupt.
+        // terminal event must still publish its answer without corrupting the feed.
         val (s, messages) = sink(listOf(typing()))
         s.removeTypingIndicator()
-        s.replaceTypingIndicator("final", null)
+        s.completeAssistantTurn("final", null)
         assertEquals(listOf("final"), contents(messages))
     }
 

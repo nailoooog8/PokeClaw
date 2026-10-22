@@ -22,6 +22,7 @@ import android.widget.LinearLayout
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.webkit.WebViewAssetLoader
+import io.agents.pokeclaw.BuildConfig
 import io.agents.pokeclaw.appViewModel
 import io.agents.pokeclaw.base.BaseActivity
 import io.agents.pokeclaw.ui.chat.ChatHistoryManager
@@ -208,7 +209,7 @@ class ClaudeUiPreviewActivity : BaseActivity() {
                 '\n' -> append("\\n")
                 '\r' -> append("\\r")
                 '\t' -> append("\\t")
-                else -> if (c < ' ' || c == ' ' || c == ' ') {
+                else -> if (c < ' ' || c == '\u2028' || c == '\u2029') {
                     append("\\u%04x".format(c.code))
                 } else {
                     append(c)
@@ -317,7 +318,28 @@ class ClaudeUiPreviewActivity : BaseActivity() {
             settings.loadWithOverviewMode = false
             settings.setSupportZoom(false)
             settings.builtInZoomControls = false
-            loadUrl(MOCKUP_URL)
+            // A design-review surface that serves a *stale* page is worse than
+            // one that fails to load: the asset URL never changes, so the
+            // WebView resource cache can hand back the previous build's page
+            // and the reviewer ends up judging a build that is not installed.
+            //
+            // clearCache(true) evicts the cache; the version query makes the
+            // cache key unique per build, so even a page that survives the
+            // clear is fetched fresh. The origin is unchanged, so the
+            // localStorage-backed theme state still survives.
+            //
+            // This does NOT explain the `设备截图` / `正在截取屏幕…` strings
+            // read off a device screenshot (QA H24): those appear in no
+            // commit and in no packaged asset, so no cached page could have
+            // carried them either. That observation is settled as a misread
+            // of 11 px CJK — see QA_CHECKLIST H24.
+            // `this` is the WebView being built. The activity's own `webView`
+            // property is not assigned until this expression returns, so
+            // touching it here throws UninitializedPropertyAccessException —
+            // and a crashed preview activity drops the user back to the chat
+            // screen, which looks like "the entry does nothing".
+            this.clearCache(true)
+            loadUrl("$MOCKUP_URL?v=${BuildConfig.VERSION_CODE}")
         }
         setContentView(webView)
         // Scheduled AFTER setContentView, not inside the apply{} above: a
@@ -332,7 +354,7 @@ class ClaudeUiPreviewActivity : BaseActivity() {
         // window.__cds.renderLiveRaw — which does not exist until cds.js has
         // finished loading. Restore after, never before.
         webView.postDelayed({ restoreChat() }, RESTORE_DELAY_MS)
-        XLog.i(TAG, "onCreate: loaded $MOCKUP_URL")
+        XLog.i(TAG, "onCreate: loaded $MOCKUP_URL?v=${BuildConfig.VERSION_CODE}")
 
         // Registered at runtime rather than declared in the manifest: a
         // manifest receiver here would have to be exported to be reachable by

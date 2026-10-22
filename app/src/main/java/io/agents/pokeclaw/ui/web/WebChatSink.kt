@@ -23,12 +23,12 @@ import io.agents.pokeclaw.ui.chat.ToolStep
  * relationship `TaskFlowUiState` has with the Compose chat screen. CLAUDE.md
  * forbids duplicate code paths for the *flow*, not for the *view*.
  *
- * ## Known data gap
+ * ## Tool result data flow
  *
- * `ChatMessage.toolSteps` is never populated by `TaskFlowController` today, so
- * `.tool-card` has no live source and stays as static sample markup in
- * `index.html`. The renderer already handles a tool card when one does arrive;
- * it is the producing side that is missing, not this class.
+ * `TaskFlowController` appends each non-Finish `TaskEvent.ToolResult` through
+ * `ChatSink.appendToolStep`; this sink maps it to `toolSteps`, which the page
+ * renders as `.tool-card`. Keep the device QA gap separate from the data path:
+ * long unbroken summaries still need verification on the real WebView.
  */
 class WebChatSink(
     private val onRender: (List<WebMessage>) -> Unit,
@@ -104,6 +104,27 @@ class WebChatSink(
             isTypingIndicator = false,
             modelName = modelName ?: old.modelName,
         )
+        typingIndex = -1
+        emit()
+    }
+
+    override fun completeAssistantTurn(text: String, modelName: String?) {
+        val index = typingIndex
+        if (index in messages.indices) {
+            val old = messages[index]
+            messages[index] = old.copy(
+                content = text,
+                isTypingIndicator = false,
+                modelName = modelName ?: old.modelName,
+            )
+        } else {
+            messages += WebMessage(
+                role = ChatMessage.Role.ASSISTANT.name,
+                content = text,
+                isTypingIndicator = false,
+                modelName = modelName,
+            )
+        }
         typingIndex = -1
         emit()
     }

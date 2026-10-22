@@ -67,6 +67,13 @@ class TaskFlowUiState(
         val idx = messages.indexOfLast { isTypingIndicator(it) }
         if (idx >= 0) {
             messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelName)
+        }
+    }
+
+    override fun completeAssistantTurn(text: String, modelName: String?) {
+        val idx = messages.indexOfLast { isTypingIndicator(it) }
+        if (idx >= 0) {
+            messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelName)
         } else {
             messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelName))
         }
@@ -116,6 +123,7 @@ class TaskFlowController(
 
     private var sendTaskRetryCount = 0
     private var lastMonitorStatusNote: String? = null
+    private var assistantResponsePublished = false
     private val pipelineRouter = PipelineRouter(activity)
 
     fun sendTask(text: String) {
@@ -124,6 +132,9 @@ class TaskFlowController(
             onTaskTerminal?.invoke(TaskEvent.Failed("Another task is still running. Stop it first."))
             return
         }
+
+        assistantResponsePublished = false
+        XLog.d(TAG, "sendTask: reset terminal-response state")
 
         if (ModelConfigRepository.snapshot().isLocalActive() && isLikelyMonitorRequest(text)) {
             addUser(text)
@@ -267,14 +278,14 @@ class TaskFlowController(
                 val result = ToolRegistry.getInstance().executeTool(toolCall.toolName, toolCall.params)
                 activity.runOnUiThread {
                     val answer = result.data ?: result.error ?: "Done."
-                    replaceTypingIndicator(answer)
+                    publishAssistantResponse(answer)
                     onTaskTerminal?.invoke(TaskEvent.Completed(answer))
                     cleanupAfterTask()
                 }
             } catch (e: Exception) {
                 XLog.e(TAG, "executeDirectToolTask failed: ${e.message}", e)
                 activity.runOnUiThread {
-                    replaceTypingIndicator("Error: ${e.message}")
+                    publishAssistantResponse("Error: ${e.message}")
                     onTaskTerminal?.invoke(TaskEvent.Failed(e.message ?: "Direct tool failed"))
                     cleanupAfterTask()
                 }
@@ -346,23 +357,24 @@ class TaskFlowController(
         try {
             when (event) {
                 is TaskEvent.Completed -> {
-                    replaceTypingIndicator(event.answer, event.modelName)
+                    publishAssistantResponse(event.answer, event.modelName)
                     onTaskTerminal?.invoke(event)
                     cleanupAfterTask()
                     checkAutoReplyConfirmation()
                 }
                 is TaskEvent.Failed -> {
-                    replaceTypingIndicator("Error: ${event.error}")
+                    publishAssistantResponse("Error: ${event.error}")
                     onTaskTerminal?.invoke(event)
                     cleanupAfterTask()
                 }
                 is TaskEvent.Cancelled -> {
                     sink.removeTypingIndicator()
+                    assistantResponsePublished = true
                     onTaskTerminal?.invoke(event)
                     cleanupAfterTask()
                 }
                 is TaskEvent.Blocked -> {
-                    replaceTypingIndicator("Blocked by system dialog.")
+                    publishAssistantResponse("Blocked by system dialog.")
                     onTaskTerminal?.invoke(event)
                     cleanupAfterTask()
                 }
@@ -400,7 +412,7 @@ class TaskFlowController(
                 }
                 is TaskEvent.Response -> {
                     sink.awaitingReply = false
-                    replaceTypingIndicator(event.text)
+                    publishAssistantResponse(event.text, event.modelName)
                 }
                 is TaskEvent.Progress -> {
                     sink.awaitingReply = false
@@ -418,11 +430,17 @@ class TaskFlowController(
         }
     }
 
-    private fun replaceTypingIndicator(text: String, actualModelName: String? = null) {
+    private fun publishAssistantResponse(text: String, actualModelName: String? = null) {
+        if (assistantResponsePublished) {
+            XLog.d(TAG, "publishAssistantResponse: ignored duplicate terminal response")
+            return
+        }
         val modelTag = actualModelName
             ?: sink.modelStatus.removePrefix("● ").split(" ·").firstOrNull()?.trim()
             ?: ""
-        sink.replaceTypingIndicator(text, modelTag)
+        sink.completeAssistantTurn(text, modelTag)
+        assistantResponsePublished = true
+        XLog.d(TAG, "publishAssistantResponse: published ${text.length} chars, model=$modelTag")
         onPersistConversation()
     }
 

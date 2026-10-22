@@ -95,6 +95,39 @@ class WebChatSinkTest {
     }
 
     @Test
+    fun `completeAssistantTurn appends after a tool action removed the indicator`() {
+        val s = sink()
+        s.append(user("q"))
+        s.append(typing())
+        s.removeTypingIndicator()
+        s.appendToolStep(ToolStep("Get Screen Info", "screen tree", true))
+
+        s.completeAssistantTurn("The marker is visible.", "Gemma")
+
+        assertEquals(
+            listOf("USER", "TOOL_GROUP", "ASSISTANT"),
+            last.map { it.role },
+        )
+        assertEquals("The marker is visible.", last.last().content)
+        assertEquals("Gemma", last.last().modelName)
+        assertFalse(last.last().isTypingIndicator)
+    }
+
+    @Test
+    fun `completeAssistantTurn replaces a pending indicator in place`() {
+        val s = sink()
+        s.append(user("q"))
+        s.append(typing())
+        s.appendToolStep(ToolStep("Get Screen Info", "screen tree", true))
+
+        s.completeAssistantTurn("The marker is visible.", "Gemma")
+
+        assertEquals(listOf("USER", "ASSISTANT", "TOOL_GROUP"), last.map { it.role })
+        assertEquals("The marker is visible.", last[1].content)
+        assertFalse(last[1].isTypingIndicator)
+    }
+
+    @Test
     fun `a second replace after the first is a no-op`() {
         val s = sink()
         s.append(typing())

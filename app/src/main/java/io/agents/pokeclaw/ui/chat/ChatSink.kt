@@ -59,6 +59,15 @@ interface ChatSink {
      */
     fun replaceTypingIndicator(text: String, modelName: String?)
 
+    /**
+     * Publish the terminal assistant text for the current task.
+     *
+     * Replaces the pending indicator when present, or appends the answer when
+     * an earlier tool action already removed it. The controller calls this
+     * once per task; it filters duplicate terminal events.
+     */
+    fun completeAssistantTurn(text: String, modelName: String?)
+
     /** Drop the typing indicator if present; no-op otherwise. */
     fun removeTypingIndicator()
 
