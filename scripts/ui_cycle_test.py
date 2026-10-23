@@ -135,6 +135,17 @@ def open_preview() -> bool:
             time.sleep(3)
             if is_preview():
                 return True
+            # A missed tap is indistinguishable from "the entry is broken" —
+            # and the list can scroll between the dump and the tap (the
+            # scroll-inertia problem in QA_CHECKLIST §13.4). Re-find the row
+            # and try once more before declaring the cycle lost.
+            pt = find(ENTRY)
+            if not pt:
+                return False
+            tap(pt)
+            time.sleep(3)
+            if is_preview():
+                return True
             return False
         sh("input", "swipe", "630", "2000", "630", "900", "400")
         time.sleep(1.5)
