@@ -28,9 +28,9 @@ Tag combinations are allowed — `[RELEASE-OK] [LLM-CLOUD]` means "works on sign
 ### Device Notes — things that are true of the hardware, not of the app
 
 Recorded 2026-10-22 while running the Claude UI cases on `10AG4J1THX00524`
-(V2502DA, vivo/iQOO ROM, Android 15, 1260×2800 @ 490 dpi). These are properties
-of *that device*, and each one invalidates a class of assertions if you do not
-know about it:
+(V2502DA, vivo/iQOO ROM, Android 16, 1260×2800 @ 490 dpi → 411 dp logical
+width). These are properties of *that device*, and each one invalidates a class
+of assertions if you do not know about it:
 
 - **Third-party app logs do not reach `adb logcat`.** Only system apps show up:
   `adb logcat -d | grep io.agents.pokeclaw` returns nothing, while
