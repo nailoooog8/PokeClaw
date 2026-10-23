@@ -354,7 +354,11 @@ class ClaudeUiPreviewActivity : BaseActivity() {
         // window.__cds.renderLiveRaw — which does not exist until cds.js has
         // finished loading. Restore after, never before.
         webView.postDelayed({ restoreChat() }, RESTORE_DELAY_MS)
-        XLog.i(TAG, "onCreate: loaded $MOCKUP_URL?v=${BuildConfig.VERSION_CODE}")
+        // e, not i — see the XLog.setDEBUG note on the chrome client below. In a
+        // release build XLog.i never reaches logcat, and QA runs release
+        // packages, so an `i` here would make the checklist's "the page loaded
+        // this URL" assertion unobservable on the only build QA can install.
+        XLog.e(TAG, "onCreate: loaded $MOCKUP_URL?v=${BuildConfig.VERSION_CODE}")
 
         // Registered at runtime rather than declared in the manifest: a
         // manifest receiver here would have to be exported to be reachable by
