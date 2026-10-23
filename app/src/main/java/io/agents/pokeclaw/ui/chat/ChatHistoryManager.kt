@@ -35,6 +35,11 @@ object ChatHistoryManager {
 
     private const val MESSAGE_TIMESTAMP_PREFIX = "<!-- pokeclaw:timestamp="
     private const val MESSAGE_TIMESTAMP_SUFFIX = " -->"
+
+    /** The "- ✓ name → summary" line layout written for tool groups. */
+    private val TOOL_LINE = Regex("^-\\s*([✓○])\\s*(.+)$")
+    private const val TOOL_ARROW = "→"
+    private const val TOOL_ICON_OK = "✓"
     private val frontmatterDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
 
     data class ConversationSummary(
@@ -209,6 +214,32 @@ object ChatHistoryManager {
     ) {
         if (role != null && content.isNotEmpty()) {
             val resolvedTimestamp = timestamp ?: (fallbackConversationTimestamp + messages.size * 1000L)
+            // A tool group is written as one markdown line per tool call, so
+            // loading it back as plain content throws the structure away: the
+            // chat screen's ToolGroup() renders `toolSteps` and nothing else
+            // (a restored group therefore drew an empty box), and the web
+            // surface flattened it into one "- ✓ name → summary" paragraph.
+            // Parse the lines back into the same shape the live message has
+            // (content empty, toolSteps populated) so a reloaded transcript
+            // looks like the one that was saved.
+            if (role == ChatMessage.Role.TOOL_GROUP) {
+                val steps = parseToolSteps(content.toString())
+                if (steps != null) {
+                    messages.add(
+                        ChatMessage(
+                            role = role,
+                            content = "",
+                            timestamp = resolvedTimestamp,
+                            toolSteps = steps,
+                            modelName = modelName
+                        )
+                    )
+                    content.clear()
+                    return
+                }
+                // Unrecognised layout — fall through and keep the raw text
+                // rather than dropping the tool calls on the floor.
+            }
             messages.add(
                 ChatMessage(
                     role = role,
@@ -219,6 +250,30 @@ object ChatHistoryManager {
             )
             content.clear()
         }
+    }
+
+    /**
+     * Parse the "- ✓ tool → summary" lines written by [save].
+     *
+     * Returns null when the block does not match that layout, so the caller
+     * can keep the raw content instead of guessing. The split is on the FIRST
+     * arrow: a summary may itself contain one (a path, a sentence), and the
+     * tool name is the short part before it.
+     */
+    private fun parseToolSteps(content: String): List<ToolStep>? {
+        val lines = content.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        if (lines.isEmpty()) return null
+        val steps = mutableListOf<ToolStep>()
+        for (line in lines) {
+            val match = TOOL_LINE.matchEntire(line) ?: return null
+            val icon = match.groupValues[1]
+            val rest = match.groupValues[2]
+            val arrow = rest.indexOf(TOOL_ARROW)
+            val name = if (arrow >= 0) rest.substring(0, arrow).trim() else rest
+            val summary = if (arrow >= 0) rest.substring(arrow + TOOL_ARROW.length).trim() else ""
+            steps.add(ToolStep(toolName = name, summary = summary, success = icon == TOOL_ICON_OK))
+        }
+        return steps
     }
 
     private fun serializeTimestamp(timestamp: Long): String {
