@@ -40,10 +40,12 @@ import java.util.concurrent.Executors
  * [WebChatSink]. The orchestration is *not* reimplemented here — the same
  * controller backs the Compose chat screen; this is the second sink.
  *
- * Also a design-review surface, so the static sample turns (tool card, MCP
- * confirm card, memory chips) stay in `index.html` as markup samples. Those
- * have no live data source because `ChatMessage.toolSteps` is never populated
- * by the controller today.
+ * Also a design-review surface, so the static sample turns (MCP confirm
+ * card, memory chips) stay in `index.html` as markup samples. Those have no
+ * live data source: the MCP card needs a Kotlin → JS → Kotlin decision loop
+ * and the memory chips need the recall results. The tool card is not one of
+ * them — it has carried real tool calls since 2026-10-19, and since
+ * 2026-10-22 it survives a transcript restore too (QA H23 / H26).
  *
  * Not exported, so no other app can reach it.
  */

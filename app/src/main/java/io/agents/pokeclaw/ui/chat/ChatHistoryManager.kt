@@ -107,10 +107,7 @@ object ChatHistoryManager {
                 ChatMessage.Role.TOOL_GROUP -> {
                     sb.appendLine("## Tools")
                     sb.appendLine(serializeTimestamp(msg.timestamp))
-                    msg.toolSteps?.forEach { step ->
-                        val icon = if (step.success) "✓" else "○"
-                        sb.appendLine("- $icon ${step.toolName} → ${step.summary}")
-                    }
+                    toolGroupLines(msg).forEach { sb.appendLine(it) }
                     sb.appendLine()
                 }
             }
@@ -212,44 +209,38 @@ object ChatHistoryManager {
         timestamp: Long? = null,
         fallbackConversationTimestamp: Long
     ) {
-        if (role != null && content.isNotEmpty()) {
-            val resolvedTimestamp = timestamp ?: (fallbackConversationTimestamp + messages.size * 1000L)
-            // A tool group is written as one markdown line per tool call, so
-            // loading it back as plain content throws the structure away: the
-            // chat screen's ToolGroup() renders `toolSteps` and nothing else
-            // (a restored group therefore drew an empty box), and the web
-            // surface flattened it into one "- ✓ name → summary" paragraph.
-            // Parse the lines back into the same shape the live message has
-            // (content empty, toolSteps populated) so a reloaded transcript
-            // looks like the one that was saved.
-            if (role == ChatMessage.Role.TOOL_GROUP) {
-                val steps = parseToolSteps(content.toString())
-                if (steps != null) {
-                    messages.add(
-                        ChatMessage(
-                            role = role,
-                            content = "",
-                            timestamp = resolvedTimestamp,
-                            toolSteps = steps,
-                            modelName = modelName
-                        )
-                    )
-                    content.clear()
-                    return
-                }
-                // Unrecognised layout — fall through and keep the raw text
-                // rather than dropping the tool calls on the floor.
-            }
-            messages.add(
+        if (role == null || content.isEmpty()) return
+        val resolvedTimestamp = timestamp ?: (fallbackConversationTimestamp + messages.size * 1000L)
+        // A tool group is written as one markdown line per tool call, so
+        // loading it back as plain content throws the structure away: the
+        // chat screen's ToolGroup() renders `toolSteps` and nothing else
+        // (a restored group therefore drew an empty box), and the web
+        // surface flattened it into one "- ✓ name → summary" paragraph.
+        // Parse the lines back into the same shape the live message has
+        // (content empty, toolSteps populated) so a reloaded transcript
+        // looks like the one that was saved.
+        val steps = if (role == ChatMessage.Role.TOOL_GROUP) parseToolSteps(content.toString()) else null
+        messages.add(
+            if (steps != null) {
+                ChatMessage(
+                    role = role,
+                    content = "",
+                    timestamp = resolvedTimestamp,
+                    toolSteps = steps,
+                    modelName = modelName
+                )
+            } else {
+                // Unrecognised layout — keep the raw text rather than dropping
+                // the tool calls on the floor.
                 ChatMessage(
                     role = role,
                     content = content.toString().trim(),
                     timestamp = resolvedTimestamp,
                     modelName = modelName
                 )
-            )
-            content.clear()
-        }
+            }
+        )
+        content.clear()
     }
 
     /**
@@ -263,22 +254,53 @@ object ChatHistoryManager {
     private fun parseToolSteps(content: String): List<ToolStep>? {
         val lines = content.lines().map { it.trim() }.filter { it.isNotEmpty() }
         if (lines.isEmpty()) return null
-        val steps = mutableListOf<ToolStep>()
-        for (line in lines) {
+        return lines.map { line ->
             val match = TOOL_LINE.matchEntire(line) ?: return null
-            val icon = match.groupValues[1]
             val rest = match.groupValues[2]
             val arrow = rest.indexOf(TOOL_ARROW)
-            val name = if (arrow >= 0) rest.substring(0, arrow).trim() else rest
-            val summary = if (arrow >= 0) rest.substring(arrow + TOOL_ARROW.length).trim() else ""
-            steps.add(ToolStep(toolName = name, summary = summary, success = icon == TOOL_ICON_OK))
+            ToolStep(
+                toolName = if (arrow >= 0) rest.substring(0, arrow).trim() else rest,
+                summary = if (arrow >= 0) rest.substring(arrow + TOOL_ARROW.length).trim() else "",
+                success = match.groupValues[1] == TOOL_ICON_OK
+            )
         }
-        return steps
     }
 
     private fun serializeTimestamp(timestamp: Long): String {
         return "$MESSAGE_TIMESTAMP_PREFIX$timestamp$MESSAGE_TIMESTAMP_SUFFIX"
     }
+
+    /**
+     * The lines a tool group occupies in the transcript.
+     *
+     * Two ways a group arrives here: a live one that carries `toolSteps`, and
+     * one loaded from an older file whose layout the loader did not
+     * recognise — that one keeps the raw text in `content`. Writing only the
+     * steps would drop that text on the next save, so the fallback has to be
+     * written back too.
+     *
+     * Internal rather than private so the format can be tested without an
+     * Android context: `save()` needs one (it writes to disk and indexes in
+     * SQLite), the line layout does not.
+     */
+    internal fun toolGroupLines(msg: ChatMessage): List<String> {
+        val steps = msg.toolSteps ?: return listOf(msg.content)
+        return steps.map { step ->
+            val icon = if (step.success) "✓" else "○"
+            "- $icon ${step.toolName.oneLine()} → ${step.summary.oneLine()}"
+        }
+    }
+
+    /**
+     * Collapse a tool name or summary onto one line.
+     *
+     * The transcript format is line-oriented — one tool call per line — so a
+     * raw newline in a summary would split one call into two and the reader
+     * would no longer recognise the block. A space keeps the line intact
+     * without pretending the line break was never there.
+     */
+    private fun String.oneLine(): String =
+        replace("\r\n", " ").replace("\n", " ").replace("\r", " ").trim()
 
     private fun parseMessageTimestamp(line: String): Long? {
         return line.removePrefix(MESSAGE_TIMESTAMP_PREFIX)

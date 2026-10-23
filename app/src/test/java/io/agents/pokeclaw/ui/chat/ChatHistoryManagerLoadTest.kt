@@ -1,6 +1,7 @@
 package io.agents.pokeclaw.ui.chat
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -62,7 +63,7 @@ class ChatHistoryManagerLoadTest {
         assertTrue(group.toolSteps!![0].success)
         assertEquals("send_file", group.toolSteps!![1].toolName)
         assertEquals("failed", group.toolSteps!![1].summary)
-        assertEquals(false, group.toolSteps!![1].success)
+        assertFalse(group.toolSteps!![1].success)
         // The raw lines are now redundant: keeping them would double-render
         // the group on the web surface (a card plus a paragraph).
         assertEquals("", group.content)
@@ -114,5 +115,22 @@ class ChatHistoryManagerLoadTest {
 
         assertEquals("finish", group.toolSteps!![0].toolName)
         assertEquals("", group.toolSteps!![0].summary)
+    }
+
+    @Test
+    fun `a timestamped tool group keeps its timestamp`() {
+        val file = transcript(
+            """
+            ## Tools
+            <!-- pokeclaw:timestamp=1792678558202 -->
+            - ✓ 截屏 → /tmp/a.png
+            """.trimIndent()
+        )
+
+        val group = ChatHistoryManager.load(file)
+            .first { it.role == ChatMessage.Role.TOOL_GROUP }
+
+        assertEquals(1792678558202L, group.timestamp)
+        assertEquals("截屏", group.toolSteps!![0].toolName)
     }
 }
