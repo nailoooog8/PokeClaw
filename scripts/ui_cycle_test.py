@@ -45,7 +45,19 @@ def pss() -> int:
 
 
 def activity_alive() -> bool:
-    return b"ClaudeUiPreview" in sh("dumpsys", "activity", "activities")
+    """Is the preview Activity still a live record in the task?
+
+    A plain substring search over `dumpsys activity activities` is wrong: the
+    task keeps a `mLastPausedActivity` pointer to the last paused activity, and
+    that pointer survives the activity being destroyed (the record is stamped
+    `t-1 d-1 f`). Searching for the name therefore reports a leak for an
+    activity that finished cleanly. Only a live `Hist #N` record counts.
+    """
+    out = sh("dumpsys", "activity", "activities").decode("utf-8", "replace")
+    for line in out.splitlines():
+        if "Hist" in line and "ClaudeUiPreviewActivity" in line:
+            return True
+    return False
 
 
 def center(bounds: str):
@@ -79,14 +91,32 @@ def go_home() -> None:
     sh("input", "keyevent", "KEYCODE_HOME")
 
 
+def back_to_chat() -> bool:
+    """Back out of whatever screen is on top until the chat page is up.
+
+    Launching the app does NOT guarantee the chat page: the launcher intent
+    resumes whatever activity was on top when the process died, which may be
+    the preview surface or Settings. Reaching the chat page explicitly is
+    what makes the navigation below deterministic.
+    """
+    for _ in range(4):
+        if "ComposeChatActivity" in focus():
+            return True
+        sh("input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1.5)
+    return "ComposeChatActivity" in focus()
+
+
 def open_settings() -> bool:
-    """Home -> launch app -> open Settings. Settings is not exported (QA note)."""
+    """Chat -> Settings. Settings is not exported (QA note)."""
     go_home()
     time.sleep(1)
     subprocess.run(["adb", "shell", "monkey", "-p", PKG,
                     "-c", "android.intent.category.LAUNCHER", "1"],
                    capture_output=True, check=False)
     time.sleep(3)
+    if not back_to_chat():
+        return False
     pt = find("设置")          # 设置
     if not pt:
         return False
@@ -96,19 +126,33 @@ def open_settings() -> bool:
 
 
 def open_preview() -> bool:
-    pt = find(ENTRY)
-    if not pt:
-        return False
-    tap(pt)
-    time.sleep(3)
-    return is_preview()
+    """Settings -> preview. The entry lives near the bottom of the About
+    section, so scroll down until it is on screen instead of assuming it is."""
+    for _ in range(6):
+        pt = find(ENTRY)
+        if pt:
+            tap(pt)
+            time.sleep(3)
+            if is_preview():
+                return True
+            return False
+        sh("input", "swipe", "630", "2000", "630", "900", "400")
+        time.sleep(1.5)
+    return False
 
 
 def close_preview() -> None:
-    sh("input", "keyevent", "KEYCODE_BACK")
-    time.sleep(1)
-    sh("input", "keyevent", "KEYCODE_BACK")
-    time.sleep(2)
+    """BACK until the preview is really gone.
+
+    One BACK is not always enough: when the composer holds focus, the WebView
+    consumes the key to drop focus and the surface stays put. Pressing BACK
+    blindly twice can therefore land on the chat page instead of Settings.
+    """
+    for _ in range(3):
+        if not is_preview():
+            return
+        sh("input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1.5)
 
 
 def main() -> int:
