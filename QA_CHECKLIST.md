@@ -25,6 +25,33 @@ Every test in this checklist has an implicit build-type requirement. When adding
 
 Tag combinations are allowed — `[RELEASE-OK] [LLM-CLOUD]` means "works on signed release but you need a cloud key configured."
 
+### Device Notes — things that are true of the hardware, not of the app
+
+Recorded 2026-10-22 while running the Claude UI cases on `10AG4J1THX00524`
+(V2502DA, vivo/iQOO ROM, Android 15, 1260×2800 @ 490 dpi). These are properties
+of *that device*, and each one invalidates a class of assertions if you do not
+know about it:
+
+- **Third-party app logs do not reach `adb logcat`.** Only system apps show up:
+  `adb logcat -d | grep io.agents.pokeclaw` returns nothing, while
+  `ActivityTaskManager` / `hostapd` lines are there. Consequence: **every
+  `[LOGCAT-DEBUG]` case is unrunnable here, and so is any "there is no FATAL /
+  no ANR" claim made from logcat** — the absence of lines is the absence of
+  *logging*, not the absence of a crash. Use `adb shell dumpsys activity
+  exit-info io.agents.pokeclaw` instead: it lists real process exits with
+  reasons (`reason=3 LOW_MEMORY`, `reason=10 USER REQUESTED`, `reason=6
+  CRASH`), and it is readable on a release build.
+- **`adb install -r` fails with `INSTALL_FAILED_ABORTED: User rejected
+  permissions` while the screen is locked.** The ROM asks for confirmation and
+  auto-aborts it when the keyguard is up. Unlock first
+  (`input keyevent KEYCODE_WAKEUP` + `wm dismiss-keyguard`), then install.
+- **`INSTALL_FAILED_VERSION_DOWNGRADE` is the local build's fault.** The
+  version code defaults to 33 (`app/build.gradle.kts:115`); the signed build on
+  the device was 37. Export `POKECLAW_VERSION_CODE=<higher>` for local QA
+  builds, otherwise the app can never be updated in place.
+- **`adb input text` cannot type non-ASCII.** Prompts on this device have to be
+  English, or the script has to inject text another way.
+
 ### Pre-Tag Release Smoke — MANDATORY before pushing any vX.Y.Z tag
 
 CLAUDE.md says: full QA triggers before any release/version bump. v0.7.0 violated this gate (QA was run after tag). To make the gate physically present in this checklist, do the following EVERY release, IN ORDER:
@@ -769,19 +796,30 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 - [ ] **H11. Channel group is reachable [RELEASE-OK]**: Settings → scroll to the channel group → Discord / Telegram / WeChat / QQ / Douyin / Pairing PIN / LAN Config rows are ALL visible (this group was `android:visibility="gone"` in `activity_settings.xml`, so the handlers existed in code but had no UI entry) → each opens its `ChannelConfigActivity` page → QQ shows WS URL + Token fields, Douyin shows Webhook URL + Token fields → save → row trailing text flips to Bound
 - [ ] **H12. QQ and Douyin icons render**: Settings → channel group → QQ row shows the penguin icon and Douyin row shows the note icon (they previously used `android.R.drawable.stat_notify_chat` / `ic_media_play` placeholders) → no missing-icon box, tinted consistently with Discord/Telegram/WeChat
 
-### Claude UI design mockup — TEMPORARY surface, delete with the feature
+### Claude UI experimental surface — promoted 2026-10-18, ships as a product entry
 
-> [RELEASE-BLOCKER] This whole subsection tests a surface that must not ship. See
-> BACKLOG.md "Temporary surfaces". When that entry is actioned, delete this
-> subsection too.
+> This surface used to be a *temporary surface, delete before release*. It was
+> promoted on 2026-10-18: it drives the real task flow (`WebChatSink` →
+> `TaskFlowController`), so it ships, and its checklist counts like any other
+> feature's. See BACKLOG.md "Temporary surfaces".
+>
+> ⚠️ **Why the old framing was dangerous**: the `SettingsActivity` banner once
+> told the next person to delete a working feature. A stale "must not ship"
+> label is a defect in the docs, not a safety margin — the same class of leak
+> as `.github/FUNDING.yml` shipping a dead sponsor handle (§10.2).
 
-- [ ] **H13. Mockup opens and its JS actually runs**: Settings → About → 「Claude UI 实验版」 → a full-screen page appears. **This is the case that catches the silent bug**: `javaScriptEnabled` was never set, so `cds.js` never ran — theme switching, scroll pinning and the model popover were all dead while the HTML shell still rendered and *looked* fine. Verify JS is live, not just that the page painted:
+- [x] **H13. The preview page opens and its JS actually runs [PASS — 2026-10-22]**: Settings → About → 「Claude UI 实验版」 → a full-screen page appears. **This is the case that catches the silent bug**: `javaScriptEnabled` was never set, so `cds.js` never ran — theme switching, scroll pinning and the model popover were all dead while the HTML shell still rendered and *looked* fine. Verify JS is live, not just that the page painted:
   - tap the theme/accent switcher → the palette changes (proves `cds.js` executed)
   - scroll up mid-conversation → the 「跳至最新」 jump button appears (proves scroll pinning + JS)
-  - `adb logcat --pid=$(adb shell pidof io.agents.pokeclaw) -s ClaudeUiPreview` shows `onCreate: loaded file:///android_asset/claude-ui/index.html`
+  - `adb logcat --pid=$(adb shell pidof io.agents.pokeclaw) -s ClaudeUiPreview` shows `onCreate: loaded https://appassets.androidplatform.net/assets/claude-ui/index.html`
   - ✅ 2026-10-17 release 包真机确认：页面完整渲染（中文/日文/等宽字体、消息气泡、代码块），点配色**立即变色** → JS 确实在跑
   - ⚠️ 配色名以 `mockup/claude-ui/index.html` 的 `data-theme-key` 为准（陶土橙 / 陶土橙·高对比 / 鼠尾草绿 / 靛蓝 / 赭石红 / 紫藤 / 深青）。此前文档写的「海盐绿」**不存在**，别照着找。
   - ⚠️ logcat 断言已随 `WebViewAssetLoader` 改变，改为 `onCreate: loaded https://appassets.androidplatform.net/assets/claude-ui/index.html`
+  - ✅ **2026-10-22 复验（在 release 包 `PokeClaw_v0.8.3_20261022_231241.apk`，versionCode 38 上）**：页面渲染真实数据（工具卡、助手正文、用户气泡），无障碍树里能取到 JS 生成的「跳至最新」按钮（滚动钉住），配色跨进程存活仍成立（见 H13-b）。
+  - ✅ **断言本身修好了**：那行 `onCreate: loaded …` 原来是 `XLog.i`，而 release 包里 `XLog.i` 永远不进 logcat（`XLog.setDEBUG(BuildConfig.DEBUG)`）—— **这条断言在 QA 唯一能装的包上永远不可能成立**。已改为 `XLog.e`（与本文件里 `[web]` / `[cdsQA]` / `setAccent` 同一处理），现在在能看见应用日志的设备上可观测。
+  - ⚠️ **本机看不到应用日志**：见上文「Device Notes」—— 这台 vivo 机器的 `adb logcat` 只出系统应用的日志，**应用自己的 `XLog.e` 也一行都看不到**。所以本次复验没有依赖 logcat，改用「无障碍树里有没有 JS 生成的节点」与 `exit-info`（无 CRASH / ANR 记录）来判断。
+  - ⚠️ **未取到的一项**：QA 广播 `io.agents.pokeclaw.SET_ACCENT`（`dumpsys activity broadcasts` 确认**已投递给应用进程**，extras `{key=teal}` 也在）**没有让页面重绘**——前后两帧逐像素比对，只有状态栏那点时钟差异。这条 QA 通道在本机不生效，原因未查明（应用日志不可见，连 JS 的返回值都读不到）。**主题点击变色这一格仍以 2026-10-17 的实机证据为准**，别把广播通道当成已验证的手段。
+  - ⚠️ **手机上根本没有主题按钮**：`.sidebar { display: none }`（`cds.css:994`）在窄屏断点下把整个侧边栏藏了，而主题选择器在侧边栏里。所以「点配色」这一步在 411 dp 的手机上**无法用坐标点出来**，只能靠广播或桌面宽度；写用例时别假设手机上有这个控件。
 - [x] **H13-b. Theme choice SURVIVES a close/reopen [PASS — 2026-10-18]**: 选非默认配色 → BACK BACK → 重开 → 配色必须仍是上次那个。
   - ✅ **PASS，且推翻了此前「持久化失败」的结论。** 判定依据是三个独立证据同时成立：`loads` 计数跨 `force-stop` 从 1 涨到 2、`roundTrip.ok=true`、`applied == stored`。`localStorage` 在 `appassets` 来源下**完全正常**。
   - **真实根因**：当初那次点击**根本没落到 `applyAccent`**，所以 clay 默认值被原样读回，看起来像「存不住」。不是存储问题。
@@ -793,12 +831,24 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - 起因：QA 面板在设备上把自身源码当纯文本渲染在页面顶部。我先当渲染 bug 修了两轮（改写 `innerHTML` → `createElement`、加 DOM 探针），**全错** —— 那是我自己的诊断脚手架，本就不该留在成品里。第三轮才整体移除。
   - ✅ 验证：release 包 `..._160448.apk` 冷启动后面板消失，深青 + 米黄配色完整保留。
   - **防复发**：任何为排查临时加的页面 UI，生命周期必须与排查同生共死。需要长期数据就写日志，不要常驻在页面上。
-- [ ] **H14. Back leaves the mockup and does not crash**: on the mockup → BACK → returns to Settings.
+- [x] **H14. Back leaves the preview page and does not crash [PASS — 2026-10-22]**: on the preview page → BACK → returns to Settings.
   - ⚠️ **第一次返回可能只关掉配色面板**（若主题面板正开着），第二次才退出 —— 别误判成返回键坏了。
   - ✅ 2026-10-17 release 包真机确认：无 `FATAL` / `ANR`，第二次返回确实回到 `SettingsActivity`，`dumpsys activity` 中已无 `ClaudeUiPreview` 残留。
   - ⚠️ **内存泄漏项仍未验证**：连续 3 轮开关的 PSS 在 170–334 MB 间振荡（GC 抖动，非单调增长），但当时 `adb input tap` 未能可靠进入预览（滚动惯性导致点错行，见 §13.4），**故该轮数据不作数**。重测请用 `scripts/ui_cycle_test.py`，并确认每轮 `entered=OK`。
-- [ ] **H15. Mockup loads from the generated assets dir, not a stale committed copy**: the mockup must render the file under `mockup/claude-ui/`. Edit a visible string there, `./gradlew assembleDebug`, reinstall → the edit is visible.
+  - ✅ **2026-10-22 补测（泄漏项终于有数据了）**：设备 `10AG4J1THX00524`，release 包 `PokeClaw_v0.8.3_20261022_231241.apk`。
+    - **BACK 行为**：全新打开后按一次 BACK → 落到 `SettingsActivity`（栈 `[Chat, Settings]`），预览 Activity 被弹出；再按一次 → `ComposeChatActivity`。正常。
+    - **泄漏**：3 轮开关，每轮都 `entered=OK`（不是 SKIP），PSS 2002.1 → 2003.3 → 2003.7 MB，**漂移 +1.6 MB，无单调增长**；每轮关闭后预览 Activity 在 `dumpsys activity activities` 的**活记录**里都不存在。
+    - ⚠️ **修正旧结论**：上一条里「第一次返回可能只关掉配色面板」这个解释在手机上不成立 —— 侧边栏在窄屏被 `display:none` 藏了（`cds.css:994`），主题面板**根本开不出来**。本机实测到的真实情形是：**输入框持有焦点时，BACK 被 WebView 吃掉**（`dumpsys input_method` 显示 `mServedView=WebView`、`mInputShown=false`，即键盘没弹但焦点在 WebView 上），第一下 BACK 只掉焦点，第二下才退出。写脚本时**不能假设按一次就一定退出**。
+  - ✅ **`scripts/ui_cycle_test.py` 修好了**（此前它在本机 4 轮全部 `SKIP — could not reach Settings`，退出码 1 报 `INCONCLUSIVE`，等于这个用例根本没法跑）：
+    - **导航错**：脚本靠 `monkey` 拉起应用后找「设置」，但启动 intent 恢复的是**上次的前台 Activity**（本机是预览页），「设置」根本不在屏幕上 → 每轮 SKIP。改为先 `BACK` 回到聊天页再找「设置」。
+    - **入口会滚出屏幕**：预览入口在「关于」段靠下，脚本只找不滚。改为找不到就上滑再找。
+    - **关闭时按死两次 BACK**：焦点在 WebView 上时第一下被吃掉，第二下才退出 —— 但脚本是「BACK BACK」固定两下，于是从预览**退过头**落到聊天页，再去 Settings 找入口就更容易点错。改为「按到 `is_preview()` 为假为止」（最多三次）。
+    - **存活判定是假阳性**：原判据是 `b"ClaudeUiPreview" in dumpsys activity activities`，而任务栈会留一条 `mLastPausedActivity` 指向**已经销毁**的 Activity（记录上标着 `t-1 d-1 f`），于是每次都报 `activity_alive=True` —— 看着像泄漏，其实 Activity 早就销毁了。改为只认 `Hist #N` 里的活记录。
+- [x] **H15. The preview page loads from the generated assets dir, not a stale committed copy [PASS — 2026-10-22]**: the preview page must render the file under `mockup/claude-ui/`. Edit a visible string there, `./gradlew assembleDebug`, reinstall → the edit is visible.
   - Guards the dedup: the three runtime files used to be duplicated byte-for-byte into `app/src/main/assets/claude-ui/`. Now `syncClaudeUiMockup` copies them into `build/generated/claudeUiAssets` at build time. Confirm `build/generated/claudeUiAssets/claude-ui/` contains exactly `index.html`, `cds.css`, `cds.js` — the nine `preview-*.png` (~740 KB) and `README.md` must NOT be in the APK.
+  - ✅ **2026-10-22 实测（判据看 APK，不看 `build/` 中间产物）**：把设备上装着的 APK pull 下来解包，`assets/claude-ui/` 里**只有** `index.html` / `cds.css` / `cds.js` 三个文件，**没有** `preview-*.png`，**没有** `README.md`。
+  - ✅ **三个文件与仓库源文件逐字节相同**（sha256）：`cds.css` `bb385ac5…`、`cds.js` `3d9cbfce…`、`index.html` `0b003a62…`，APK 内与 `mockup/claude-ui/` 一致 → **不是**一份陈旧的提交副本。
+  - ✅ 同一轮里 H24 的修复也顺手在 APK 内复核过：`cds.css` 里 `overflow-wrap: anywhere` **4 处齐全**。
 - [x] **H17. Chat path unchanged after the ChatSessionSink extraction [PASS — 2026-10-18]**: 旗舰聊天页发一条消息 → 等待真实回复 → 确认①只出现**一条**助手气泡（无重复）②顶部模型状态行与 token/费用计数同步更新。
   - 这是 `ChatSessionController` 抽出 `ChatSessionSink` 后的回归用例（commit `12fd283`）。改动**声称**是纯类型改动：`ChatSessionUiState` 仍写同一批 Compose state —— 所以 **UI 完全不变是预期结果，不是没生效**。
   - ✅ 2026-10-18 真机（release 包 `PokeClaw_v0.8.3_20261018_162632.apk`，证书 `7c2d6dd5…4c667`，覆盖安装成功）：用户气泡 → **恰好一条**助手回复「已收到。在的，有什么需要我做的？」，无重复；模型状态行 `● doubao-seed-1.6-flash · Cloud` 完整；logcat 无 `FATAL` / `ANR`；进程 25714 未重启。
@@ -810,7 +860,8 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **真机 PASS（release 包 `PokeClaw_v0.8.3_20261018_171735.apk`，commit `b93b9b4`）**：①用户气泡出现 ②「正在思考…」指示器出现并被替换 ③回复含模型真实输出 ④**回复完成后仍停留在预览页**。
   - ✅ **客观佐证**：`dumpsys activity activities` 的 `topResumedActivity` = `.ui.web.ClaudeUiPreviewActivity`；logcat **无 `FATAL EXCEPTION` / 无 `ANR`**。
   - ⚠️ 第四项在修复前**不成立**：任务完成后被顶到聊天页，根因见 **H20**。
-  - ⚠️ **预期不动的部分**：工具卡片 / MCP 确认卡 / 记忆 chips **接入后仍是静态示例**。`ChatMessage.toolSteps` 在 `TaskFlowController` 里从未被赋值（grep 零命中），`cds.js` 的 `buildTurn` 已能画工具卡，但**生产侧没有数据源**。这不是渲染缺口，是产生侧缺口。
+  - ⚠️ **当时（2026-10-18）预期不动的部分**：工具卡片 / MCP 确认卡 / 记忆 chips **接入后仍是静态示例**。`ChatMessage.toolSteps` 在 `TaskFlowController` 里从未被赋值（grep 零命中），`cds.js` 的 `buildTurn` 已能画工具卡，但**生产侧没有数据源**。这不是渲染缺口，是产生侧缺口。
+    - ✅ **工具卡片这一项已于 2026-10-19 接上**（见 H23）：`ChatSink.appendToolStep()` + `TaskEvent.ToolResult` → `TOOL_GROUP` 消息。**「生产侧没有数据源」这句现在只对 MCP 确认卡与记忆 chips 成立**。
 - [x] **H20. A finished task returns to the surface that started it [PASS — 2026-10-18]**: 从**非聊天页**（如 Claude UI 预览页）发起的任务，完成后必须回到**该页**，而不是聊天页。
   - **起因（已定性的真 bug）**：`TaskOrchestrator.onComplete` 把回跳目标**硬编码**为 `ComposeChatActivity`。聊天页恰好是被硬编码的目标，所以它「看起来正常」；任何其他发起的任务都会被误送回聊天页。
   - ⚠️ **先数一遍：硬编码共有四处，语义各不相同**，只有第一处是真问题：
@@ -826,10 +877,15 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **已验**：`compileDebugKotlin` 通过；全量 **264 / 29 suites / 0 失败**（`TaskSessionStoreTest` 新增 4 例，含「release 后 origin 必须清空」这条防泄漏用例）；`assembleRelease` → `..._171735.apk`，`adb install -r` **Success**。
   - ✅ **真机 PASS**：从预览页发起的任务完成后，`topResumedActivity` 仍是 `.ui.web.ClaudeUiPreviewActivity`，未被换成聊天页；期间无 `FATAL` / 无 `ANR`。
   - ⚠️ **已知降级场景（选了 B 方案的代价）**：`originActivity` 存在**进程内存**里。若任务执行中进程被杀 / Activity 被回收，回跳时 `SINGLE_TOP` 会**新建**实例而非复用 —— 用户观感是「预览页被重新打开，消息全空」。少数情况，未做持久化。**本轮未触发。**
-  - ⚠️ **预期不动的部分**：工具卡片 / MCP 确认卡 / 记忆 chips **接入后仍是静态示例**。`ChatMessage.toolSteps` 在 `TaskFlowController` 里从未被赋值（grep 零命中），`cds.js` 的 `buildTurn` 已能画工具卡，但**生产侧没有数据源**。这不是渲染缺口，是产生侧缺口。
-- [ ] **H19. Assistant text is never injected as HTML [PASS by construction — 2026-10-18]**: 助手正文必须经 `textContent` 写入，不得用 `innerHTML` 拼字符串。
+  - ⚠️ **当时（2026-10-18）预期不动的部分**：工具卡片 / MCP 确认卡 / 记忆 chips **接入后仍是静态示例**。`ChatMessage.toolSteps` 在 `TaskFlowController` 里从未被赋值（grep 零命中），`cds.js` 的 `buildTurn` 已能画工具卡，但**生产侧没有数据源**。这不是渲染缺口，是产生侧缺口。
+    - ✅ **工具卡片这一项已于 2026-10-19 接上**（见 H23）：`ChatSink.appendToolStep()` + `TaskEvent.ToolResult` → `TOOL_GROUP` 消息。**「生产侧没有数据源」这句现在只对 MCP 确认卡与记忆 chips 成立**。
+- [x] **H19. Assistant text is never injected as HTML [PASS — 2026-10-22]**: 助手正文必须经 `textContent` 写入，不得用 `innerHTML` 拼字符串。
   - `cds.js` 的 `buildTurn` 只用 `innerHTML` 拼**静态骨架**（class 名与标签），消息正文一律 `.textContent = m.content`。助手内容是模型生成的，拼字符串就是注入面。Kotlin 侧的 `appendJsonString` 另行转义 `"` `\` 与控制字符。
   - 建议补一条真机用例：让模型回一段含 `<script>` 的文本，确认页面原样显示而不执行。
+  - ✅ **2026-10-22 补上了那条真机用例**（设备 `10AG4J1THX00524`，release 包 versionCode 38）：
+    - **用户侧**：输入框里敲 `Reply with exactly this text and nothing else: <script>alert(1)</script>` → 气泡里**原样显示**这串字符，无障碍树取到的文本就是原文；**没有任何脚本执行**（无弹窗、Activity 未重启、`exit-info` 无 CRASH）。
+    - **助手侧**：让模型原样输出 `<script>alert(1)</script>`，本地模型**拒答**了（"I cannot fulfill this request…"）—— 所以改用等价载荷问「粗体用的 HTML 标签是什么，只要标签本身」，模型答 `` `<b>` ``，助手正文里**尖括号原样显示**。若被当成 HTML 解析，节点文本会变成 `b`（标签消失）且出现一个加粗元素；实测文本是 `` `<b>` ``，尖括号还在 → 是文本，不是标记。
+    - **代码侧**：`cds.js` 里 `innerHTML` 只出现在 `turn()` 的静态骨架；消息正文只有 `textContent` 赋值（`appendUser` / `buildTurn` / `tool-name` / `tool-body`）。Kotlin 侧 `appendJsonString` 转义 `"` `\` 换行制表与控制字符。
 - [x] **H21. The preview surface drops controls that do nothing [PASS — 2026-10-19]**: 进入预览页 → 确认侧边栏**只剩**品牌标识与主题设置；顶栏**没有**重命名与「更多」按钮；标题**不是**「给妈妈订高铁票」。
   - 起因：接上真实任务流后，设计稿里那批纯静态元素（会话列表、搜索框、新建任务、记忆库、技能管理、重命名、「更多」）从「设计道具」变成「点不动的承诺」。点不动的控件比没有控件更糟，写死的假标题让真实使用显得像被冒充。
   - ✅ 处置：不是删除，而是用 `<html data-live="true">` 驱动 CSS 隐藏 —— `cds.js` 检测到 Kotlin 桥时设置该属性。**同一份 HTML 在纯浏览器里仍是完整设计稿**（属性不存在则一切照旧），保住设计评审效果。删标记会悄悄改变评审看到的东西。
@@ -846,6 +902,16 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
   - ✅ **「Finish」伪工具被过滤**：它是 agent 循环的记帐，不是设备动作，显示出来像发生了但其实没发生。
   - ✅ **真机 PASS**：2026-10-19 用户确认工具卡出现且工作正常。
     - ⚠️ **其中一条断言是我写错的**：我以为 `replaceTypingIndicator` 会填进**最后一条**（实际是填进指示器自己的槽位 index 1，工具卡追加在它后面）。代码行为是对的，指示器按位置追踪正是为此 —— 改的是断言不是代码。
+- [x] **H26. Tool cards survive a transcript restore [PASS — 2026-10-22]**: 任务跑完后把页面关掉再打开（Activity 重建 / 进程被杀），历史里的工具调用必须仍然是**工具卡**，而不是被拍平成一行文字。
+  - ✅ **2026-10-22 实机发现并修掉**：恢复出来的历史里，工具卡**不见了**。
+    - **症状**：无障碍树里那一格变成了**一个**文本节点 `- ✓ 截屏 → /data/user/0/…/1792678558202.png`（工具头与工具体并成一段正文），而实时渲染时它是两个节点（`截屏` + `工具调用` + 路径）。截图上看是工具卡的橙点与左侧竖条**整个没了**。
+    - **根因**：`ChatHistoryManager.save()` 把工具组写成一行行 markdown（`- ✓ 名字 → 摘要`），但 `load()` **没有把这一段解析回结构**——它只把整段当正文收进 `ChatMessage.content`，`toolSteps` 为 null。于是：
+      - Web 预览页：`buildTurn` 看到没有 `toolSteps` 就把这段正文当普通段落画 → **拍平成一行字**；
+      - 旗舰聊天页：`ChatScreen` 的 `ToolGroup()` 只渲染 `message.toolSteps`，`toolSteps` 为 null 时**什么都不画** → **恢复出来的历史里那次工具调用彻底消失**（不是变丑，是不见了）。
+    - **修法**：`load()` 遇到 `## Tools` 段时把行解析回 `toolSteps`（图标 `✓`/`○` 决定成功与否，按**第一个** `→` 切开名字与摘要——摘要里也可能带箭头）；解析不出来的**原样保留为正文**，不猜、不丢。还原后的消息形状与实时消息一致（`content` 为空、`toolSteps` 有值），这样 Web 端不会「一张卡 + 一段正文」重复显示。
+    - **单测**：`ChatHistoryManagerLoadTest`（4 例）—— 结构还原 / 摘要里含箭头 / 未知格式保留原文 / 无摘要的行。
+    - ✅ **真机 PASS**：用**旧包写下的**历史文件（`- ✓ 截屏 → …` 格式）在新包上恢复，工具卡回来了（无障碍树里 `截屏` 与 `工具调用` 分开、路径单独一行）。**向后兼容也一起验了**：不需要迁移旧文件。
+    - ⚠️ 这次恢复之所以会暴露问题，是因为 H14 那 3 轮开关把 Activity 重建了 —— 也就是说**这个缺陷在正常使用中必然出现**，不是只有测试才碰得到。
 - [x] **H24. Long unbroken text does not overflow its container [PASS — 2026-10-22]**: 发一条会回很长连续文本的消息（截图文件路径、无空格的工具输出）→ 确认文本**换行**而不是被裁掉或撑破卡片。
   - **起因（先量出来的，不是猜的）**：411 dp（V2502DA 逻辑宽度）下 `pre-wrap` **只认换行符，不认超长单词**：
     | 容器 | 修前 `scrollWidth` / `clientWidth` | 修前溢出 |

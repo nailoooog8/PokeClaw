@@ -8,6 +8,8 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 
 ## Bugs
 
+- [x] **P1 — FIXED 2026-10-22.** Tool calls vanished from a restored transcript. `ChatHistoryManager.save()` writes a tool group as one markdown line per call (`- ✓ name → summary`), but `load()` never parsed that back: the whole block landed in `ChatMessage.content` and `toolSteps` stayed null. Two surfaces, two symptoms — the **chat screen's `ToolGroup()` renders `toolSteps` and nothing else, so a restored group drew an empty box** (the tool call was simply gone), and the **web preview flattened it into one `- ✓ 截屏 → …` paragraph** (the card lost its dot, its kind label and its accent border). The fix parses the lines back into `toolSteps` — icon `✓`/`○` decides success, split on the **first** `→` because a summary can contain one — and restores the same shape the live message has (`content` empty), so the web surface does not render a card *and* a paragraph. An unrecognised layout is kept verbatim rather than guessed at. New `ChatHistoryManagerLoadTest` (4 cases). Verified on device with a transcript written by the **previous** build, so old files need no migration. Found while running QA H14 (three open/close cycles rebuild the Activity, which is exactly what a normal user does) — see `QA_CHECKLIST.md` H26.
+  - ⚠️ **The lesson is about the asymmetry**: `save()` and `load()` were written at different times and never round-tripped. A markdown transcript is a *format*, and the format's tool-group section had no reader.
 - [x] **P2 — RESOLVED 2026-10-22.** Claude UI preview: a tool card on the real device appeared to render `设备截图` as its kind label and `正在截取屏幕…` as its summary. **Neither string exists in any commit in this repo** (`git log -S`, all refs) nor in the unpacked `assets/claude-ui/cds.js` / `index.html`, and the packaged `cds.js` hardcodes `.tool-kind` to `工具调用` — no code path can emit them. Settled as an **OCR misread of 11 px CJK**, and on 2026-10-22 re-derived as *provably* impossible rather than merely doubted: the live renderer hardcodes `工具调用` (`mockup/claude-ui/cds.js:451`), the static samples say `无障碍 · 点击` / `无障碍 · 启动应用` (`cds.js:485`, `350e2f7`), and `git log -S "正在截取"` over all history hits only `QA_CHECKLIST.md` / `BACKLOG.md` themselves — so **no build, and therefore no cached page either, could have carried those strings**. The "cached another page" hypothesis is dead, and the DevTools-socket line (`webview_devtools_remote_28400`, `adb forward` + HTTP gave nothing) needs no further chasing: the page did not contain the string, so reading the DOM could not have produced it. Filed 2026-10-20 while running QA H24.
   - A *real* adjacent hazard was fixed anyway: the preview page's asset URL never changes, so the WebView cache could serve the previous build's page and a reviewer would judge a build that is not installed. `ClaudeUiPreviewActivity` now does `clearCache(true)` plus a `?v=BuildConfig.VERSION_CODE` query (same origin, so the localStorage theme survives).
 - [~] **P1** AppCapabilityCoordinator process-young grace (partial fix shipped 2026-05-28): `bindingState` now returns `CONNECTING` for the first 30s after process start regardless of stale `lastHealthyAt` in MMKV. Addresses the case where OS keeps the AccessibilityService enabled across an app process restart and rebinds within seconds — previously the in-app coordinator would see `running=false`+`lastHealthyAt` from minutes ago and immediately return `DEGRADED`, forcing the user back to Settings. Limitation: cannot help the Pixel-specific behavior where `force-stop` revokes the secure setting `accessibility_enabled` (true `DISABLED` state, requires user re-enable). Production behavior on Xiaomi/Samsung task-killers may or may not preserve the secure setting — needs telemetry to confirm. Runtime QA blocked on Pixel by the force-stop auto-disable; code-review verified. **2026-05-28 commit `pending` adds 30s process-start grace.**
@@ -67,6 +69,17 @@ section is not empty, the release is not ready.
 > **2026-10-18 变更**：Claude UI 预览页**已不再是「临时面」** —— 它接上了真实任务流
 > （`WebChatSink` → `TaskFlowController`），是有产品功能的入口。原先「发布前必删」
 > 的判据随之作废。下面剩下的条目才仍适用这条规则。
+
+> **2026-10-22 复核：本节当前为空** —— 没有待删条目。唯一的候选（Claude UI 预览页）
+> 已于 2026-10-18 转正（见下方「Promote」条），同日 `QA_CHECKLIST.md` 里那条
+> `[RELEASE-BLOCKER] … must not ship` 的说明也已一并删掉：它会告诉下一个人删掉一个
+> 能用的功能。**本节留在这里是给未来的临时面用的** —— 新增临时面必须登记在此，
+> 否则发布时没人知道该删什么。
+>
+> 转正之后，它的验收用例也归入正典：2026-10-22 补完了 H13 / H14 / H15 / H19 四条
+> （H14 的泄漏项第一次拿到真数据），并因此**发现并修掉一个真实缺陷**：工具卡在历史恢复
+> 后会消失 —— 聊天页里那次工具调用整个不见，Web 端被拍平成一行字。见 `QA_CHECKLIST.md`
+> H26 与下方「Bugs」条。
 
 - [x] ~~Claude UI design-review surface~~ **已转为功能入口**。原先记为「无产品价值、纯设计评审、
   不得随发布」，但 B 方案落地后它驱动的是真实任务流（见下方「Promote」条）。
