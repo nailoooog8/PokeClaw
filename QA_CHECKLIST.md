@@ -51,6 +51,43 @@ of assertions if you do not know about it:
   builds, otherwise the app can never be updated in place.
 - **`adb input text` cannot type non-ASCII.** Prompts on this device have to be
   English, or the script has to inject text another way.
+- **`am force-stop` revokes the Accessibility Service on this device too.** After
+  `adb shell am force-stop io.agents.pokeclaw`, `settings get secure
+  enabled_accessibility_services` returns null and `accessibility_enabled`
+  returns 0. `BACKLOG.md` records this as *Pixel-specific*; it is not — this
+  vivo/iQOO device does it as well. Any QA run that force-stops the app (the
+  H22 process-death case, for instance) silently loses the service, and every
+  subsequent task-mode case then fails with "Task mode needs Accessibility
+  Service enabled. Opening Settings...". **Re-enable before continuing**, and
+  note that `adb shell settings put secure accessibility_enabled 1` +
+  `enabled_accessibility_services <component>` works from the shell uid here
+  (no UI walk needed) — verify with `dumpsys accessibility | grep "Enabled
+  services"`.
+- **Two different permissions, two different failure modes.** Accessibility
+  Service and 通知使用权 (notification listener) are separate. A task needing
+  notifications fails on the *second* even when the first is on, and the tool
+  reports it honestly (`Get Notifications → Notification Access is not
+  enabled. Ask the user to enable it in Settings.`) rather than pretending
+  success — so a red tool card here is correct behaviour, not a defect.
+- **Enter does not send on the Compose chat page — the opposite of the WebView
+  preview.** The composer is a multi-line `EditText`, so Enter inserts a
+  newline (and leaves a leading `
+` in the field). Send by tapping the FAB.
+  On the Claude UI preview page it is the reverse: there Enter sends and the
+  orange button is the unreliable one. Do not carry a habit from one surface to
+  the other.
+- **`KEYCODE_DEL` does not clear a prefilled Compose field.** Tapping a Quick
+  Task fills the composer programmatically (`prefillText`), and DEL keyevents
+  have no effect on it. There is no reliable way to empty it from adb — start a
+  new task instead of trying to edit the prefilled one.
+- **The chat page's layout is not stable, and coordinate taps miss because of
+  it.** The Quick Tasks panel expands/collapses and the IME appears/disappears,
+  and each change moves the tabs, the input field and the send FAB by ~1000 px.
+  A tap aimed at one layout frequently lands in another. **The reliable recipe
+  is: act → dismiss the keyboard with BACK → re-read the node bounds with
+  uiautomator → tap.** Sending while the keyboard is up is the single most
+  common cause of a silently dropped message: the tap dismisses the IME, the
+  layout recomputes, and the button is no longer where it was.
 
 ### Pre-Tag Release Smoke — MANDATORY before pushing any vX.Y.Z tag
 
@@ -744,15 +781,35 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 
 ## E. Local LLM — Task Mode (v9: unified chat screen)
 
-- [ ] **E1. Task mode via toggle**: Local tab → tap 🤖 Task → input placeholder changes to "Describe a phone task...", input area tints orange
-- [ ] **E2. Task mode via Quick Task tap**: tap "🔋 How much battery left?" in Quick Tasks → input fills + auto-switches to Task mode
+- [x] **E1. Task mode via toggle [PASS — 2026-10-23]**: Local tab → tap 🤖 Task → input placeholder changes to "Describe a phone task...", input area tints orange
+  - ✅ **判据是量出来的，不是认出来的**：任务模式下输入框占位符变成「描述一个手机操作任务…」（`chat_hint_phone_task`），且输入框边框由聊天模式的灰 `(50,43,40)` 变为任务模式的橙 `(141,90,65)`；聚焦后进一步增强为 `(218,137,99)`（`colors.accent` 全不透明）。两个信号都在同一像素点、两个已知状态间受控 A/B 得到——**不靠 OCR 小字**（H24 那桩 `设备截图` 误读的教训）。
+  - ⚠️ **占位符只在输入框为空时可见**。Compose 的 placeholder 不进无障碍树，所以带文本时读不到它——这也是为什么必须用边框色做带文本时的判据。
+- [x] **E2. Task mode via Quick Task tap [PASS — 2026-10-23]**: tap a Quick Task → input fills + auto-switches to Task mode
+  - ✅ 同一套判据：点模板后输入框被填上**且**边框由灰转橙、占位符变为任务模式文案。
+  - ✅ **任务模式跨发送保持**：连续 4 次发送后占位符仍是任务模式文案。这对 E2 是必要的——否则用户点一次模板、之后每次手打都要重切。
 - [ ] **E3. Monitor via Quick Tasks panel**: scroll to BACKGROUND → tap Monitor card → centered dialog → enter contact → Start → monitoring activates
-- [ ] **E4. Task sends correctly**: type "how much battery left" in Task mode → tap send → task executes, response in chat bubble
+- [x] **E4. Task sends correctly [PASS — 2026-10-23]**: type a task in Task mode → tap send → task executes, response in chat bubble
+  - ✅ 设备 `10AG4J1THX00524` / V2502DA / 411 dp，release 包 `PokeClaw_v0.8.3_20261023_150757.apk`（versionCode 39，`adb install -r` Success）。**4 次任务全部跑通**：
+    | 任务 | 工具卡 | 最终回答 |
+    |---|---|---|
+    | 手机上安装了哪些应用？ | `获取应用列表 → Found 137 apps: …` | ✅ 带模型页脚 |
+    | 检查通知栏 | `Get Notifications → Notification Access is not enabled…` | ✅ 如实说明权限缺失 |
+    | List all installed apps | `Found 137 apps: …` | ✅ |
+    | What is the battery level | （见下方 ⚠️） | ✅ `Battery: 91%, charging, 32.0°C` |
+  - ✅ **模型拿到的是真数据**：`adb shell dumpsys battery` 实测 `level: 91`、`status: 2`（充电中）、`temperature: 315`（31.5°C），与模型回答的 91% / charging 一致（温度差 0.5–1.5°C，疑为不同传感器或取整）。
+  - ⚠️ **一条未解释的异常**：手打的 `Check sthe battery level…`（3:27）走的是**聊天路**——没有工具卡，模型页脚格式是 `gemma-4-E2B-it (CPU)`，而任务路是 `Gemma 4 E2B — 2.6GB`。此后又连续 4 次证明任务模式会保持，所以最可能是**布局跳动期间点到了「💬 对话」tab**（当时快捷任务面板与输入法反复重排版，见下方操作坑），但**这只是假设，不是结论**——没有复现，也没有日志可查（本机看不到应用日志，见上文 Device Notes）。
+  - ⚠️ **电池那条没有工具卡**：模型确实调了工具（电量数值为真），但消息列表里既无系统行也无工具卡。原因未查。
 
 ## F. Task Lifecycle UI
 
-- [ ] **F1. Top bar during task**: while task runs → orange "Task running..." + red "Stop" button visible
-- [ ] **F2. Send button becomes stop**: while task runs → send button turns red X → tapping it cancels task
+- [ ] **F1. Top bar during task — 与实现不符，条目本身要改**: 原文写「while task runs → orange 'Task running...' + red 'Stop' button visible」。
+  - ❌ **顶部条里没有这个元素**。`ChatTopBar`（`ChatScreen.kt:409`）只有标题「PokeClaw」、菜单图标、本地/云端两个 tab——没有任何运行中指示。**唯一的中止控件是发送键（FAB）**：`isTaskRunning` 为真时 `containerColor` 变 `Color(0xFFF44336)`、图标变 `Icons.Default.Close`、`contentDescription` 变「停止」（`ChatScreen.kt:1074-1092`）。
+  - **所以 F1 描述的是一个不存在的 UI**，F2 才是对的那条。本条应改写为「顶部条不变，停止控件在发送键」，否则下一个人会去找一个不存在的东西。
+- [ ] **F2. Send button becomes stop — 代码已接通，真机未观测到**: while task runs → send button turns red X → tapping it cancels task
+  - **代码侧已核实**：`TaskFlowController` 在 `LoopStart` / `ToolAction` / `ToolResult` / `Progress` 四个事件上都置 `sink.taskRunning = true`（`TaskFlowController.kt:383/398/422/427`），经 `TaskFlowUiState(taskRunningState = _isTaskRunning)` 写到 `ComposeChatActivity._isTaskRunning`，再以 `isTaskRunning = _isTaskRunning.value` 喂给 `ChatScreen`。
+  - ⚠️ **真机未观测到，不得记 PASS**：4 次任务、累计约 4 分钟采样（`adb exec-out screencap` 每 0.3–0.4s 一帧，覆盖发送前后各数十秒），FAB **从未**变成红色。
+  - ✅ **采样点本身是对的**（排除了「我测错地方」）：同一像素点 `(1178,2627)` 的受控 A/B —— 空输入时 `(105,102,99)`（`colors.background` + alpha 0.35），任务模式有文本时 `(218,137,99)`（accent 橙）。FAB 确实会随状态变色，只是运行中没变红。
+  - ⚠️ **两种可能未能区分**：①`_isTaskRunning` 真的没传到 UI（真缺陷，用户无法中止任务）；②窗口太短——实测电池类任务**端到端不到 2 秒**（发送后第一帧采样就已看到回答），红色态可能只存在几百毫秒。**要区分需要一个人为拖长的任务**（例如让 watchdog 跑起来，或一个必然多轮的任务），本次没做。
 - [ ] **F3. Floating button during task**: while task runs in another app → floating circle shows pill with step/tokens + "Tap to stop"
 - [ ] **F4. Floating button stop**: tap floating button during task → task cancels
 - [ ] **F5. Second task works**: complete task 1 → start task 2 → floating button, top bar, stop button all work
