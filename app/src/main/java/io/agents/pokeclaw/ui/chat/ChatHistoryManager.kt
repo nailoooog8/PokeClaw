@@ -40,6 +40,13 @@ object ChatHistoryManager {
     private val TOOL_LINE = Regex("^-\\s*([✓○])\\s*(.+)$")
     private const val TOOL_ARROW = "→"
     private const val TOOL_ICON_OK = "✓"
+
+    /**
+     * Markers that fence a message body which the line-oriented reader would
+     * otherwise misread as structure. See [appendBody].
+     */
+    private const val BODY_OPEN = "<<< pokeclaw-body"
+    private const val BODY_CLOSE = ">>> pokeclaw-body"
     private val frontmatterDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
 
     data class ConversationSummary(
@@ -70,14 +77,7 @@ object ChatHistoryManager {
         val file = File(getChatDir(context), fileName)
 
         val sb = StringBuilder()
-        // Frontmatter
-        sb.appendLine("---")
-        sb.appendLine("id: $conversationId")
-        sb.appendLine("title: ${firstUserMsg?.content?.take(80) ?: "Untitled"}")
-        sb.appendLine("created: ${SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date(messages.first().timestamp))}")
-        sb.appendLine("model: $model")
-        sb.appendLine("---")
-        sb.appendLine()
+        appendFrontmatter(sb, conversationId, firstUserMsg?.content, messages.first().timestamp, model)
 
         // Messages
         messages.forEach { msg ->
@@ -85,7 +85,7 @@ object ChatHistoryManager {
                 ChatMessage.Role.USER -> {
                     sb.appendLine("## User")
                     sb.appendLine(serializeTimestamp(msg.timestamp))
-                    sb.appendLine(msg.content)
+                    appendBody(sb, msg.content)
                     sb.appendLine()
                 }
                 ChatMessage.Role.ASSISTANT -> {
@@ -95,19 +95,19 @@ object ChatHistoryManager {
                         sb.appendLine("## 🦞 Assistant")
                     }
                     sb.appendLine(serializeTimestamp(msg.timestamp))
-                    sb.appendLine(msg.content)
+                    appendBody(sb, msg.content)
                     sb.appendLine()
                 }
                 ChatMessage.Role.SYSTEM -> {
                     sb.appendLine("## System")
                     sb.appendLine(serializeTimestamp(msg.timestamp))
-                    sb.appendLine(msg.content)
+                    appendBody(sb, msg.content)
                     sb.appendLine()
                 }
                 ChatMessage.Role.TOOL_GROUP -> {
                     sb.appendLine("## Tools")
                     sb.appendLine(serializeTimestamp(msg.timestamp))
-                    toolGroupLines(msg).forEach { sb.appendLine(it) }
+                    appendBody(sb, toolGroupLines(msg).joinToString("\n"))
                     sb.appendLine()
                 }
             }
@@ -143,8 +143,15 @@ object ChatHistoryManager {
         var currentModelName: String? = null
         var currentTimestamp: Long? = null
         val contentBuilder = StringBuilder()
+        // Non-null while inside a fenced body: everything up to the matching
+        // close marker is message text, verbatim.
+        var bodyClose: String? = null
 
         for (line in lines) {
+            if (bodyClose != null) {
+                if (line == bodyClose) bodyClose = null else contentBuilder.appendLine(line)
+                continue
+            }
             if (line == "---") {
                 if (!inFrontmatter) { inFrontmatter = true; continue }
                 else { inFrontmatter = false; continue }
@@ -187,6 +194,12 @@ object ChatHistoryManager {
                 }
                 currentRole != null && line.startsWith(MESSAGE_TIMESTAMP_PREFIX) -> {
                     currentTimestamp = parseMessageTimestamp(line)
+                }
+                // A fenced body starts here. Recognised only at the start of a
+                // body (nothing accumulated yet) so an ordinary content line
+                // that happens to look like the marker is left alone.
+                currentRole != null && contentBuilder.isEmpty() && line.startsWith(BODY_OPEN) -> {
+                    bodyClose = BODY_CLOSE + line.removePrefix(BODY_OPEN)
                 }
                 else -> {
                     if (currentRole != null && line.isNotBlank()) {
@@ -289,6 +302,104 @@ object ChatHistoryManager {
             val icon = if (step.success) "✓" else "○"
             "- $icon ${step.toolName.oneLine()} → ${step.summary.oneLine()}"
         }
+    }
+
+    /**
+     * The `---` … `---` header block.
+     *
+     * Every value goes through [oneLine]. The title is the first user message,
+     * so it is user- and model-controlled: written raw, a newline in it
+     * continues the frontmatter — a `---` line would close the block early,
+     * and an `id: …` line would be read back as the conversation id, which is
+     * how the preview surface finds its own history. A forged id means that
+     * lookup silently stops matching and the history stops restoring.
+     *
+     * Internal rather than private so it can be exercised without an Android
+     * context; only [save] needs one.
+     */
+    internal fun appendFrontmatter(
+        sb: StringBuilder,
+        conversationId: String,
+        firstUserContent: String?,
+        createdMillis: Long,
+        model: String,
+    ) {
+        sb.appendLine("---")
+        sb.appendLine("id: ${conversationId.oneLine()}")
+        sb.appendLine("title: ${firstUserContent?.take(80)?.oneLine() ?: "Untitled"}")
+        sb.appendLine(
+            "created: " + SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+                .format(Date(createdMillis))
+        )
+        sb.appendLine("model: ${model.oneLine()}")
+        sb.appendLine("---")
+        sb.appendLine()
+    }
+
+    /**
+     * Write a message body, fencing it when the reader would misread it.
+     *
+     * The transcript is line-oriented: `load()` decides what a line *is* from
+     * the line itself — `---` toggles the frontmatter, `## User` / `## 🦞
+     * Assistant` / `## System` / `## Tools` start a message, and the
+     * `<!-- pokeclaw:timestamp=` prefix carries a timestamp. A model answer
+     * containing any of those as its own line was therefore read back as
+     * structure: `---` swallowed every following line as frontmatter, and a
+     * `## User` line split one message into two and shifted the rest of the
+     * transcript. The content is model-generated, so this is reachable rather
+     * than theoretical.
+     *
+     * Bodies that contain none of those lines are written exactly as before —
+     * no marker, no change for the ordinary conversation. Only a dangerous
+     * body pays for a fence, which keeps existing files readable by humans
+     * and keeps the unfenced path exercised on every load.
+     *
+     * The marker pair is chosen so that neither line occurs in the body: if
+     * the content contains the marker itself, a numbered variant is used. A
+     * fenced body is read back verbatim, so no escaping is needed and nothing
+     * can be lost. Files written before this existed carry no marker, and the
+     * reader still accepts them — including their dangerous lines, which is
+     * the pre-existing behaviour, not a regression.
+     *
+     * Internal rather than private so the writer can be exercised without an
+     * Android context: only [save] needs one (disk plus a SQLite index), and
+     * this writes to a [StringBuilder].
+     */
+    internal fun appendBody(sb: StringBuilder, content: String) {
+        if (!bodyNeedsFence(content)) {
+            sb.append(content)
+            sb.appendLine()
+            return
+        }
+        val (open, close) = bodyMarkerPair(content)
+        sb.appendLine(open)
+        sb.append(content)
+        sb.appendLine()
+        sb.appendLine(close)
+    }
+
+    private fun bodyNeedsFence(content: String) = content.lines().any { line ->
+        line == "---" ||
+            line.startsWith("## User") ||
+            line.startsWith("## 🦞 Assistant") ||
+            line.startsWith("## System") ||
+            line.startsWith("## Tools") ||
+            line.startsWith(MESSAGE_TIMESTAMP_PREFIX)
+    }
+
+    /**
+     * The marker pair to use for a body: the plain one unless the body
+     * contains either marker line, in which case a numbered variant it does
+     * not contain. Without this the fence would close on the body's own text
+     * and the rest of the message would be read as structure again.
+     */
+    private fun bodyMarkerPair(content: String): Pair<String, String> {
+        val bodyLines = content.lines()
+        var suffix = ""
+        while (bodyLines.any { it == BODY_OPEN + suffix || it == BODY_CLOSE + suffix }) {
+            suffix = "-" + ((suffix.removePrefix("-").toIntOrNull() ?: 0) + 1)
+        }
+        return BODY_OPEN + suffix to BODY_CLOSE + suffix
     }
 
     /**
